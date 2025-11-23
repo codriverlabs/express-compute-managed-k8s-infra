@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-spot-workload
+  labels:
+    app: test-spot-workload
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-spot-workload
+  template:
+    metadata:
+      labels:
+        app: test-spot-workload
+    spec:
+      # Tolerate spot instance taint
+      tolerations:
+        - key: spot-instance
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      
+      # Prefer spot nodes
+      nodeSelector:
+        node-type: "spot"
+      
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-ondemand-workload
+  labels:
+    app: test-ondemand-workload
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-ondemand-workload
+  template:
+    metadata:
+      labels:
+        app: test-ondemand-workload
+    spec:
+      # Prefer on-demand nodes
+      nodeSelector:
+        node-type: "ondemand"
+      
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+---
+# Service to expose the workloads
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-workload-service
+spec:
+  selector:
+    app: test-spot-workload
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP

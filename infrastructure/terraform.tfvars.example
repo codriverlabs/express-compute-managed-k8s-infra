@@ -1,0 +1,19 @@
+# Copy this file to terraform.tfvars and customize for each team member
+
+# Team member identifier (lowercase, no spaces)
+team_member_name = "john-doe"
+
+# AWS region
+aws_region = "us-east-1"
+
+# EC2 Key Pair name (must exist in the region)
+key_pair_name = "my-key-pair"
+
+# Control plane instance type (t3.medium recommended minimum)
+control_plane_instance_type = "t3.medium"
+
+# SSH access CIDR (restrict to your IP for security)
+ssh_cidr_block = "0.0.0.0/0"
+
+# Optional: Custom cluster name (defaults to {team_member_name}-eks-d)
+# cluster_name = "custom-cluster-name"

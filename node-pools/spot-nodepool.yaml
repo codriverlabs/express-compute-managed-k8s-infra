@@ -1,0 +1,103 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: spot-nodepool
+spec:
+  # Template for nodes
+  template:
+    metadata:
+      labels:
+        node-type: "spot"
+        provisioner: "karpenter"
+    spec:
+      # Instance requirements
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["t3.medium", "t3.large", "t3.xlarge", "m5.large", "m5.xlarge", "c5.large", "c5.xlarge"]
+      
+      # Node class reference
+      nodeClassRef:
+        apiVersion: karpenter.k8s.aws/v1beta1
+        kind: EC2NodeClass
+        name: spot-nodeclass
+      
+      # Taints for spot instances (optional)
+      taints:
+        - key: spot-instance
+          value: "true"
+          effect: NoSchedule
+
+  # Scaling limits
+  limits:
+    cpu: 1000
+    memory: 1000Gi
+
+  # Disruption settings
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    consolidateAfter: 30s
+    expireAfter: 2160h # 90 days
+
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: spot-nodeclass
+spec:
+  # AMI selection
+  amiFamily: AL2
+  
+  # Instance profile (from Terraform)
+  instanceProfile: "REPLACE_WITH_INSTANCE_PROFILE_NAME"
+  
+  # Subnets (from Terraform - will be auto-discovered by tags)
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "REPLACE_WITH_CLUSTER_NAME"
+  
+  # Security groups (from Terraform - will be auto-discovered by tags)
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "REPLACE_WITH_CLUSTER_NAME"
+  
+  # User data for worker nodes
+  userData: |
+    #!/bin/bash
+    /etc/eks/bootstrap.sh REPLACE_WITH_CLUSTER_NAME
+    
+    # Install additional tools
+    yum update -y
+    yum install -y htop
+    
+    # Configure CloudWatch agent (optional)
+    # wget https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+    # rpm -U ./amazon-cloudwatch-agent.rpm
+
+  # Block device mappings
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+
+  # Instance metadata options
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+
+  # Tags for instances
+  tags:
+    Name: "karpenter-spot-node"
+    Environment: "development"
+    ManagedBy: "karpenter"
