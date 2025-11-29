@@ -1,0 +1,468 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EKS-D Single Node Control Plane with Karpenter'
+
+Parameters:
+  TeamMemberName:
+    Type: String
+    Description: Team member name for resource naming
+    AllowedPattern: ^[a-z0-9-]+$
+  
+  ClusterName:
+    Type: String
+    Description: EKS-D cluster name (optional, defaults to {TeamMemberName}-eks-d)
+    Default: ''
+  
+  ControlPlaneInstanceType:
+    Type: String
+    Default: t3.medium
+    Description: EC2 instance type for control plane
+  
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access
+  
+  SSHCidrBlock:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR block allowed for SSH access
+
+Conditions:
+  UseDefaultClusterName: !Equals [!Ref ClusterName, '']
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-eks-d-vpc'
+        - Key: !Sub 'kubernetes.io/cluster/${ClusterNameValue}'
+          Value: owned
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-eks-d-igw'
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Subnets
+  ControlPlaneSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-control-plane-subnet'
+        - Key: !Sub 'kubernetes.io/cluster/${ClusterNameValue}'
+          Value: owned
+        - Key: kubernetes.io/role/elb
+          Value: '1'
+
+  WorkerSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-worker-subnet-1'
+        - Key: !Sub 'kubernetes.io/cluster/${ClusterNameValue}'
+          Value: owned
+        - Key: kubernetes.io/role/internal-elb
+          Value: '1'
+        - Key: karpenter.sh/discovery
+          Value: !If [UseDefaultClusterName, !Sub '${TeamMemberName}-eks-d', !Ref ClusterName]
+
+  WorkerSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-worker-subnet-2'
+        - Key: !Sub 'kubernetes.io/cluster/${ClusterNameValue}'
+          Value: owned
+        - Key: kubernetes.io/role/internal-elb
+          Value: '1'
+        - Key: karpenter.sh/discovery
+          Value: !If [UseDefaultClusterName, !Sub '${TeamMemberName}-eks-d', !Ref ClusterName]
+
+  # NAT Gateway
+  NatEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-nat-eip'
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref ControlPlaneSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-nat-gw'
+
+  # Route Tables
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-public-rt'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ControlPlaneSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-private-rt'
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WorkerSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WorkerSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  # Security Groups
+  ControlPlaneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EKS-D control plane
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6443
+          ToPort: 6443
+          CidrIp: 0.0.0.0/0
+          Description: Kubernetes API server
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHCidrBlock
+          Description: SSH access
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-control-plane-sg'
+
+  ControlPlaneSecurityGroupIngressEtcd:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ControlPlaneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 2379
+      ToPort: 2380
+      SourceSecurityGroupId: !Ref ControlPlaneSecurityGroup
+      Description: etcd
+
+  ControlPlaneSecurityGroupIngressKubelet:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ControlPlaneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 10250
+      ToPort: 10250
+      SourceSecurityGroupId: !Ref ControlPlaneSecurityGroup
+      Description: Kubelet API
+
+  WorkerNodesSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for worker nodes
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          SourceSecurityGroupId: !Ref ControlPlaneSecurityGroup
+          Description: All traffic from control plane
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-worker-nodes-sg'
+        - Key: karpenter.sh/discovery
+          Value: !If [UseDefaultClusterName, !Sub '${TeamMemberName}-eks-d', !Ref ClusterName]
+
+  WorkerNodesSecurityGroupIngressSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref WorkerNodesSecurityGroup
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !Ref WorkerNodesSecurityGroup
+      Description: Node to node communication
+
+  # IAM Roles
+  ControlPlaneRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${TeamMemberName}-eks-d-control-plane-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-eks-d-control-plane-role'
+
+  KarpenterControllerPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${TeamMemberName}-karpenter-controller-policy'
+      Roles:
+        - !Ref ControlPlaneRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:CreateFleet
+              - ec2:CreateLaunchTemplate
+              - ec2:CreateTags
+              - ec2:DescribeAvailabilityZones
+              - ec2:DescribeImages
+              - ec2:DescribeInstances
+              - ec2:DescribeInstanceTypeOfferings
+              - ec2:DescribeInstanceTypes
+              - ec2:DescribeLaunchTemplates
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSpotPriceHistory
+              - ec2:DescribeSubnets
+              - ec2:RunInstances
+              - ec2:TerminateInstances
+              - pricing:GetProducts
+              - ssm:GetParameter
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - ec2:TerminateInstances
+              - ec2:DeleteLaunchTemplate
+            Resource: '*'
+            Condition:
+              StringEquals:
+                ec2:ResourceTag/karpenter.sh/cluster: !If [UseDefaultClusterName, !Sub '${TeamMemberName}-eks-d', !Ref ClusterName]
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource: !GetAtt WorkerNodeRole.Arn
+
+  WorkerNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${TeamMemberName}-eks-d-worker-node-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-eks-d-worker-node-role'
+
+  ControlPlaneInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${TeamMemberName}-eks-d-control-plane-profile'
+      Roles:
+        - !Ref ControlPlaneRole
+
+  WorkerNodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${TeamMemberName}-eks-d-worker-node-profile'
+      Roles:
+        - !Ref WorkerNodeRole
+
+  # EC2 Instance
+  ControlPlaneInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Sub '{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}'
+      InstanceType: !Ref ControlPlaneInstanceType
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref ControlPlaneSubnet
+      SecurityGroupIds:
+        - !Ref ControlPlaneSecurityGroup
+      IamInstanceProfile: !Ref ControlPlaneInstanceProfile
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 50
+            Encrypted: true
+        - DeviceName: /dev/sdf
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 20
+            Encrypted: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update
+          apt-get install -y curl wget unzip
+          
+          curl -fsSL https://get.docker.com -o get-docker.sh
+          sh get-docker.sh
+          usermod -aG docker ubuntu
+          
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          ./aws/install
+          
+          mkfs.ext4 /dev/nvme1n1
+          mkdir -p /var/lib/etcd
+          mount /dev/nvme1n1 /var/lib/etcd
+          echo '/dev/nvme1n1 /var/lib/etcd ext4 defaults 0 2' >> /etc/fstab
+          
+          mkdir -p /home/ubuntu/eks-d-setup
+          chown ubuntu:ubuntu /home/ubuntu/eks-d-setup
+          
+          cat > /home/ubuntu/cluster-info.txt << EOF
+          Cluster Name: ${ClusterNameValue}
+          Control Plane Instance: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+          Private IP: $(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+          Public IP: $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+          EOF
+          
+          chown ubuntu:ubuntu /home/ubuntu/cluster-info.txt
+      Tags:
+        - Key: Name
+          Value: !Sub '${TeamMemberName}-eks-d-control-plane'
+        - Key: !Sub 'kubernetes.io/cluster/${ClusterNameValue}'
+          Value: owned
+
+  ClusterNameValue:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/eks-d/${TeamMemberName}/cluster-name'
+      Type: String
+      Value: !If [UseDefaultClusterName, !Sub '${TeamMemberName}-eks-d', !Ref ClusterName]
+
+Outputs:
+  ControlPlaneInstanceId:
+    Description: ID of the control plane EC2 instance
+    Value: !Ref ControlPlaneInstance
+    Export:
+      Name: !Sub '${AWS::StackName}-ControlPlaneInstanceId'
+
+  ControlPlanePublicIP:
+    Description: Public IP of the control plane
+    Value: !GetAtt ControlPlaneInstance.PublicIp
+    Export:
+      Name: !Sub '${AWS::StackName}-ControlPlanePublicIP'
+
+  ControlPlanePrivateIP:
+    Description: Private IP of the control plane
+    Value: !GetAtt ControlPlaneInstance.PrivateIp
+    Export:
+      Name: !Sub '${AWS::StackName}-ControlPlanePrivateIP'
+
+  ClusterName:
+    Description: Name of the EKS-D cluster
+    Value: !If [UseDefaultClusterName, !Sub '${TeamMemberName}-eks-d', !Ref ClusterName]
+    Export:
+      Name: !Sub '${AWS::StackName}-ClusterName'
+
+  VpcId:
+    Description: ID of the VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VpcId'
+
+  WorkerSubnetIds:
+    Description: IDs of worker node subnets
+    Value: !Sub '${WorkerSubnet1},${WorkerSubnet2}'
+    Export:
+      Name: !Sub '${AWS::StackName}-WorkerSubnetIds'
+
+  WorkerSecurityGroupId:
+    Description: ID of worker nodes security group
+    Value: !Ref WorkerNodesSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-WorkerSecurityGroupId'
+
+  WorkerNodeInstanceProfile:
+    Description: Instance profile for worker nodes
+    Value: !Ref WorkerNodeInstanceProfile
+    Export:
+      Name: !Sub '${AWS::StackName}-WorkerNodeInstanceProfile'
+
+  SSHCommand:
+    Description: SSH command to connect to control plane
+    Value: !Sub 'ssh -i ~/.ssh/${KeyPairName}.pem ubuntu@${ControlPlaneInstance.PublicIp}'
+
+  KubeconfigEndpoint:
+    Description: Kubernetes API endpoint
+    Value: !Sub 'https://${ControlPlaneInstance.PublicIp}:6443'

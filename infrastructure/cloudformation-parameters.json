@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "TeamMemberName",
+    "ParameterValue": "your-name"
+  },
+  {
+    "ParameterKey": "ClusterName",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "ControlPlaneInstanceType",
+    "ParameterValue": "t3.medium"
+  },
+  {
+    "ParameterKey": "KeyPairName",
+    "ParameterValue": "your-key-pair"
+  },
+  {
+    "ParameterKey": "SSHCidrBlock",
+    "ParameterValue": "0.0.0.0/0"
+  }
+]
