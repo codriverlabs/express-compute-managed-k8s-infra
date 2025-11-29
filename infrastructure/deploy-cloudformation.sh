@@ -4,6 +4,19 @@ set -e
 STACK_NAME="${1:-eks-d-stack}"
 REGION="${2:-us-east-1}"
 
+echo "Validating CloudFormation template..."
+aws cloudformation validate-template \
+  --template-body file://cloudformation-template.yaml \
+  --region "$REGION"
+
+if [ $? -eq 0 ]; then
+  echo "✓ Template validation successful"
+else
+  echo "✗ Template validation failed"
+  exit 1
+fi
+
+echo ""
 echo "Deploying CloudFormation stack: $STACK_NAME in region: $REGION"
 
 aws cloudformation deploy \
