@@ -62,7 +62,7 @@ aws cloudformation create-stack \
     ParameterKey=DeveloperName,ParameterValue=alice \
     ParameterKey=SubnetIndex,ParameterValue=1 \
     ParameterKey=KeyPairName,ParameterValue=my-key-pair \
-    ParameterKey=ControlPlaneInstanceType,ParameterValue=t3.medium \
+    ParameterKey=ControlPlaneInstanceType,ParameterValue=t4a.large \
   --capabilities CAPABILITY_NAMED_IAM \
   --region us-east-1
 ```
@@ -77,7 +77,7 @@ aws cloudformation create-stack \
     ParameterKey=DeveloperName,ParameterValue=bob \
     ParameterKey=SubnetIndex,ParameterValue=2 \
     ParameterKey=KeyPairName,ParameterValue=my-key-pair \
-    ParameterKey=ControlPlaneInstanceType,ParameterValue=t3.medium \
+    ParameterKey=ControlPlaneInstanceType,ParameterValue=t4a.large \
   --capabilities CAPABILITY_NAMED_IAM \
   --region us-east-1
 ```
