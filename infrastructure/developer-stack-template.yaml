@@ -419,7 +419,7 @@ Resources:
   ControlPlaneInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !Sub '{{resolve:ssm:/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id}}'
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
       InstanceType: !Ref ControlPlaneInstanceType
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnet
@@ -440,31 +440,26 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          apt-get update
-          apt-get install -y curl wget unzip
-          
-          curl -fsSL https://get.docker.com -o get-docker.sh
-          sh get-docker.sh
-          usermod -aG docker ubuntu
+          dnf update -y
+          dnf install -y docker
+          systemctl enable docker
+          systemctl start docker
+          usermod -aG docker ec2-user
           
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
           install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
           
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          ./aws/install
-          
           mkfs.ext4 /dev/nvme1n1
           mkdir -p /var/lib/etcd
           mount /dev/nvme1n1 /var/lib/etcd
           echo '/dev/nvme1n1 /var/lib/etcd ext4 defaults 0 2' >> /etc/fstab
           
-          mkdir -p /home/ubuntu/eks-d-setup
-          chown ubuntu:ubuntu /home/ubuntu/eks-d-setup
+          mkdir -p /home/ec2-user/eks-d-setup
+          chown ec2-user:ec2-user /home/ec2-user/eks-d-setup
           
-          cat > /home/ubuntu/cluster-info.txt << EOF
+          cat > /home/ec2-user/cluster-info.txt << EOF
           Cluster Name: ${ClusterNameValue}
           Developer: ${DeveloperName}
           Control Plane Instance: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)
@@ -474,7 +469,7 @@ Resources:
           Public Subnet: ${PublicSubnet}
           EOF
           
-          chown ubuntu:ubuntu /home/ubuntu/cluster-info.txt
+          chown ec2-user:ec2-user /home/ec2-user/cluster-info.txt
       Tags:
         - Key: Name
           Value: !Sub '${DeveloperName}-eks-d-control-plane'
@@ -552,7 +547,7 @@ Outputs:
 
   SSHCommand:
     Description: SSH command to connect to control plane
-    Value: !Sub 'ssh -i ~/.ssh/${KeyPairName}.pem ubuntu@${ControlPlaneEIP}'
+    Value: !Sub 'ssh -i ~/.ssh/${KeyPairName}.pem ec2-user@${ControlPlaneEIP}'
 
   KubeconfigEndpoint:
     Description: Kubernetes API endpoint
