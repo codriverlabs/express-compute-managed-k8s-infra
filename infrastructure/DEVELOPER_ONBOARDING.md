@@ -101,7 +101,7 @@ Each developer gets:
 - **Elastic IP**: Static IP for SSH access
 
 ### Compute
-- **Control Plane**: t4a.large instance
+- **Control Plane**: t4g.large instance
 - **Worker Nodes**: Managed by Karpenter (Spot instances)
 
 ### Security
@@ -161,7 +161,7 @@ aws ec2 stop-instances \
 
 ### Your Monthly Costs
 
-- **Control Plane** (t4a.large): ~$10.75/month (8h/day, 5 days/week)
+- **Control Plane** (t4g.large): ~$10.75/month (8h/day, 5 days/week)
 - **Elastic IP** (when stopped): ~$2.48/month
 - **EBS Volumes**: ~$5/month
 - **Worker Nodes**: Pay only when running (Spot pricing)

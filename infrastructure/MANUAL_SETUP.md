@@ -44,7 +44,7 @@ aws cloudformation create-stack \
     ParameterKey=DeveloperName,ParameterValue=YOUR_NAME \
     ParameterKey=SubnetIndex,ParameterValue=1 \
     ParameterKey=KeyPairName,ParameterValue=YOUR_KEY_PAIR \
-    ParameterKey=ControlPlaneInstanceType,ParameterValue=t4a.large \
+    ParameterKey=ControlPlaneInstanceType,ParameterValue=t4g.large \
     ParameterKey=EnableUserData,ParameterValue=false \
   --capabilities CAPABILITY_NAMED_IAM \
   --region us-east-1
