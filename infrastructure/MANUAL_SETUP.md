@@ -168,15 +168,69 @@ kubectl apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.20.
 # Wait for CNI pods
 kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=300s
 
-# Untaint control plane to allow scheduling
-kubectl taint nodes --all node-role.kubernetes.io/control-plane-
-
 # Verify
-kubectl get nodes
 kubectl get pods -n kube-system -l k8s-app=aws-node
 ```
 
-## Step 10: Install Karpenter 1.8.2
+## Step 10: Install CoreDNS
+
+```bash
+# Install CoreDNS
+kubectl apply -f https://raw.githubusercontent.com/coredns/deployment/master/kubernetes/coredns.yaml.sed
+
+# Or use specific version matching EKS
+kubectl apply -f https://raw.githubusercontent.com/coredns/deployment/master/kubernetes/deploy.sh | bash
+
+# Wait for CoreDNS pods
+kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
+
+# Verify
+kubectl get pods -n kube-system -l k8s-app=kube-dns
+```
+
+## Step 11: Install EBS CSI Driver
+
+```bash
+# Install EBS CSI Driver v1.53.0
+kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.53"
+
+# Wait for CSI controller
+kubectl wait --for=condition=ready pod -l app=ebs-csi-controller -n kube-system --timeout=300s
+
+# Verify
+kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver
+
+# Create default storage class
+cat <<EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+EOF
+
+# Verify storage class
+kubectl get storageclass
+```
+
+## Step 12: Untaint Control Plane
+
+```bash
+# Allow pods to schedule on control plane
+kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+
+# Verify node is ready
+kubectl get nodes
+```
+
+## Step 13: Install Karpenter 1.8.2
 
 ```bash
 # Set environment variables
@@ -212,7 +266,7 @@ kubectl get pods -n karpenter
 kubectl logs -n karpenter -l app.kubernetes.io/name=karpenter
 ```
 
-## Step 11: Create Karpenter NodePool
+## Step 14: Create Karpenter NodePool
 
 ```bash
 # Get subnet and security group IDs
@@ -284,7 +338,7 @@ kubectl get nodepool
 kubectl get ec2nodeclass
 ```
 
-## Step 12: Test Karpenter
+## Step 15: Test Karpenter
 
 ```bash
 # Deploy test workload
@@ -331,7 +385,7 @@ kubectl scale deployment inflate --replicas=0
 kubectl get nodes -w
 ```
 
-## Step 13: Verify Security Isolation
+## Step 16: Verify Security Isolation
 
 ```bash
 # Check all resources have correct tags
@@ -386,9 +440,43 @@ kubectl get pods -n kube-system -l k8s-app=aws-node
 # Check CNI logs
 kubectl logs -n kube-system -l k8s-app=aws-node
 
+# Check CoreDNS
+kubectl get pods -n kube-system -l k8s-app=kube-dns
+kubectl logs -n kube-system -l k8s-app=kube-dns
+
 # Check pod networking
 kubectl run test-pod --image=busybox --restart=Never -- sleep 3600
 kubectl exec test-pod -- ping -c 3 8.8.8.8
+```
+
+### Storage issues
+
+```bash
+# Check EBS CSI driver
+kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver
+
+# Check CSI driver logs
+kubectl logs -n kube-system -l app=ebs-csi-controller
+
+# Check storage class
+kubectl get storageclass
+
+# Test PVC creation
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: gp3
+EOF
+
+kubectl get pvc test-pvc
 ```
 
 ## Next Steps
