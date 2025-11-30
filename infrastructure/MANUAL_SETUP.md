@@ -162,8 +162,8 @@ kubectl get nodes
 ## Step 9: Install CNI (AWS VPC CNI)
 
 ```bash
-# Install AWS VPC CNI
-kubectl apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.18.5/config/master/aws-k8s-cni.yaml
+# Install AWS VPC CNI v1.20.4
+kubectl apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.20.4/config/master/aws-k8s-cni.yaml
 
 # Wait for CNI pods
 kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=300s
