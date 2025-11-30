@@ -159,22 +159,21 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 kubectl get nodes
 ```
 
-## Step 9: Install CNI (Calico)
+## Step 9: Install CNI (AWS VPC CNI)
 
 ```bash
-# Install Calico
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/custom-resources.yaml
+# Install AWS VPC CNI
+kubectl apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.18.5/config/master/aws-k8s-cni.yaml
 
-# Wait for Calico pods
-kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n calico-system --timeout=300s
+# Wait for CNI pods
+kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=300s
 
 # Untaint control plane to allow scheduling
 kubectl taint nodes --all node-role.kubernetes.io/control-plane-
 
 # Verify
 kubectl get nodes
-kubectl get pods -A
+kubectl get pods -n kube-system -l k8s-app=aws-node
 ```
 
 ## Step 10: Install Karpenter 1.8.2
@@ -381,8 +380,11 @@ curl -k https://CONTROL_PLANE_IP:6443/healthz
 ### Network issues
 
 ```bash
-# Check Calico status
-kubectl get pods -n calico-system
+# Check AWS VPC CNI status
+kubectl get pods -n kube-system -l k8s-app=aws-node
+
+# Check CNI logs
+kubectl logs -n kube-system -l k8s-app=aws-node
 
 # Check pod networking
 kubectl run test-pod --image=busybox --restart=Never -- sleep 3600
