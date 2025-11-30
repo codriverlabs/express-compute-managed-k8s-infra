@@ -1,0 +1,23 @@
+# Test workspace
+test_workspace/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# CloudFormation
+*.swp
+*~
+
+# SSH keys
+*.pem
+
+# AWS credentials
+.aws/
+
+# IDE
+.vscode/
+.idea/
+*.iml
