@@ -25,7 +25,7 @@ Parameters:
 
   ControlPlaneInstanceType:
     Type: String
-    Default: t4a.large
+    Default: t4g.large
     Description: EC2 instance type for control plane
 
   KeyPairName:
@@ -558,7 +558,7 @@ Resources:
   ControlPlaneInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.12-arm64}}'
       InstanceType: !Ref ControlPlaneInstanceType
       KeyName: !Ref KeyPairName
       SubnetId: !Ref PublicSubnet
