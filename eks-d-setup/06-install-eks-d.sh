@@ -3,7 +3,7 @@ set -e
 
 # EKS-D version matching Kubernetes 1.33
 EKSD_VERSION="1-33"
-EKSD_RELEASE="1"
+EKSD_RELEASE="19"
 
 echo "Installing EKS-D (EKS Distro) ${EKSD_VERSION}..."
 
