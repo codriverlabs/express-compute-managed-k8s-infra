@@ -95,7 +95,7 @@ aws cloudformation create-stack \
     ParameterKey=DeveloperName,ParameterValue="$DEVELOPER_SIGNUM" \
     ParameterKey=SubnetIndex,ParameterValue="$SUBNET_INDEX" \
     ParameterKey=KeyPairName,ParameterValue="$KEY_PAIR_NAME" \
-    ParameterKey=ControlPlaneInstanceType,ParameterValue=t4a.large \
+    ParameterKey=ControlPlaneInstanceType,ParameterValue=t4g.large \
     ParameterKey=EnableUserData,ParameterValue="$ENABLE_USERDATA" \
   --capabilities CAPABILITY_NAMED_IAM \
   --region "$REGION"
