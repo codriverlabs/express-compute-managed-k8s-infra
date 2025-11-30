@@ -1,30 +1,38 @@
 #!/bin/bash
 set -e
 
-# Usage: ./deploy-developer.sh <developer-signum> <subnet-index> <key-pair-name> [enable-userdata]
+# Usage: ./deploy-developer.sh <developer-signum> <subnet-index> [key-pair-name] [enable-userdata]
 
-if [ $# -lt 3 ]; then
-  echo "Usage: $0 <developer-signum> <subnet-index> <key-pair-name> [enable-userdata]"
+if [ $# -lt 2 ]; then
+  echo "Usage: $0 <developer-signum> <subnet-index> [key-pair-name] [enable-userdata]"
   echo ""
   echo "Arguments:"
   echo "  developer-signum  : Developer name (lowercase, hyphens only)"
   echo "  subnet-index      : Unique subnet index (1-50)"
-  echo "  key-pair-name     : EC2 key pair name"
+  echo "  key-pair-name     : EC2 key pair name (optional, auto-generates if not provided)"
   echo "  enable-userdata   : true or false (default: false for manual testing)"
   echo ""
-  echo "Example:"
-  echo "  $0 alice 1 my-key-pair false"
+  echo "Examples:"
+  echo "  $0 alice 1                          # Auto-generate key pair"
+  echo "  $0 alice 1 my-key-pair false        # Use existing key pair"
+  echo "  $0 bob 2 bob-eks-d-key true         # Use existing key, enable user data"
   exit 1
 fi
 
 DEVELOPER_SIGNUM="$1"
 SUBNET_INDEX="$2"
-KEY_PAIR_NAME="$3"
+KEY_PAIR_NAME="${3:-${DEVELOPER_SIGNUM}-eks-d-key}"
 ENABLE_USERDATA="${4:-false}"
 REGION="${5:-us-east-1}"
 SHARED_VPC_STACK="${6:-eks-d-shared-vpc}"
 
 STACK_NAME="eks-d-${DEVELOPER_SIGNUM}"
+AUTO_GENERATE_KEY=false
+
+# Check if key pair name was auto-generated
+if [ $# -lt 3 ]; then
+  AUTO_GENERATE_KEY=true
+fi
 
 echo "=========================================="
 echo "Deploying Developer Stack"
@@ -63,10 +71,18 @@ echo ""
 # Check if key pair exists
 echo "Checking if key pair exists..."
 if ! aws ec2 describe-key-pairs --key-names "$KEY_PAIR_NAME" --region "$REGION" &>/dev/null; then
-  echo "Error: Key pair '${KEY_PAIR_NAME}' not found in ${REGION}"
-  exit 1
+  if [ "$AUTO_GENERATE_KEY" = true ]; then
+    echo "Key pair not found. Auto-generating..."
+    ./generate-keypair.sh "$DEVELOPER_SIGNUM" "$REGION"
+    echo "✓ Key pair generated"
+  else
+    echo "Error: Key pair '${KEY_PAIR_NAME}' not found in ${REGION}"
+    echo "Run: ./generate-keypair.sh ${DEVELOPER_SIGNUM}"
+    exit 1
+  fi
+else
+  echo "✓ Key pair found"
 fi
-echo "✓ Key pair found"
 echo ""
 
 # Deploy stack
