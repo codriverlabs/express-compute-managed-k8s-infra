@@ -1,20 +1,38 @@
 #!/bin/bash
 set -e
 
+# Detect architecture
+ARCH=$(uname -m)
+case $ARCH in
+  x86_64)
+    ARCH="amd64"
+    ;;
+  aarch64)
+    ARCH="arm64"
+    ;;
+  *)
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+    ;;
+esac
+
+echo "Detected architecture: $ARCH"
+
 # EKS-D version matching Kubernetes 1.33
 EKSD_VERSION="1-33"
 EKSD_RELEASE="19"
 
-echo "Installing EKS-D (EKS Distro) ${EKSD_VERSION}..."
+echo "Installing EKS-D (EKS Distro) ${EKSD_VERSION} for ${ARCH}..."
 
 # Download EKS-D release manifest
 echo "Downloading EKS-D release manifest..."
 curl -sL "https://distro.eks.amazonaws.com/kubernetes-${EKSD_VERSION}/kubernetes-${EKSD_VERSION}-eks-${EKSD_RELEASE}.yaml" -o /tmp/eks-d-release.yaml
 
-# Extract component URLs
-KUBEADM_URL=$(grep -A 5 "name: kubeadm" /tmp/eks-d-release.yaml | grep "archive:" | awk '{print $2}')
-KUBELET_URL=$(grep -A 5 "name: kubelet" /tmp/eks-d-release.yaml | grep "archive:" | awk '{print $2}')
-KUBECTL_URL=$(grep -A 5 "name: kubectl" /tmp/eks-d-release.yaml | grep "archive:" | awk '{print $2}')
+# Extract component URLs for the detected architecture
+echo "Extracting ${ARCH} binaries..."
+KUBEADM_URL=$(grep -A 10 "name: kubeadm" /tmp/eks-d-release.yaml | grep "os: linux" -A 5 | grep "arch: ${ARCH}" -A 1 | grep "archive:" | awk '{print $2}')
+KUBELET_URL=$(grep -A 10 "name: kubelet" /tmp/eks-d-release.yaml | grep "os: linux" -A 5 | grep "arch: ${ARCH}" -A 1 | grep "archive:" | awk '{print $2}')
+KUBECTL_URL=$(grep -A 10 "name: kubectl" /tmp/eks-d-release.yaml | grep "os: linux" -A 5 | grep "arch: ${ARCH}" -A 1 | grep "archive:" | awk '{print $2}')
 
 echo "Downloading EKS-D binaries..."
 echo "  kubeadm: ${KUBEADM_URL}"
