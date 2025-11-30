@@ -50,7 +50,25 @@ aws cloudformation describe-stacks \
 
 ### Step 2: Deploy Per-Developer Stack
 
-Each developer needs a unique subnet index (0-99).
+Each developer needs a unique subnet index (1-50).
+
+**Using the deployment script (recommended):**
+
+```bash
+# For manual testing (no user data)
+./deploy-developer.sh alice 1 my-key-pair false
+
+# For automated deployment (with user data)
+./deploy-developer.sh bob 2 my-key-pair true
+```
+
+**Script parameters:**
+- `developer-signum`: Developer name (lowercase, hyphens only)
+- `subnet-index`: Unique number 1-50
+- `key-pair-name`: Your EC2 key pair name
+- `enable-userdata`: `true` for automated setup, `false` for manual testing
+
+**Manual CloudFormation (alternative):**
 
 **Developer 1 (alice):**
 ```bash

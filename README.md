@@ -38,10 +38,28 @@ ecp-single-node-eks-d/
 
 ## Quick Start
 
-1. **Deploy Infrastructure**: `cd infrastructure && terraform apply`
-2. **Install EKS-D**: `cd eks-d-setup && ./install.sh`
-3. **Deploy Karpenter**: `cd karpenter-config && kubectl apply -f .`
-4. **Create NodePools**: `cd node-pools && kubectl apply -f spot-nodepool.yaml`
+1. **Deploy Shared VPC**: 
+   ```bash
+   cd infrastructure
+   ./deploy-vpc.sh us-east-1
+   ```
+
+2. **Deploy Developer Stack**: 
+   ```bash
+   # For manual testing
+   ./deploy-developer.sh alice 1 my-key-pair false
+   
+   # For automated setup
+   ./deploy-developer.sh alice 1 my-key-pair true
+   ```
+
+3. **Manual Setup** (if user data disabled):
+   - SSH to instance
+   - Follow `infrastructure/MANUAL_SETUP.md`
+
+4. **Automated Setup** (if user data enabled):
+   - Wait for user data to complete (~10 minutes)
+   - SSH to instance and verify installation
 
 ## Cost Estimation
 
