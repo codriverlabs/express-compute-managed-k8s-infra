@@ -41,9 +41,9 @@ bash "${SCRIPT_DIR}/04-install-helm.sh"
 echo "Step 5/11: Preparing etcd volume..."
 bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
 
-# Step 6: Kubernetes
-echo "Step 6/11: Installing Kubernetes..."
-bash "${SCRIPT_DIR}/06-install-kubernetes.sh"
+# Step 6: EKS-D
+echo "Step 6/11: Installing EKS-D..."
+bash "${SCRIPT_DIR}/06-install-eks-d.sh"
 
 # Step 7: AWS VPC CNI
 echo "Step 7/11: Installing AWS VPC CNI..."
