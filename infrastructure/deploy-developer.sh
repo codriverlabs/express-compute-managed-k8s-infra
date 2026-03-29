@@ -26,6 +26,15 @@ ENABLE_USERDATA="${4:-false}"
 REGION="${5:-us-east-1}"
 SHARED_VPC_STACK="${6:-eks-d-shared-vpc}"
 
+# Auto-detect public IP unless overridden via ALLOWED_CIDR env var
+if [ -z "${ALLOWED_CIDR}" ]; then
+  PUBLIC_IP=$(curl -sf https://checkip.amazonaws.com) || { echo "Error: Could not detect public IP. Set ALLOWED_CIDR manually."; exit 1; }
+  ALLOWED_CIDR="${PUBLIC_IP}/32"
+  echo "Auto-detected public IP: ${ALLOWED_CIDR}"
+else
+  echo "Using provided ALLOWED_CIDR: ${ALLOWED_CIDR}"
+fi
+
 STACK_NAME="eks-d-${DEVELOPER_SIGNUM}"
 AUTO_GENERATE_KEY=false
 
@@ -95,6 +104,8 @@ aws cloudformation create-stack \
     ParameterKey=DeveloperName,ParameterValue="$DEVELOPER_SIGNUM" \
     ParameterKey=SubnetIndex,ParameterValue="$SUBNET_INDEX" \
     ParameterKey=KeyPairName,ParameterValue="$KEY_PAIR_NAME" \
+    ParameterKey=SSHCidrBlock,ParameterValue="$ALLOWED_CIDR" \
+    ParameterKey=APIServerCidrBlock,ParameterValue="$ALLOWED_CIDR" \
     ParameterKey=ControlPlaneInstanceType,ParameterValue=t4g.large \
     ParameterKey=EnableUserData,ParameterValue="$ENABLE_USERDATA" \
   --capabilities CAPABILITY_NAMED_IAM \

@@ -17,6 +17,10 @@
   },
   {
     "ParameterKey": "SSHCidrBlock",
-    "ParameterValue": "0.0.0.0/0"
+    "ParameterValue": "REPLACE_WITH_YOUR_IP/32"
+  },
+  {
+    "ParameterKey": "APIServerCidrBlock",
+    "ParameterValue": "REPLACE_WITH_YOUR_IP/32"
   }
 ]
