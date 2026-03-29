@@ -30,9 +30,9 @@ curl -sL "https://distro.eks.amazonaws.com/kubernetes-${EKSD_VERSION}/kubernetes
 
 # Extract component URLs for the detected architecture
 echo "Extracting ${ARCH} binaries..."
-KUBEADM_URL=$(grep -A 10 "name: kubeadm" /tmp/eks-d-release.yaml | grep "os: linux" -A 5 | grep "arch: ${ARCH}" -A 1 | grep "archive:" | awk '{print $2}')
-KUBELET_URL=$(grep -A 10 "name: kubelet" /tmp/eks-d-release.yaml | grep "os: linux" -A 5 | grep "arch: ${ARCH}" -A 1 | grep "archive:" | awk '{print $2}')
-KUBECTL_URL=$(grep -A 10 "name: kubectl" /tmp/eks-d-release.yaml | grep "os: linux" -A 5 | grep "arch: ${ARCH}" -A 1 | grep "archive:" | awk '{print $2}')
+KUBEADM_URL=$(grep "bin/linux/${ARCH}/kubeadm" /tmp/eks-d-release.yaml -B 1 | grep "uri:" | awk '{print $2}')
+KUBELET_URL=$(grep "bin/linux/${ARCH}/kubelet" /tmp/eks-d-release.yaml -B 1 | grep "uri:" | awk '{print $2}')
+KUBECTL_URL=$(grep "bin/linux/${ARCH}/kubectl" /tmp/eks-d-release.yaml -B 1 | grep "uri:" | awk '{print $2}')
 
 echo "Downloading EKS-D binaries..."
 echo "  kubeadm: ${KUBEADM_URL}"
@@ -40,18 +40,15 @@ echo "  kubelet: ${KUBELET_URL}"
 echo "  kubectl: ${KUBECTL_URL}"
 
 # Download and install kubeadm
-curl -sL "${KUBEADM_URL}" -o /tmp/kubeadm.tar.gz
-tar -xzf /tmp/kubeadm.tar.gz -C /tmp
+curl -sL "${KUBEADM_URL}" -o /tmp/kubeadm
 sudo install -o root -g root -m 0755 /tmp/kubeadm /usr/local/bin/kubeadm
 
 # Download and install kubelet
-curl -sL "${KUBELET_URL}" -o /tmp/kubelet.tar.gz
-tar -xzf /tmp/kubelet.tar.gz -C /tmp
+curl -sL "${KUBELET_URL}" -o /tmp/kubelet
 sudo install -o root -g root -m 0755 /tmp/kubelet /usr/local/bin/kubelet
 
 # Download and install kubectl (EKS-D version)
-curl -sL "${KUBECTL_URL}" -o /tmp/kubectl.tar.gz
-tar -xzf /tmp/kubectl.tar.gz -C /tmp
+curl -sL "${KUBECTL_URL}" -o /tmp/kubectl
 sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
 
 # Create kubelet systemd service
@@ -106,7 +103,7 @@ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 # Cleanup
-rm -f /tmp/eks-d-release.yaml /tmp/kubeadm* /tmp/kubelet* /tmp/kubectl*
+rm -f /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl
 
 echo "✓ EKS-D installed"
 kubectl version
