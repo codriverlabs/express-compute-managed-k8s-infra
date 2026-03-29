@@ -23,8 +23,11 @@ Parameters:
   
   SSHCidrBlock:
     Type: String
-    Default: 0.0.0.0/0
-    Description: CIDR block allowed for SSH access
+    Description: CIDR block allowed for SSH access (e.g. your office/VPN IP: 203.0.113.0/24)
+
+  APIServerCidrBlock:
+    Type: String
+    Description: CIDR block allowed to reach the Kubernetes API server on port 6443 (e.g. your office/VPN IP)
 
 Conditions:
   UseDefaultClusterName: !Equals [!Ref ClusterName, '']
@@ -183,7 +186,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 6443
           ToPort: 6443
-          CidrIp: 0.0.0.0/0
+          CidrIp: !Ref APIServerCidrBlock
           Description: Kubernetes API server
         - IpProtocol: tcp
           FromPort: 22
@@ -224,10 +227,15 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 0
-          ToPort: 65535
+          FromPort: 10250
+          ToPort: 10250
           SourceSecurityGroupId: !Ref ControlPlaneSecurityGroup
-          Description: All traffic from control plane
+          Description: Kubelet API from control plane
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref ControlPlaneSecurityGroup
+          Description: HTTPS/webhooks from control plane
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -241,11 +249,9 @@ Resources:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref WorkerNodesSecurityGroup
-      IpProtocol: tcp
-      FromPort: 0
-      ToPort: 65535
+      IpProtocol: -1
       SourceSecurityGroupId: !Ref WorkerNodesSecurityGroup
-      Description: Node to node communication
+      Description: Node to node communication (all protocols)
 
   # IAM Roles
   ControlPlaneRole:
@@ -302,6 +308,7 @@ Resources:
             Condition:
               StringEquals:
                 ec2:ResourceTag/karpenter.sh/cluster: !If [UseDefaultClusterName, !Sub '${TeamMemberName}-eks-d', !Ref ClusterName]
+                ec2:ResourceTag/TeamMember: !Ref TeamMemberName
           - Effect: Allow
             Action: iam:PassRole
             Resource: !GetAtt WorkerNodeRole.Arn
@@ -351,6 +358,9 @@ Resources:
       SecurityGroupIds:
         - !Ref ControlPlaneSecurityGroup
       IamInstanceProfile: !Ref ControlPlaneInstanceProfile
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 1
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
