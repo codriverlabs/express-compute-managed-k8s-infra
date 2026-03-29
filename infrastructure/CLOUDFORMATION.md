@@ -1,80 +1,80 @@
 # CloudFormation Deployment Guide
 
-This directory contains CloudFormation templates migrated from Terraform for deploying the EKS-D infrastructure.
+This directory contains CloudFormation templates for deploying the EKS-D infrastructure.
 
-## Files
+## Architecture
 
-- `cloudformation-template.yaml` - Main CloudFormation template
-- `cloudformation-parameters.json` - Parameter values
-- `deploy-cloudformation.sh` - Deployment script
+The deployment uses a hub-and-spoke model:
+- **Shared VPC**: Single VPC shared by all developers (cost-effective, better networking)
+- **Per-developer stacks**: Each developer gets their own CloudFormation stack with:
+  - Dedicated public/private subnets within the shared VPC
+  - EC2 instance for EKS-D control plane
+  - Security groups scoped to the developer
+  - IAM roles with least-privilege permissions
+  - Karpenter for node management
 
 ## Quick Start
 
-1. **Edit parameters**:
-   ```bash
-   vi cloudformation-parameters.json
-   ```
-   Update:
-   - `TeamMemberName`: Your name (lowercase, hyphens only)
-   - `KeyPairName`: Your EC2 key pair name
-   - `SSHCidrBlock`: Your IP for SSH access (optional)
-
-2. **Deploy**:
-   ```bash
-   ./deploy-cloudformation.sh my-stack-name us-east-1
-   ```
-
-3. **Check outputs**:
-   ```bash
-   aws cloudformation describe-stacks \
-     --stack-name my-stack-name \
-     --query 'Stacks[0].Outputs' \
-     --output table
-   ```
-
-## Manual Deployment
-
+### 1. Deploy Shared VPC (one-time setup)
 ```bash
-aws cloudformation create-stack \
-  --stack-name eks-d-stack \
-  --template-body file://cloudformation-template.yaml \
-  --parameters file://cloudformation-parameters.json \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --region us-east-1
+./deploy-vpc.sh us-east-1
 ```
 
-## Update Stack
-
+### 2. Deploy Developer Stack
 ```bash
-aws cloudformation update-stack \
-  --stack-name eks-d-stack \
-  --template-body file://cloudformation-template.yaml \
-  --parameters file://cloudformation-parameters.json \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --region us-east-1
+./deploy-developer.sh alice 1
 ```
 
-## Delete Stack
-
+### 3. Deploy with custom parameters
 ```bash
-aws cloudformation delete-stack \
-  --stack-name eks-d-stack \
-  --region us-east-1
+./deploy-developer.sh bob 2 my-key-pair true
 ```
 
-## Key Differences from Terraform
+## Templates
 
-- **State Management**: CloudFormation manages state automatically
-- **Outputs**: Use `aws cloudformation describe-stacks` instead of `terraform output`
-- **Updates**: CloudFormation creates change sets automatically
-- **Rollback**: Automatic rollback on failure (can be disabled)
+### Shared VPC Template (`shared-vpc-template.yaml`)
+- Creates shared VPC with public/private subnets
+- Sets up NAT gateway, internet gateway, route tables
+- Creates VPC endpoints for AWS services
+- Sets up VPC Flow Logs for monitoring
 
-## Resources Created
+### Developer Stack Template (`developer-stack-template.yaml`)
+- Developer-specific public/private subnets
+- EC2 instance for EKS-D control plane
+- Security groups with least-privilege rules
+- IAM roles with tag-based permissions
+- Karpenter IAM policies with resource tagging
 
-Same as Terraform:
-- VPC with public/private subnets
-- NAT Gateway and Internet Gateway
-- Security groups for control plane and workers
-- IAM roles and policies for Karpenter
-- EC2 instance for control plane
-- All necessary tags for Karpenter discovery
+## Security
+
+- **Least Privilege IAM**: All IAM policies are scoped to developer resources
+- **Network Security**: Security groups with minimal required ports
+- **IMDSv2**: EC2 instances require IMDSv2
+- **Encryption**: All EBS volumes encrypted at rest
+- **Tagging**: All resources tagged with developer and environment
+
+## Cost Optimization
+
+- Shared VPC reduces networking costs
+- Spot instances for worker nodes via Karpenter
+- Auto-scaling based on workload
+- Reserved instances for control plane (Compute Savings Plan)
+
+## Monitoring
+
+- VPC Flow Logs for network traffic
+- CloudWatch metrics and alarms
+- S3 access logging
+- CloudTrail for API auditing
+
+## Cleanup
+
+To delete a developer's stack:
+```bash
+aws cloudformation delete-stack --stack-name eks-d-alice --region us-east-1
+```
+
+To delete the shared VPC (after all developer stacks are deleted):
+```bash
+aws cloudformation delete-stack --stack-name eks-d-shared-vpc --region us-east-1
+```
