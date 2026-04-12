@@ -2,50 +2,49 @@
 set -e
 
 DEVELOPER_SIGNUM="${1}"
-STACK_NAME="eks-d-${DEVELOPER_SIGNUM}"
 REGION="${2:-us-east-1}"
+STACK_NAME="eks-d-${DEVELOPER_SIGNUM}"
 
 if [ -z "$DEVELOPER_SIGNUM" ]; then
   echo "Usage: $0 <developer-signum> [region]"
-  echo ""
-  echo "Example: $0 alice"
   exit 1
 fi
 
 echo "=========================================="
-echo "Configuring Karpenter NodePools"
+echo "Configuring Karpenter NodePools for $DEVELOPER_SIGNUM"
 echo "=========================================="
-echo "Developer: ${DEVELOPER_SIGNUM}"
-echo "Stack:     ${STACK_NAME}"
-echo "Region:    ${REGION}"
-echo "=========================================="
-echo ""
 
-# Get cluster name
-CLUSTER_NAME=$(aws ssm get-parameter \
-  --name "/eks-d/${DEVELOPER_SIGNUM}/cluster-name" \
-  --query 'Parameter.Value' \
+# Get CloudFormation outputs
+echo "Getting CloudFormation outputs..."
+CLUSTER_NAME=$(aws cloudformation describe-stacks \
+  --stack-name "$STACK_NAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`ClusterName`].OutputValue' \
   --output text \
-  --region "${REGION}")
+  --region "$REGION" \
+  2>/dev/null || echo "${DEVELOPER_SIGNUM}-eks-d")
 
-# Get subnet ID
-PRIVATE_SUBNET_ID=$(aws cloudformation describe-stacks \
-  --stack-name "${STACK_NAME}" \
+PRIVATE_SUBNET=$(aws cloudformation describe-stacks \
+  --stack-name "$STACK_NAME" \
   --query 'Stacks[0].Outputs[?OutputKey==`PrivateSubnetId`].OutputValue' \
   --output text \
-  --region "${REGION}")
+  --region "$REGION")
 
-# Get security group ID
-WORKER_SG_ID=$(aws cloudformation describe-stacks \
-  --stack-name "${STACK_NAME}" \
+WORKER_SG=$(aws cloudformation describe-stacks \
+  --stack-name "$STACK_NAME" \
   --query 'Stacks[0].Outputs[?OutputKey==`WorkerSecurityGroupId`].OutputValue' \
   --output text \
-  --region "${REGION}")
+  --region "$REGION")
 
-echo "Cluster Name:      ${CLUSTER_NAME}"
-echo "Private Subnet:    ${PRIVATE_SUBNET_ID}"
-echo "Security Group:    ${WORKER_SG_ID}"
-echo ""
+INSTANCE_PROFILE=$(aws cloudformation describe-stacks \
+  --stack-name "$STACK_NAME" \
+  --query 'Stacks[0].Outputs[?OutputKey==`WorkerNodeInstanceProfile`].OutputValue' \
+  --output text \
+  --region "$REGION")
+
+echo "Cluster: $CLUSTER_NAME"
+echo "Private Subnet: $PRIVATE_SUBNET"
+echo "Worker Security Group: $WORKER_SG"
+echo "Instance Profile: $INSTANCE_PROFILE"
 
 # Create EC2NodeClass
 echo "Creating EC2NodeClass..."
@@ -58,9 +57,9 @@ spec:
   amiFamily: AL2023
   role: ${DEVELOPER_SIGNUM}-eks-d-worker-node-role
   subnetSelectorTerms:
-    - id: ${PRIVATE_SUBNET_ID}
+    - id: ${PRIVATE_SUBNET}
   securityGroupSelectorTerms:
-    - id: ${WORKER_SG_ID}
+    - id: ${WORKER_SG}
   tags:
     Developer: ${DEVELOPER_SIGNUM}
     karpenter.sh/cluster: ${CLUSTER_NAME}
@@ -76,26 +75,30 @@ metadata:
   name: default
 spec:
   template:
+    metadata:
+      labels:
+        karpenter.sh/nodepool: default
     spec:
+      nodeClassRef:
+        name: default
       requirements:
-        - key: karpenter.sh/capacity-type
-          operator: In
-          values: ["spot"]
-        - key: kubernetes.io/arch
-          operator: In
-          values: ["amd64"]
         - key: karpenter.k8s.aws/instance-category
           operator: In
           values: ["t", "m", "c"]
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
           values: ["3"]
-      nodeClassRef:
-        group: karpenter.k8s.aws
-        kind: EC2NodeClass
-        name: default
+        - key: karpenter.k8s.aws/instance-cpu
+          operator: Gt
+          values: ["2"]
+        - key: karpenter.k8s.aws/instance-memory
+          operator: Gt
+          values: ["2048"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
   limits:
-    cpu: "100"
+    cpu: 100
     memory: 100Gi
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
@@ -103,7 +106,9 @@ spec:
 EOF
 
 echo ""
-echo "✓ NodePools configured"
+echo "✓ NodePool configured for $DEVELOPER_SIGNUM"
+echo "Karpenter is ready to provision nodes on-demand."
 echo ""
-kubectl get nodepool
-kubectl get ec2nodeclass
+echo "To test, deploy a workload with:"
+echo "kubectl create deployment nginx --image=nginx"
+echo "kubectl scale deployment nginx --replicas=5"
