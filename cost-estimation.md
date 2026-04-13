@@ -95,12 +95,35 @@ limits:
 
 ## Comparison with Alternatives
 
+## Comparison with Alternatives
+
 ### vs. Managed EKS
 | Component | EKS-D (per cluster) | Managed EKS | Savings |
 |-----------|-------------------|-------------|---------|
 | Control Plane | $20-40/month | $73/month | $33-53/month |
 | Worker Nodes | Same (Spot) | Same (Spot) | $0 |
 | **Total Savings** | | | **45-70% on control plane** |
+
+### Key Advantages Over Managed EKS
+- **Cost**: 45-70% cheaper on control plane
+- **Isolation**: Dedicated cluster per team member - no resource contention
+- **Full Karpenter**: Complete Karpenter v1 integration with NodePools
+- **No API Limits**: No EKS API server throttling
+- **Complete Control**: Customize control plane, etcd, scheduler settings
+- **Use Case 1 - CI/CD**: Instant isolated clusters per PR/branch for integration testing
+- **Use Case 2 - Development**: Safe environment for CRD/operator development without affecting shared clusters
+
+### When Managed EKS Makes Sense
+- Need cross-team shared cluster
+- Want AWS-managed upgrades
+- Prefer less operational overhead
+
+### When EKS-D Makes Sense
+- Individual team environments needed
+- Cost optimization priority
+- Learning Kubernetes internals
+- CI/CD pipeline testing
+- CRD/operator development
 
 ### vs. Local Development
 | Component | EKS-D | Local (Docker Desktop) | Trade-offs |
@@ -147,6 +170,20 @@ tags = {
   Project     = "eks-d-cluster"
 }
 ```
+
+## Use Cases
+
+### 1. Instant EKS Cluster for CI/CD
+- Spin up isolated EKS-D clusters per PR/branch for integration testing
+- Each developer gets dedicated test environment without waiting for shared cluster
+- Parallel test execution - no queueing or resource contention
+- Teardown when done - pay only for actual test runtime
+
+### 2. EKS Development (CRD/Operator Development)
+- Deploy and test cluster-wide resources (CRDs, webhooks, operators)
+- No pollution of shared development clusters
+- Safe experimentation with admission controllers, API servers
+- Direct access to control plane for debugging etcd, scheduler, controller-manager
 
 ## ROI Analysis
 
