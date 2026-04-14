@@ -24,12 +24,9 @@ curl -fsSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz | tar -xz -C /tmp
 sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
 
 echo "==> Installing Karpenter..."
-# Install Karpenter CRDs and controller
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v1.0.0/crds/karpenter.sh_nodepools.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v1.0.0/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
-
-# Install Karpenter controller (will be configured via Helm at runtime)
-# Note: We install the binary but configure via user data at launch
+# Karpenter v1.10.0 (latest stable as of April 2026)
+# CRDs are installed via Helm at runtime, not pre-installed
+# This ensures compatibility with the cluster configuration
 
 echo "==> Installing AWS CLI v2..."
 curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"

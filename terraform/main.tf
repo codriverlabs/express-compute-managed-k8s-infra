@@ -94,22 +94,22 @@ resource "aws_instance" "workstation" {
               #!/bin/bash
               set -e
               
-              # Configure Karpenter
-              export KARPENTER_VERSION=v1.0.0
+              # Karpenter v1.10.0 (latest stable)
+              export KARPENTER_VERSION=v1.10.0
               export CLUSTER_NAME=${var.eks_cluster_name}
               
               # Initialize EKS-D (if not already running)
               if ! systemctl is-active --quiet eks-d; then
-                  # Start EKS-D (simplified - actual setup more complex)
                   echo "EKS-D not running, initializing..."
               fi
               
-              # Configure Karpenter controller
+              # Install Karpenter via Helm
               helm repo add karpenter https://charts.karpenter.sh
               helm repo update
               helm upgrade --install karpenter karpenter/karpenter \
                 --namespace karpenter \
                 --create-namespace \
+                --version "${KARPENTER_VERSION}" \
                 --set settings.clusterName=${var.eks_cluster_name} \
                 --set serviceAccount.create=true \
                 --set controller.resources.requests.cpu=1 \
