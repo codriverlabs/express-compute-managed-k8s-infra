@@ -17,8 +17,8 @@ echo "Cluster: ${CLUSTER_NAME}"
 echo "Region: ${AWS_REGION}"
 
 # Use pre-downloaded chart if available
-CHART_PATH="/opt/eks-d/charts/karpenter-1.8.2.tgz"
-if [ -f "$CHART_PATH" ]; then
+CHART_PATH=$(ls /opt/eks-d/charts/karpenter-*.tgz 2>/dev/null | head -1)
+if [ -n "$CHART_PATH" ]; then
   helm upgrade --install karpenter "$CHART_PATH" \
     --namespace karpenter \
     --create-namespace \
@@ -35,7 +35,6 @@ else
   helm upgrade --install karpenter karpenter/karpenter \
     --namespace karpenter \
     --create-namespace \
-    --version 1.8.2 \
     --set settings.clusterName=${CLUSTER_NAME} \
     --set settings.interruptionQueue=${CLUSTER_NAME} \
     --set controller.resources.requests.cpu=1 \
