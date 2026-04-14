@@ -27,13 +27,11 @@ Team Member EC2 (On-Demand + Compute Savings Plan)
 ```
 ecp-single-node-eks-d/
 ├── README.md                    # This file
-├── infrastructure/              # Terraform for EC2 setup
-├── eks-d-setup/                # EKS-D installation scripts
-├── karpenter-config/           # Karpenter deployment configs
-├── node-pools/                 # NodePool definitions
-├── iam-policies/               # Required IAM configurations
-├── networking/                 # VPC and security group configs
-└── monitoring/                 # CloudWatch and logging setup
+├── terraform/                   # Terraform for EC2 + infrastructure
+├── ami-builder/                 # AMI build scripts
+├── eks-d-setup/                 # EKS-D installation scripts
+├── node-pools/                  # NodePool definitions
+└── monitoring/                  # CloudWatch and logging setup
 ```
 
 ## Quick Start
