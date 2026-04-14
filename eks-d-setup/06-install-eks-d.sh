@@ -90,6 +90,14 @@ echo "Disabling swap..."
 sudo swapoff -a
 sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
+# If AMI_BUILD, skip kubeadm init (will run on first boot)
+if [ "${AMI_BUILD:-}" = "true" ]; then
+  echo "⏭ Skipping kubeadm init (AMI build - will run on first boot)"
+  rm -f /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl
+  echo "✓ EKS-D binaries installed"
+  exit 0
+fi
+
 echo "Initializing EKS-D cluster..."
 PRIVATE_IP=$(hostname -I | awk '{print $1}')
 sudo kubeadm init \
