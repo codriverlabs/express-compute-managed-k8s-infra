@@ -44,17 +44,29 @@ variable "allowed_cidr_blocks" {
 }
 
 variable "vpc_id" {
-  description = "VPC ID for the workstation"
+  description = "VPC ID (optional, auto-discovered if not provided)"
   type        = string
+  default     = ""
 }
 
-variable "subnet_id" {
-  description = "Subnet ID for the workstation"
+variable "subnet_index" {
+  description = "Subnet index (0-50) - auto-calculated if not provided"
+  type        = number
+  default     = null
+  validation {
+    condition     = var.subnet_index == null || (var.subnet_index >= 0 && var.subnet_index <= 50)
+    error_message = "Subnet index must be between 0 and 50"
+  }
+}
+
+variable "project_name" {
+  description = "Project name for resource naming"
   type        = string
+  default     = "eks-d"
 }
 
 variable "eks_cluster_name" {
-  description = "EKS-D cluster name"
+  description = "EKS-D cluster name (deprecated, use workstation_name)"
   type        = string
-  default     = "eks-d-cluster"
+  default     = ""
 }

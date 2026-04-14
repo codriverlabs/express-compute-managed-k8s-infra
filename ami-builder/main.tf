@@ -67,6 +67,11 @@ resource "null_resource" "install" {
   }
 
   provisioner "file" {
+    source      = "${path.module}/../eks-d-setup"
+    destination = "/tmp/eks-d-setup"
+  }
+
+  provisioner "file" {
     source      = "${path.module}/scripts/install.sh"
     destination = "/tmp/install.sh"
   }

@@ -1,18 +1,119 @@
-terraform {
-  required_version = ">= 1.0"
-  required_providers {
-    aws = { source = "hashicorp/aws" }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
 locals {
   ami_arch           = var.arch == "arm64" ? "arm64" : "x86_64"
   workstation_name   = var.workstation_name != "" ? var.workstation_name : "eks-d-${var.developer_username}"
   allowed_cidrs      = length(var.allowed_cidr_blocks) > 0 ? var.allowed_cidr_blocks : ["0.0.0.0/0"]
+  
+  # Auto-discover VPC by tag
+  vpc_filter = var.vpc_id != "" ? var.vpc_id : data.aws_vpc.shared[0].id
+  
+  # Auto-calculate next available subnet index
+  subnet_index = var.subnet_index != null ? var.subnet_index : local.next_available_index
+  
+  # Find next available subnet index by checking existing subnets
+  existing_indices = [
+    for s in data.aws_subnets.developer_public.ids : 
+    tonumber(regex("10\\.0\\.(\\d+)\\.0/24", data.aws_subnet.existing[s].cidr_block)[0])
+  ]
+  next_available_index = length(local.existing_indices) > 0 ? max(local.existing_indices...) + 1 : 0
+  
+  public_subnet_cidr  = "10.0.${local.subnet_index}.0/24"
+  private_subnet_cidr = "10.0.${100 + local.subnet_index}.0/24"
+}
+
+# Auto-discover shared VPC
+data "aws_vpc" "shared" {
+  count = var.vpc_id == "" ? 1 : 0
+  
+  filter {
+    name   = "tag:Name"
+    values = ["${var.project_name}-shared-vpc"]
+  }
+}
+
+# Find existing developer subnets to calculate next index
+data "aws_subnets" "developer_public" {
+  filter {
+    name   = "vpc-id"
+    values = [local.vpc_filter]
+  }
+  
+  filter {
+    name   = "tag:SubnetType"
+    values = ["Public"]
+  }
+  
+  filter {
+    name   = "tag:Developer"
+    values = ["*"]
+  }
+}
+
+data "aws_subnet" "existing" {
+  for_each = toset(data.aws_subnets.developer_public.ids)
+  id       = each.value
+}
+
+data "aws_route_table" "public" {
+  vpc_id = local.vpc_filter
+  filter {
+    name   = "tag:Name"
+    values = ["${var.project_name}-public-rt"]
+  }
+}
+
+data "aws_route_table" "private" {
+  vpc_id = local.vpc_filter
+  filter {
+    name   = "tag:Name"
+    values = ["${var.project_name}-private-rt"]
+  }
+}
+
+# Developer's Public Subnet
+resource "aws_subnet" "public" {
+  vpc_id                  = local.vpc_filter
+  cidr_block              = local.public_subnet_cidr
+  availability_zone       = data.aws_availability_zones.available.names[0]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name                                            = "${var.developer_username}-public-subnet"
+    Developer                                       = var.developer_username
+    "kubernetes.io/cluster/${local.workstation_name}" = "owned"
+    "kubernetes.io/role/elb"                        = "1"
+    ManagedBy                                       = "Terraform"
+    SubnetType                                      = "Public"
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = data.aws_route_table.public.id
+}
+
+# Developer's Private Subnet
+resource "aws_subnet" "private" {
+  vpc_id            = local.vpc_filter
+  cidr_block        = local.private_subnet_cidr
+  availability_zone = data.aws_availability_zones.available.names[0]
+
+  tags = {
+    Name                                            = "${var.developer_username}-private-subnet"
+    Developer                                       = var.developer_username
+    "kubernetes.io/cluster/${local.workstation_name}" = "owned"
+    "kubernetes.io/role/internal-elb"               = "1"
+    ManagedBy                                       = "Terraform"
+    SubnetType                                      = "Private"
+  }
+}
+
+resource "aws_route_table_association" "private" {
+  subnet_id      = aws_subnet.private.id
+  route_table_id = data.aws_route_table.private.id
+}
+
+data "aws_availability_zones" "available" {
+  state = "available"
 }
 
 data "aws_ssm_parameter" "workstation_ami" {
@@ -87,14 +188,14 @@ resource "aws_instance" "workstation" {
   instance_type        = var.instance_type
   key_name             = var.key_pair_name != "" ? var.key_pair_name : null
   iam_instance_profile = aws_iam_instance_profile.workstation.name
-  subnet_id            = var.subnet_id
+  subnet_id            = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.workstation.id]
 
   user_data = <<-EOF
               #!/bin/bash
               set -e
               
-              export CLUSTER_NAME=${var.eks_cluster_name}
+              export CLUSTER_NAME=${local.workstation_name}
               export DEVELOPER_SIGNUM=${var.developer_username}
               
               # Run eks-d-setup scripts (pre-installed in AMI)
@@ -106,9 +207,9 @@ resource "aws_instance" "workstation" {
               bash ./08-install-coredns.sh
               bash ./09-install-ebs-csi.sh
               bash ./10-configure-node.sh
-              bash ./11-install-karpenter.sh "\${DEVELOPER_SIGNUM}" "\${CLUSTER_NAME}"
+              bash ./11-install-karpenter.sh "$DEVELOPER_SIGNUM" "$CLUSTER_NAME"
               
-              echo "==> Workstation ready for \${DEVELOPER_SIGNUM}"
+              echo "==> Workstation ready for $DEVELOPER_SIGNUM"
               kubectl get nodes
               kubectl get pods -A
               EOF

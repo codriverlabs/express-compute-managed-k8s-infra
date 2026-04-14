@@ -5,7 +5,7 @@ set -e
 # Pre-installs binaries, images, and scripts for fast workstation boot
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EKS_D_SETUP_DIR="$(cd "${SCRIPT_DIR}/../../eks-d-setup" && pwd)"
+EKS_D_SETUP_DIR="/tmp/eks-d-setup"
 
 # EKS-D version (must match 06-install-eks-d.sh)
 EKSD_VERSION="1-33"

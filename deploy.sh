@@ -63,12 +63,6 @@ if [ -z "${TFSTATE_BUCKET}" ]; then
   echo "ERROR: Terraform state bucket is required." >&2; exit 1
 fi
 
-VPC_ID="${VPC_ID:-}"
-prompt VPC_ID "VPC ID" ""
-
-SUBNET_ID="${SUBNET_ID:-}"
-prompt SUBNET_ID "Subnet ID" ""
-
 TFVARS="${SCRIPT_DIR}/terraform/terraform.tfvars"
 cat > "${TFVARS}" <<EOF
 developer_username = "${DEVELOPER_USERNAME}"
@@ -78,8 +72,6 @@ arch               = "${ARCH}"
 instance_type      = "${INSTANCE_TYPE}"
 disk_size_gb       = ${DISK_SIZE_GB}
 key_pair_name      = "${KEY_PAIR_NAME}"
-vpc_id             = "${VPC_ID}"
-subnet_id          = "${SUBNET_ID}"
 EOF
 
 echo "" && echo "==> Written: terraform/terraform.tfvars"

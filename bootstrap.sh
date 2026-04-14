@@ -2,13 +2,23 @@
 set -euo pipefail
 
 AWS_REGION="${1:-us-east-1}"
+PROJECT_NAME="${2:-eks-d}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 BUCKET="eks-d-tfstate-${ACCOUNT_ID}"
 
-echo "==> Bootstrapping Terraform state backend in region: ${AWS_REGION}"
+echo "╔══════════════════════════════════════════════╗"
+echo "║   EKS-D Bootstrap                            ║"
+echo "╚══════════════════════════════════════════════╝"
+echo ""
+echo "  Region: ${AWS_REGION}"
+echo "  Project: ${PROJECT_NAME}"
+echo ""
+
+# 1. Create Terraform state bucket
+echo "==> Setting up Terraform state backend..."
 
 if aws s3api head-bucket --bucket "${BUCKET}" --region "${AWS_REGION}" 2>/dev/null; then
-  echo "    Bucket already exists: ${BUCKET}"
+  echo "    ✓ Bucket exists: ${BUCKET}"
 else
   if [ "${AWS_REGION}" = "us-east-1" ]; then
     aws s3api create-bucket --bucket "${BUCKET}" --region "${AWS_REGION}"
@@ -16,7 +26,7 @@ else
     aws s3api create-bucket --bucket "${BUCKET}" --region "${AWS_REGION}" \
       --create-bucket-configuration LocationConstraint="${AWS_REGION}"
   fi
-  echo "    Created bucket: ${BUCKET}"
+  echo "    ✓ Created bucket: ${BUCKET}"
 fi
 
 aws s3api put-bucket-versioning --bucket "${BUCKET}" \
@@ -29,8 +39,44 @@ aws s3api put-public-access-block --bucket "${BUCKET}" \
   --public-access-block-configuration \
   "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
 
+# 2. Deploy shared VPC if it doesn't exist
 echo ""
-echo "==> Done. Terraform state bucket:"
-echo "    TFSTATE_BUCKET=${BUCKET}"
+echo "==> Checking for shared VPC..."
+
+VPC_ID=$(aws ec2 describe-vpcs \
+  --filters "Name=tag:Name,Values=${PROJECT_NAME}-shared-vpc" \
+  --query 'Vpcs[0].VpcId' \
+  --output text \
+  --region "${AWS_REGION}" 2>/dev/null || echo "None")
+
+if [ "${VPC_ID}" = "None" ]; then
+  echo "    Shared VPC not found. Deploying..."
+  cd "$(dirname "$0")/terraform/vpc"
+  
+  terraform init \
+    -backend-config="bucket=${BUCKET}" \
+    -backend-config="key=vpc/terraform.tfstate" \
+    -backend-config="region=${AWS_REGION}"
+  
+  terraform apply \
+    -var="aws_region=${AWS_REGION}" \
+    -var="project_name=${PROJECT_NAME}" \
+    -auto-approve
+  
+  VPC_ID=$(terraform output -raw vpc_id)
+  echo "    ✓ VPC deployed: ${VPC_ID}"
+  cd - > /dev/null
+else
+  echo "    ✓ VPC exists: ${VPC_ID}"
+fi
+
 echo ""
-echo "    export TFSTATE_BUCKET=${BUCKET}"
+echo "╔══════════════════════════════════════════════╗"
+echo "║   Bootstrap Complete                         ║"
+echo "╚══════════════════════════════════════════════╝"
+echo ""
+echo "  export AWS_REGION=${AWS_REGION}"
+echo "  export TFSTATE_BUCKET=${BUCKET}"
+echo ""
+echo "Next: ./deploy.sh"
+echo ""
