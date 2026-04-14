@@ -105,13 +105,11 @@ sudo swapoff -a
 sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
 # =============================================================================
-# Step 4: Install AWS CLI
+# Step 4: Install AWS CLI (via dnf on AL2023)
 # =============================================================================
 
-echo "==> Installing AWS CLI v2..."
-curl -s "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o "awscliv2.zip"
-unzip -q awscliv2.zip
-sudo ./aws/install
+echo "==> Installing AWS CLI..."
+sudo dnf install -y awscli
 
 # =============================================================================
 # Step 5: Pre-pull container images
@@ -141,7 +139,7 @@ curl -sL "https://raw.githubusercontent.com/kubernetes-sigs/aws-ebs-csi-driver/m
 # =============================================================================
 
 echo "==> Cleaning up..."
-rm -rf awscliv2.zip aws /tmp/*.tar.gz /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl-eksd
+rm -rf /tmp/*.tar.gz /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl-eksd
 
 echo "==> AMI build complete!"
 echo "    EKS-D version: ${EKSD_VERSION}-${EKSD_RELEASE}"
