@@ -17,8 +17,8 @@ EKSD_RELEASE="19"
 echo "==> Updating system..."
 sudo dnf update -y
 
-echo "==> Installing base dependencies..."
-sudo dnf install -y curl wget tar gzip jq git unzip
+echo "==> Installing base dependencies via dnf..."
+sudo dnf install -y docker awscli jq git unzip curl wget tar gzip
 
 # =============================================================================
 # Step 1: Install kubectl, helm, eksctl
@@ -38,7 +38,7 @@ curl -sL "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$
 sudo mv /tmp/eksctl /usr/local/bin/
 
 # =============================================================================
-# Step 2: Install Docker
+# Step 2: Install Docker (via dnf on AL2023)
 # =============================================================================
 
 echo "==> Installing Docker..."
@@ -105,11 +105,10 @@ sudo swapoff -a
 sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
 # =============================================================================
-# Step 4: Install AWS CLI (via dnf on AL2023)
+# Step 4: AWS CLI already installed via dnf
 # =============================================================================
 
-echo "==> Installing AWS CLI..."
-sudo dnf install -y awscli
+echo "==> AWS CLI installed via dnf"
 
 # =============================================================================
 # Step 5: Pre-pull container images
