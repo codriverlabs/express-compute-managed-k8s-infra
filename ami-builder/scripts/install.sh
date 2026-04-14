@@ -42,7 +42,7 @@ sudo ctr images pull public.ecr.aws/karpenter/controller:v1.10.0 || true
 echo "==> Pre-downloading Helm charts..."
 helm repo add karpenter https://charts.karpenter.sh
 helm repo update
-helm pull karpenter/karpenter --destination /tmp || true
+helm pull karpenter/karpenter --version "v1.10.0" --destination /tmp || true
 sudo mkdir -p /opt/eks-d/charts
 sudo mv /tmp/karpenter-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 
