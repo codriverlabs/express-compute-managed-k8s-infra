@@ -9,12 +9,13 @@ locals {
   # Auto-calculate next available subnet index
   subnet_index = var.subnet_index != null ? var.subnet_index : local.next_available_index
   
-  # Find next available subnet index by checking existing subnets
+  # Find next available subnet index by checking existing developer subnets (exclude NAT subnet at 10.0.0.0/24)
   existing_indices = [
     for s in data.aws_subnets.developer_public.ids : 
     tonumber(regex("10\\.0\\.(\\d+)\\.0/24", data.aws_subnet.existing[s].cidr_block)[0])
+    if tonumber(regex("10\\.0\\.(\\d+)\\.0/24", data.aws_subnet.existing[s].cidr_block)[0]) > 0
   ]
-  next_available_index = length(local.existing_indices) > 0 ? max(local.existing_indices...) + 1 : 0
+  next_available_index = length(local.existing_indices) > 0 ? max(local.existing_indices...) + 1 : 1
   
   public_subnet_cidr  = "10.0.${local.subnet_index}.0/24"
   private_subnet_cidr = "10.0.${100 + local.subnet_index}.0/24"
@@ -179,7 +180,7 @@ resource "aws_security_group" "workstation" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  vpc_id = var.vpc_id
+  vpc_id = local.vpc_filter
   tags   = { Name = "eks-d-workstation-${var.developer_username}" }
 }
 
