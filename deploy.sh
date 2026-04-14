@@ -34,7 +34,7 @@ echo "    1) x86_64  (Intel/AMD)"
 echo "    2) arm64   (Graviton)"
 read -rp "  Select [1]: " arch_choice
 case "${arch_choice:-1}" in
-  2) ARCH="arm64"; INSTANCE_TYPE="m7g.xlarge" ;;
+  2) ARCH="arm64"; INSTANCE_TYPE="m6g.large" ;;
   *) ARCH="x86_64"; INSTANCE_TYPE="m6i.xlarge" ;;
 esac
 

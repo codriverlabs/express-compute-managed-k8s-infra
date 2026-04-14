@@ -18,7 +18,7 @@ echo "==> Updating system..."
 sudo dnf update -y
 
 echo "==> Installing base dependencies via dnf..."
-sudo dnf install -y docker awscli jq git unzip curl wget tar gzip
+sudo dnf install -y docker awscli jq git unzip wget tar gzip
 
 # =============================================================================
 # Step 1: Install kubectl, helm, eksctl
@@ -115,6 +115,7 @@ echo "==> AWS CLI installed via dnf"
 # =============================================================================
 
 echo "==> Pre-pulling container images..."
+sudo systemctl start containerd
 sudo ctr images pull registry.k8s.io/kube-proxy:v1.29.0 || true
 sudo ctr images pull registry.k8s.io/coredns/coredns:v1.29.0 || true
 sudo ctr images pull registry.k8s.io/pause:3.9 || true
