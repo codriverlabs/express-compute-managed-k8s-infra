@@ -112,7 +112,7 @@ sudo kubeadm init \
   --pod-network-cidr=192.168.0.0/16 \
   --service-cidr=10.96.0.0/12 \
   --apiserver-advertise-address=${PRIVATE_IP} \
-  --ignore-preflight-errors=NumCPU
+  --ignore-preflight-errors=NumCPU,DirAvailable--var-lib-etcd
 
 echo "Setting up kubeconfig..."
 mkdir -p $HOME/.kube
