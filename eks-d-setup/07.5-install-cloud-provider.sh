@@ -12,7 +12,9 @@ helm install aws-cloud-controller-manager \
   aws-cloud-controller-manager/aws-cloud-controller-manager \
   --namespace kube-system \
   --set nodeSelector."node-role\.kubernetes\.io/control-plane"="" \
-  --set args={--v=2,--cloud-provider=aws,--use-service-account-credentials=true} \
+  --set args[0]=--v=2 \
+  --set args[1]=--cloud-provider=aws \
+  --set args[2]=--use-service-account-credentials=true \
   --wait
 
 echo "✓ AWS Cloud Provider installed"
