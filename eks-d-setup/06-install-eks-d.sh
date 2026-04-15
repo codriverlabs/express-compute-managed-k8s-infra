@@ -111,7 +111,8 @@ PRIVATE_IP=$(hostname -I | awk '{print $1}')
 sudo kubeadm init \
   --pod-network-cidr=192.168.0.0/16 \
   --service-cidr=10.96.0.0/12 \
-  --apiserver-advertise-address=${PRIVATE_IP}
+  --apiserver-advertise-address=${PRIVATE_IP} \
+  --ignore-preflight-errors=NumCPU
 
 echo "Setting up kubeconfig..."
 mkdir -p $HOME/.kube
@@ -148,7 +149,7 @@ providers:
     apiVersion: credentialprovider.kubelet.k8s.io/v1
 EOFCRED
 
-echo "KUBELET_EXTRA_ARGS='--image-credential-provider-config=/etc/kubernetes/credential-provider/config.yaml --image-credential-provider-bin-dir=/usr/bin'" | sudo tee /etc/default/kubelet
+echo "KUBELET_EXTRA_ARGS='--cloud-provider=external --image-credential-provider-config=/etc/kubernetes/credential-provider/config.yaml --image-credential-provider-bin-dir=/usr/bin'" | sudo tee /etc/default/kubelet
 sudo systemctl daemon-reload
 sudo systemctl restart kubelet
 

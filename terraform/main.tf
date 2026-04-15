@@ -243,8 +243,9 @@ resource "aws_instance" "workstation" {
   }
 
   tags = {
-    Name      = local.workstation_name
-    Developer = var.developer_username
-    Arch      = var.arch
+    Name                                = local.workstation_name
+    Developer                           = var.developer_username
+    Arch                                = var.arch
+    "kubernetes.io/cluster/eks-d"       = "owned"
   }
 }
