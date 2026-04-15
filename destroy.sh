@@ -11,11 +11,17 @@ echo "║   EKS-D Workstation — Destroy                ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
-read -rp "  Developer IAM username: " DEVELOPER_USERNAME
-[ -z "${DEVELOPER_USERNAME}" ] && { echo "ERROR: username required" >&2; exit 1; }
+DEVELOPER_USERNAME="${DEVELOPER_USERNAME:-}"
+if [ -z "$DEVELOPER_USERNAME" ]; then
+  read -rp "  Developer IAM username: " DEVELOPER_USERNAME
+  [ -z "${DEVELOPER_USERNAME}" ] && { echo "ERROR: username required" >&2; exit 1; }
+fi
 
-read -rp "  AWS region [us-east-1]: " AWS_REGION
-AWS_REGION="${AWS_REGION:-us-east-1}"
+AWS_REGION="${AWS_REGION:-}"
+if [ -z "$AWS_REGION" ]; then
+  read -rp "  AWS region [us-east-1]: " input
+  AWS_REGION="${input:-us-east-1}"
+fi
 
 echo "  Architecture:"
 echo "    1) x86_64"
@@ -26,8 +32,11 @@ case "${arch_choice:-1}" in
   *) ARCH="x86_64" ;;
 esac
 
-read -rp "  Terraform state S3 bucket: " TFSTATE_BUCKET
-[ -z "${TFSTATE_BUCKET}" ] && { echo "ERROR: bucket required" >&2; exit 1; }
+TFSTATE_BUCKET="${TFSTATE_BUCKET:-}"
+if [ -z "$TFSTATE_BUCKET" ]; then
+  read -rp "  Terraform state S3 bucket: " TFSTATE_BUCKET
+  [ -z "${TFSTATE_BUCKET}" ] && { echo "ERROR: bucket required" >&2; exit 1; }
+fi
 
 SAFE_USER="$(sanitise "${DEVELOPER_USERNAME}")"
 WORKSTATION_NAME="${SAFE_USER}-eks-d-${ARCH}"
