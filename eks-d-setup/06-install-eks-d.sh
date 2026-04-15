@@ -90,6 +90,14 @@ echo "Disabling swap..."
 sudo swapoff -a
 sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
+echo "Enabling IP forwarding..."
+echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+
+echo "Starting containerd..."
+sudo systemctl enable containerd
+sudo systemctl start containerd
+
 # If AMI_BUILD, skip kubeadm init (will run on first boot)
 if [ "${AMI_BUILD:-}" = "true" ]; then
   echo "⏭ Skipping kubeadm init (AMI build - will run on first boot)"
