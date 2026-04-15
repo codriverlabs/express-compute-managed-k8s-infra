@@ -221,6 +221,13 @@ resource "aws_instance" "workstation" {
     delete_on_termination = true
   }
 
+  ebs_block_device {
+    device_name           = "/dev/sdf"
+    volume_type           = "gp3"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
   metadata_options {
     http_tokens = "required"
   }
