@@ -124,3 +124,32 @@ rm -f /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl
 echo "✓ EKS-D installed"
 kubectl version
 kubectl get nodes
+
+# Install ECR credential provider
+echo "Installing ECR credential provider..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+sudo cp "${SCRIPT_DIR}/${ARCH}/ecr-credential-provider" /usr/bin/ecr-credential-provider
+sudo chmod +x /usr/bin/ecr-credential-provider
+
+# Configure kubelet ECR credential provider
+echo "Configuring kubelet ECR credential provider..."
+sudo mkdir -p /etc/kubernetes/credential-provider
+sudo tee /etc/kubernetes/credential-provider/config.yaml <<EOFCRED
+apiVersion: kubelet.config.k8s.io/v1
+kind: CredentialProviderConfig
+providers:
+  - name: ecr-credential-provider
+    matchImages:
+      - "*.dkr.ecr.*.amazonaws.com"
+      - "*.dkr.ecr.*.amazonaws.com.cn"
+      - "*.dkr.ecr-fips.*.amazonaws.com"
+      - "public.ecr.aws"
+    defaultCacheDuration: 12h
+    apiVersion: credentialprovider.kubelet.k8s.io/v1
+EOFCRED
+
+echo "KUBELET_EXTRA_ARGS='--image-credential-provider-config=/etc/kubernetes/credential-provider/config.yaml --image-credential-provider-bin-dir=/usr/bin'" | sudo tee /etc/default/kubelet
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+echo "✓ ECR credential provider configured"
