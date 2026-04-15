@@ -28,14 +28,23 @@ fi
 AWS_REGION="${AWS_REGION:-}"
 prompt AWS_REGION "AWS region" "us-east-1"
 
-echo ""
-echo "  Architecture:"
-echo "    1) x86_64  (Intel/AMD)"
-echo "    2) arm64   (Graviton)"
-read -rp "  Select [1]: " arch_choice
-case "${arch_choice:-1}" in
-  2) ARCH="arm64"; INSTANCE_TYPE="m6g.large" ;;
-  *) ARCH="x86_64"; INSTANCE_TYPE="m6i.xlarge" ;;
+ARCH="${ARCH:-}"
+if [ -z "$ARCH" ]; then
+  echo ""
+  echo "  Architecture:"
+  echo "    1) x86_64  (Intel/AMD)"
+  echo "    2) arm64   (Graviton)"
+  read -rp "  Select [1]: " arch_choice
+  case "${arch_choice:-1}" in
+    2) ARCH="arm64" ;;
+    *) ARCH="x86_64" ;;
+  esac
+fi
+
+case "$ARCH" in
+  arm64) INSTANCE_TYPE="m6g.large" ;;
+  x86_64) INSTANCE_TYPE="m6i.xlarge" ;;
+  *) echo "ERROR: Invalid ARCH '$ARCH'. Use 'x86_64' or 'arm64'." >&2; exit 1 ;;
 esac
 
 DISK_SIZE_GB="${DISK_SIZE_GB:-}"
