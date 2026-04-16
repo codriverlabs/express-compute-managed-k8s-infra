@@ -21,6 +21,10 @@ echo "Cluster:   ${CLUSTER_NAME}"
 echo "=========================================="
 echo ""
 
+# Step 0: Configure containerd (EKS-D pause image + SystemdCgroup)
+echo "Step 0/11: Configuring containerd..."
+bash "${SCRIPT_DIR}/00-configure-containerd.sh"
+
 # Step 1: Base system
 echo "Step 1/11: Installing base system..."
 bash "${SCRIPT_DIR}/01-install-base.sh"
@@ -41,7 +45,7 @@ bash "${SCRIPT_DIR}/04-install-helm.sh"
 echo "Step 5/11: Preparing etcd volume..."
 bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
 
-# Step 6: EKS-D
+# Step 6: EKS-D (kubeadm init with EKS-D images + cloud-provider:external)
 echo "Step 6/11: Installing EKS-D..."
 bash "${SCRIPT_DIR}/06-install-eks-d.sh"
 
@@ -49,20 +53,20 @@ bash "${SCRIPT_DIR}/06-install-eks-d.sh"
 echo "Step 7/11: Installing AWS VPC CNI..."
 bash "${SCRIPT_DIR}/07-install-cni.sh"
 
-# Step 8: CoreDNS
-echo "Step 8/11: Installing CoreDNS..."
-bash "${SCRIPT_DIR}/08-install-coredns.sh"
+# Step 7.5: AWS Cloud Controller Manager (sets node ProviderID, required by Karpenter)
+echo "Step 7.5/11: Installing AWS Cloud Provider..."
+bash "${SCRIPT_DIR}/07.5-install-cloud-provider.sh"
 
-# Step 9: EBS CSI Driver
-echo "Step 9/11: Installing EBS CSI Driver..."
+# Step 8: EBS CSI Driver
+echo "Step 8/11: Installing EBS CSI Driver..."
 bash "${SCRIPT_DIR}/09-install-ebs-csi.sh"
 
-# Step 10: Untaint control plane
-echo "Step 10/11: Configuring control plane..."
+# Step 9: Untaint control plane
+echo "Step 9/11: Configuring control plane..."
 bash "${SCRIPT_DIR}/10-configure-node.sh"
 
-# Step 11: Karpenter
-echo "Step 11/11: Installing Karpenter..."
+# Step 10: Karpenter
+echo "Step 10/11: Installing Karpenter..."
 bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}"
 
 echo ""

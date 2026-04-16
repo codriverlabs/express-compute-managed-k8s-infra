@@ -4,12 +4,8 @@ set -e
 # Detect architecture
 ARCH=$(uname -m)
 case $ARCH in
-  x86_64)
-    ARCH="amd64"
-    ;;
-  aarch64)
-    ARCH="arm64"
-    ;;
+  x86_64)  ARCH="amd64" ;;
+  aarch64) ARCH="arm64" ;;
   *)
     echo "Unsupported architecture: $ARCH"
     exit 1
@@ -26,7 +22,8 @@ echo "Installing EKS-D (EKS Distro) ${EKSD_VERSION} for ${ARCH}..."
 
 # Download EKS-D release manifest
 echo "Downloading EKS-D release manifest..."
-curl -sL "https://distro.eks.amazonaws.com/kubernetes-${EKSD_VERSION}/kubernetes-${EKSD_VERSION}-eks-${EKSD_RELEASE}.yaml" -o /tmp/eks-d-release.yaml
+curl -sL "https://distro.eks.amazonaws.com/kubernetes-${EKSD_VERSION}/kubernetes-${EKSD_VERSION}-eks-${EKSD_RELEASE}.yaml" \
+  -o /tmp/eks-d-release.yaml
 
 # Extract component URLs for the detected architecture
 echo "Extracting ${ARCH} binaries..."
@@ -35,19 +32,12 @@ KUBELET_URL=$(grep "bin/linux/${ARCH}/kubelet" /tmp/eks-d-release.yaml -B 1 | gr
 KUBECTL_URL=$(grep "bin/linux/${ARCH}/kubectl" /tmp/eks-d-release.yaml -B 1 | grep "uri:" | awk '{print $2}')
 
 echo "Downloading EKS-D binaries..."
-echo "  kubeadm: ${KUBEADM_URL}"
-echo "  kubelet: ${KUBELET_URL}"
-echo "  kubectl: ${KUBECTL_URL}"
-
-# Download and install kubeadm
 curl -sL "${KUBEADM_URL}" -o /tmp/kubeadm
 sudo install -o root -g root -m 0755 /tmp/kubeadm /usr/local/bin/kubeadm
 
-# Download and install kubelet
 curl -sL "${KUBELET_URL}" -o /tmp/kubelet
 sudo install -o root -g root -m 0755 /tmp/kubelet /usr/local/bin/kubelet
 
-# Download and install kubectl (EKS-D version)
 curl -sL "${KUBECTL_URL}" -o /tmp/kubectl
 sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
 
@@ -98,42 +88,12 @@ echo "Starting containerd..."
 sudo systemctl enable containerd
 sudo systemctl start containerd
 
-# If AMI_BUILD, skip kubeadm init (will run on first boot)
-if [ "${AMI_BUILD:-}" = "true" ]; then
-  echo "⏭ Skipping kubeadm init (AMI build - will run on first boot)"
-  rm -f /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl
-  echo "✓ EKS-D binaries installed"
-  exit 0
-fi
-
-echo "Initializing EKS-D cluster..."
-PRIVATE_IP=$(hostname -I | awk '{print $1}')
-sudo kubeadm init \
-  --pod-network-cidr=192.168.0.0/16 \
-  --service-cidr=10.96.0.0/12 \
-  --apiserver-advertise-address=${PRIVATE_IP} \
-  --ignore-preflight-errors=NumCPU,DirAvailable--var-lib-etcd
-
-echo "Setting up kubeconfig..."
-mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
-# Cleanup
-rm -f /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl
-
-echo "✓ EKS-D installed"
-kubectl version
-kubectl get nodes
-
-# Install ECR credential provider
+# Install ECR credential provider (needed before kubeadm init so it can be in the config)
 echo "Installing ECR credential provider..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sudo cp "${SCRIPT_DIR}/${ARCH}/ecr-credential-provider" /usr/bin/ecr-credential-provider
 sudo chmod +x /usr/bin/ecr-credential-provider
 
-# Configure kubelet ECR credential provider
-echo "Configuring kubelet ECR credential provider..."
 sudo mkdir -p /etc/kubernetes/credential-provider
 sudo tee /etc/kubernetes/credential-provider/config.yaml <<EOFCRED
 apiVersion: kubelet.config.k8s.io/v1
@@ -149,8 +109,72 @@ providers:
     apiVersion: credentialprovider.kubelet.k8s.io/v1
 EOFCRED
 
-echo "KUBELET_EXTRA_ARGS='--cloud-provider=external --image-credential-provider-config=/etc/kubernetes/credential-provider/config.yaml --image-credential-provider-bin-dir=/usr/bin'" | sudo tee /etc/default/kubelet
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
+echo "✓ ECR credential provider installed"
 
-echo "✓ ECR credential provider configured"
+# If AMI_BUILD, skip kubeadm init (will run on first boot)
+if [ "${AMI_BUILD:-}" = "true" ]; then
+  echo "⏭ Skipping kubeadm init (AMI build - will run on first boot)"
+  rm -f /tmp/kubeadm /tmp/kubelet /tmp/kubectl
+  echo "✓ EKS-D binaries installed"
+  exit 0
+fi
+
+echo "Initializing EKS-D cluster..."
+
+# Extract image tags from the EKS-D release manifest
+EKSD_K8S_TAG=$(grep "kubernetes/kube-apiserver" /tmp/eks-d-release.yaml | grep "uri:" | head -1 | sed 's/.*://')
+EKSD_ETCD_TAG=$(grep "etcd-io/etcd" /tmp/eks-d-release.yaml | grep "uri:" | head -1 | sed 's/.*://')
+EKSD_COREDNS_TAG=$(grep "coredns/coredns" /tmp/eks-d-release.yaml | grep "uri:" | head -1 | sed 's/.*://')
+PRIVATE_IP=$(hostname -I | awk '{print $1}')
+
+echo "  k8s tag:     ${EKSD_K8S_TAG}"
+echo "  etcd tag:    ${EKSD_ETCD_TAG}"
+echo "  coredns tag: ${EKSD_COREDNS_TAG}"
+echo "  node IP:     ${PRIVATE_IP}"
+
+cat <<EOF | sudo tee /tmp/kubeadm-config.yaml
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+imageRepository: public.ecr.aws/eks-distro/kubernetes
+kubernetesVersion: ${EKSD_K8S_TAG}
+controlPlaneEndpoint: ${PRIVATE_IP}
+networking:
+  serviceSubnet: 10.96.0.0/12
+apiServer:
+  extraArgs:
+    cloud-provider: external
+controllerManager:
+  extraArgs:
+    cloud-provider: external
+dns:
+  imageRepository: public.ecr.aws/eks-distro/coredns
+  imageTag: ${EKSD_COREDNS_TAG}
+etcd:
+  local:
+    imageRepository: public.ecr.aws/eks-distro/etcd-io
+    imageTag: ${EKSD_ETCD_TAG}
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: external
+    image-credential-provider-config: /etc/kubernetes/credential-provider/config.yaml
+    image-credential-provider-bin-dir: /usr/bin
+EOF
+
+sudo kubeadm init \
+  --config /tmp/kubeadm-config.yaml \
+  --ignore-preflight-errors=NumCPU,DirAvailable--var-lib-etcd
+
+echo "Setting up kubeconfig..."
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# Cleanup
+rm -f /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl /tmp/kubeadm-config.yaml
+
+echo "✓ EKS-D installed"
+kubectl version
+kubectl get nodes

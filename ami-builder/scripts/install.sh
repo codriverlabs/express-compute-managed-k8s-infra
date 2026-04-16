@@ -28,6 +28,10 @@ bash "${EKS_D_SETUP_DIR}/04-install-helm.sh"
 echo "==> Installing EKS-D binaries..."
 bash "${EKS_D_SETUP_DIR}/06-install-eks-d.sh"
 
+# Configure containerd with EKS-D pause image (release manifest already downloaded by 06)
+echo "==> Configuring containerd..."
+bash "${EKS_D_SETUP_DIR}/00-configure-containerd.sh"
+
 # Copy eks-d-setup scripts to AMI for use at boot time
 echo "==> Installing eks-d-setup scripts..."
 sudo mkdir -p /opt/eks-d-setup
@@ -49,8 +53,7 @@ echo "==> Pre-downloading manifests..."
 sudo mkdir -p /opt/eks-d/manifests
 sudo curl -sL "https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.20.4/config/master/aws-k8s-cni.yaml" \
   -o /opt/eks-d/manifests/aws-vpc-cni.yaml
-sudo curl -sL "https://github.com/kubernetes/kubernetes/raw/release-1.29/cluster/addons/dns/coredns.yaml" \
-  -o /opt/eks-d/manifests/coredns.yaml || true
+# Note: CoreDNS is installed automatically by kubeadm init — no separate manifest needed
 
 # Pre-pull container images by inspecting charts and manifests
 echo "==> Discovering and pre-pulling container images..."
@@ -86,15 +89,6 @@ fi
 echo "==> Extracting and pulling images from VPC CNI manifest..."
 if [ -f /opt/eks-d/manifests/aws-vpc-cni.yaml ]; then
   grep -oP 'image:\s*\K[^\s]+' /opt/eks-d/manifests/aws-vpc-cni.yaml | sort -u | while read img; do
-    echo "  Pulling: $img"
-    sudo ctr images pull "$img" || true
-  done
-fi
-
-# Extract images from CoreDNS manifest
-echo "==> Extracting and pulling images from CoreDNS manifest..."
-if [ -f /opt/eks-d/manifests/coredns.yaml ]; then
-  grep -oP 'image:\s*\K[^\s]+' /opt/eks-d/manifests/coredns.yaml | sort -u | while read img; do
     echo "  Pulling: $img"
     sudo ctr images pull "$img" || true
   done

@@ -241,7 +241,7 @@ resource "aws_iam_instance_profile" "workstation" {
 
 resource "aws_security_group" "workstation" {
   name        = "eks-d-workstation-${var.developer_username}"
-  description = "EKS-D workstation: SSH, Karpenter"
+  description = "EKS-D workstation: SSH, Kubernetes API, kubelet, pod networking"
 
   ingress {
     description = "SSH"
@@ -249,6 +249,30 @@ resource "aws_security_group" "workstation" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = local.allowed_cidrs
+  }
+
+  ingress {
+    description = "Kubernetes API server (worker nodes + kubectl)"
+    from_port   = 6443
+    to_port     = 6443
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.shared[0].cidr_block]
+  }
+
+  ingress {
+    description = "Kubelet API (kubectl logs/exec, liveness probes)"
+    from_port   = 10250
+    to_port     = 10250
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.shared[0].cidr_block]
+  }
+
+  ingress {
+    description = "All traffic within security group (pod networking between nodes)"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    self        = true
   }
 
   egress {
@@ -280,10 +304,11 @@ resource "aws_instance" "workstation" {
               # Run eks-d-setup scripts (pre-installed in AMI)
               cd /opt/eks-d-setup
               
+              bash ./00-configure-containerd.sh
               bash ./05-prepare-etcd.sh
               bash ./06-install-eks-d.sh
               bash ./07-install-cni.sh
-              bash ./08-install-coredns.sh
+              bash ./07.5-install-cloud-provider.sh
               bash ./09-install-ebs-csi.sh
               bash ./10-configure-node.sh
               bash ./11-install-karpenter.sh "$DEVELOPER_SIGNUM" "$CLUSTER_NAME"
@@ -307,7 +332,8 @@ resource "aws_instance" "workstation" {
   }
 
   metadata_options {
-    http_tokens = "required"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
   }
 
   tags = {
