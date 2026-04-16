@@ -1,5 +1,27 @@
 # Karpenter Installation
 
+## EKS-D Requirement: `clusterEndpoint` Must Be Set Explicitly
+
+On EKS managed clusters, Karpenter discovers the API server endpoint by calling
+`DescribeCluster` on the EKS API. On EKS-D there is no EKS managed control plane, so this
+call has nothing to hit. Karpenter will fail to start if `settings.clusterEndpoint` is not
+set.
+
+Additionally, `settings.eksControlPlane` must be set to `false` to prevent Karpenter from
+attempting EKS-specific API calls.
+
+```bash
+CLUSTER_ENDPOINT="https://$(hostname -I | awk '{print $1}'):6443"
+
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --set settings.clusterName=${CLUSTER_NAME} \
+  --set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
+  --set settings.eksControlPlane=false \
+  ...
+```
+
+---
+
 ## OCI Registry Migration
 
 Karpenter moved its Helm chart from a traditional Helm repository to an OCI registry.

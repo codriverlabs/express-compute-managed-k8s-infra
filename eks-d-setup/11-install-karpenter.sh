@@ -12,6 +12,10 @@ fi
 export AWS_REGION=us-east-1
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
+# On EKS-D, there is no EKS managed control plane — Karpenter cannot use DescribeCluster.
+# clusterEndpoint must be set explicitly to the API server address.
+CLUSTER_ENDPOINT="https://$(hostname -I | awk '{print $1}'):6443"
+
 KARPENTER_VERSION="1.10.0"
 
 echo "Installing Karpenter ${KARPENTER_VERSION}..."
@@ -26,7 +30,9 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
   --version "${KARPENTER_VERSION}" \
   --namespace kube-system \
   --set settings.clusterName=${CLUSTER_NAME} \
+  --set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
+  --set settings.eksControlPlane=false \
   --set controller.resources.requests.cpu=1 \
   --set controller.resources.requests.memory=1Gi \
   --set controller.resources.limits.cpu=1 \
