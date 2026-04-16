@@ -72,14 +72,15 @@ resource "null_resource" "install" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/scripts/install.sh"
-    destination = "/tmp/install.sh"
+    source      = "${path.module}/scripts"
+    destination = "/tmp/scripts"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /tmp/install.sh",
-      "sudo bash /tmp/install.sh"
+      "chmod +x /tmp/scripts/*.sh",
+      "export KUBERNETES_VERSION=${var.kubernetes_version}",
+      "sudo -E bash /tmp/scripts/install.sh"
     ]
   }
 }

@@ -62,11 +62,15 @@ echo "Step 10/11: Installing EBS CSI Driver..."
 bash "${SCRIPT_DIR}/09-install-ebs-csi.sh"
 
 # Step 11: Untaint control plane
-echo "Step 11/11: Configuring control plane..."
+echo "Step 11/12: Configuring control plane..."
 bash "${SCRIPT_DIR}/10-configure-node.sh"
 
-# Step 12: Karpenter
-echo "Step 12/11: Installing Karpenter..."
+# Step 12: Metrics Server
+echo "Step 12/12: Installing Metrics Server..."
+bash "${SCRIPT_DIR}/12-install-metrics-server.sh"
+
+# Step 13: Karpenter
+echo "Step 13/12: Installing Karpenter..."
 bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}"
 
 echo ""

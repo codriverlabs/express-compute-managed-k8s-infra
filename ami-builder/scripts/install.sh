@@ -7,9 +7,14 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EKS_D_SETUP_DIR="/tmp/eks-d-setup"
 
-# EKS-D version (must match 06-install-eks-d.sh)
-EKSD_VERSION="1-33"
-EKSD_RELEASE="19"
+# EKS-D version discovery (configurable)
+KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.35}"
+echo "==> Discovering EKS-D components for Kubernetes ${KUBERNETES_VERSION}..."
+bash "${SCRIPT_DIR}/discover-eks-d.sh" "$KUBERNETES_VERSION" "/opt/eks-d/manifests"
+
+# Load discovered versions
+source /opt/eks-d/manifests/eks-d-versions.env
+echo "==> Using EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
 
 export AMI_BUILD=true
 
@@ -59,19 +64,17 @@ sudo curl -sL "https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.20.4/
 echo "==> Discovering and pre-pulling container images..."
 sudo systemctl start containerd
 
-# Pull EKS-D control plane images directly from the release manifest
+# Pull EKS-D control plane images directly from the downloaded manifest
 echo "==> Pulling EKS-D control plane images..."
-curl -sL "https://distro.eks.amazonaws.com/kubernetes-${EKSD_VERSION}/kubernetes-${EKSD_VERSION}-eks-${EKSD_RELEASE}.yaml" \
-  -o /tmp/eks-d-release.yaml
-grep "uri: public.ecr.aws/eks-distro/kubernetes/" /tmp/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
+grep "uri: public.ecr.aws/eks-distro/kubernetes/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   echo "  Pulling: $img"
   sudo ctr images pull "$img" || true
 done
-grep "uri: public.ecr.aws/eks-distro/etcd-io/" /tmp/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
+grep "uri: public.ecr.aws/eks-distro/etcd-io/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   echo "  Pulling: $img"
   sudo ctr images pull "$img" || true
 done
-grep "uri: public.ecr.aws/eks-distro/coredns/" /tmp/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
+grep "uri: public.ecr.aws/eks-distro/coredns/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   echo "  Pulling: $img"
   sudo ctr images pull "$img" || true
 done
@@ -107,13 +110,29 @@ if [ -f /opt/eks-d/manifests/aws-vpc-cni.yaml ]; then
   done
 fi
 
-# EBS CSI driver - pull known images (kustomize is harder to render)
-echo "==> Pulling EBS CSI driver images..."
+# EBS CSI driver and other components - pull from discovered versions
+echo "==> Pulling EBS CSI driver and component images..."
 sudo ctr images pull public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.53.0 || true
-sudo ctr images pull public.ecr.aws/eks-distro/kubernetes-csi/external-provisioner:v4.0.1-eks-1-29-latest || true
-sudo ctr images pull public.ecr.aws/eks-distro/kubernetes-csi/external-attacher:v4.0.0-eks-1-29-latest || true
-sudo ctr images pull public.ecr.aws/eks-distro/kubernetes-csi/livenessprobe:v2.9.0-eks-1-29-latest || true
-sudo ctr images pull public.ecr.aws/eks-distro/kubernetes-csi/external-resizer:v1.7.0-eks-1-29-latest || true
+
+# Pull CSI sidecar images using discovered versions
+if [ -n "$CSI_PROVISIONER_IMAGE" ]; then
+  sudo ctr images pull "$CSI_PROVISIONER_IMAGE" || true
+fi
+if [ -n "$CSI_ATTACHER_IMAGE" ]; then
+  sudo ctr images pull "$CSI_ATTACHER_IMAGE" || true
+fi
+if [ -n "$LIVENESSPROBE_IMAGE" ]; then
+  sudo ctr images pull "$LIVENESSPROBE_IMAGE" || true
+fi
+if [ -n "$CSI_RESIZER_IMAGE" ]; then
+  sudo ctr images pull "$CSI_RESIZER_IMAGE" || true
+fi
+
+# Metrics Server
+if [ -n "$METRICS_SERVER_IMAGE" ]; then
+  echo "==> Pulling Metrics Server image..."
+  sudo ctr images pull "$METRICS_SERVER_IMAGE" || true
+fi
 
 echo ""
 echo "==> AMI build complete!"

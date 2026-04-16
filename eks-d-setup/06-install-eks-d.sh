@@ -14,9 +14,16 @@ esac
 
 echo "Detected architecture: $ARCH"
 
-# EKS-D version matching Kubernetes 1.33
-EKSD_VERSION="1-33"
-EKSD_RELEASE="19"
+# Load EKS-D version information (discovered during AMI build)
+if [ -f "/opt/eks-d/manifests/eks-d-versions.env" ]; then
+  source /opt/eks-d/manifests/eks-d-versions.env
+  echo "Using discovered EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
+else
+  # Fallback to hardcoded values if discovery file not found
+  echo "Warning: EKS-D discovery file not found, using fallback values"
+  EKSD_VERSION="1-35"
+  EKSD_RELEASE="8"
+fi
 
 echo "Installing EKS-D (EKS Distro) ${EKSD_VERSION} for ${ARCH}..."
 
