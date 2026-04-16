@@ -39,11 +39,11 @@ sudo cp -r "${EKS_D_SETUP_DIR}"/* /opt/eks-d-setup/
 sudo chmod +x /opt/eks-d-setup/*.sh
 
 # Pre-download Helm charts and manifests FIRST (needed for image discovery)
-echo "==> Pre-downloading Helm charts..."
-helm repo add karpenter https://charts.karpenter.sh
+echo "==> Pre-pulling Karpenter chart from OCI registry..."
+helm registry logout public.ecr.aws 2>/dev/null || true
+helm pull oci://public.ecr.aws/karpenter/karpenter --version "1.10.0" --destination /tmp || true
 helm repo add aws-cloud-controller-manager https://kubernetes.github.io/cloud-provider-aws
 helm repo update
-helm pull karpenter/karpenter --version "v1.10.0" --destination /tmp || true
 helm pull aws-cloud-controller-manager/aws-cloud-controller-manager --destination /tmp || true
 sudo mkdir -p /opt/eks-d/charts
 sudo mv /tmp/karpenter-*.tgz /opt/eks-d/charts/ 2>/dev/null || true

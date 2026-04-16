@@ -12,38 +12,26 @@ fi
 export AWS_REGION=us-east-1
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-echo "Installing Karpenter 1.8.2..."
+KARPENTER_VERSION="1.10.0"
+
+echo "Installing Karpenter ${KARPENTER_VERSION}..."
 echo "Cluster: ${CLUSTER_NAME}"
 echo "Region: ${AWS_REGION}"
 
-# Use pre-downloaded chart if available
-CHART_PATH="/opt/eks-d/charts/karpenter-v1.10.0.tgz"
-if [ -f "$CHART_PATH" ]; then
-  helm upgrade --install karpenter "$CHART_PATH" \
-    --namespace karpenter \
-    --create-namespace \
-    --set settings.clusterName=${CLUSTER_NAME} \
-    --set settings.interruptionQueue=${CLUSTER_NAME} \
-    --set controller.resources.requests.cpu=1 \
-    --set controller.resources.requests.memory=1Gi \
-    --set controller.resources.limits.cpu=1 \
-    --set controller.resources.limits.memory=1Gi \
-    --wait
-else
-  helm repo add karpenter https://charts.karpenter.sh
-  helm repo update
-  helm upgrade --install karpenter karpenter/karpenter \
-    --namespace karpenter \
-    --create-namespace \
-    --version v1.10.0 \
-    --set settings.clusterName=${CLUSTER_NAME} \
-    --set settings.interruptionQueue=${CLUSTER_NAME} \
-    --set controller.resources.requests.cpu=1 \
-    --set controller.resources.requests.memory=1Gi \
-    --set controller.resources.limits.cpu=1 \
-    --set controller.resources.limits.memory=1Gi \
-    --wait
-fi
+# Karpenter moved to OCI registry — helm repo add no longer works
+# Logout first to allow unauthenticated pull from public ECR
+helm registry logout public.ecr.aws 2>/dev/null || true
+
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --version "${KARPENTER_VERSION}" \
+  --namespace kube-system \
+  --set settings.clusterName=${CLUSTER_NAME} \
+  --set settings.interruptionQueue=${CLUSTER_NAME} \
+  --set controller.resources.requests.cpu=1 \
+  --set controller.resources.requests.memory=1Gi \
+  --set controller.resources.limits.cpu=1 \
+  --set controller.resources.limits.memory=1Gi \
+  --wait
 
 echo "✓ Karpenter installed"
-kubectl get pods -n karpenter
+kubectl get pods -n kube-system -l app.kubernetes.io/name=karpenter
