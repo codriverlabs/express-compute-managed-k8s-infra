@@ -53,9 +53,9 @@ bash "${SCRIPT_DIR}/06-install-eks-d.sh"
 echo "Step 7/11: Installing AWS VPC CNI..."
 bash "${SCRIPT_DIR}/07-install-cni.sh"
 
-# Step 7.5: AWS Cloud Controller Manager (sets node ProviderID, required by Karpenter)
-echo "Step 7.5/11: Installing AWS Cloud Provider..."
-bash "${SCRIPT_DIR}/07.5-install-cloud-provider.sh"
+# Step 8: AWS Cloud Controller Manager (sets node ProviderID, required by Karpenter)
+echo "Step 8/11: Installing AWS Cloud Provider..."
+bash "${SCRIPT_DIR}/08-install-cloud-provider.sh"
 
 # Step 8: EBS CSI Driver
 echo "Step 8/11: Installing EBS CSI Driver..."

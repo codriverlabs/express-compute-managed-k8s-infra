@@ -308,7 +308,7 @@ resource "aws_instance" "workstation" {
               bash ./05-prepare-etcd.sh
               bash ./06-install-eks-d.sh
               bash ./07-install-cni.sh
-              bash ./07.5-install-cloud-provider.sh
+              bash ./08-install-cloud-provider.sh
               bash ./09-install-ebs-csi.sh
               bash ./10-configure-node.sh
               bash ./11-install-karpenter.sh "$DEVELOPER_SIGNUM" "$CLUSTER_NAME"
