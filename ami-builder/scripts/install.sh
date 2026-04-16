@@ -59,9 +59,22 @@ sudo curl -sL "https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.20.4/
 echo "==> Discovering and pre-pulling container images..."
 sudo systemctl start containerd
 
-# Pull images from kubeadm config (etcd, pause, kube-apiserver, etc.)
-echo "==> Pulling kubeadm images..."
-sudo kubeadm config images pull 2>/dev/null || true
+# Pull EKS-D control plane images directly from the release manifest
+echo "==> Pulling EKS-D control plane images..."
+curl -sL "https://distro.eks.amazonaws.com/kubernetes-${EKSD_VERSION}/kubernetes-${EKSD_VERSION}-eks-${EKSD_RELEASE}.yaml" \
+  -o /tmp/eks-d-release.yaml
+grep "uri: public.ecr.aws/eks-distro/kubernetes/" /tmp/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
+  echo "  Pulling: $img"
+  sudo ctr images pull "$img" || true
+done
+grep "uri: public.ecr.aws/eks-distro/etcd-io/" /tmp/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
+  echo "  Pulling: $img"
+  sudo ctr images pull "$img" || true
+done
+grep "uri: public.ecr.aws/eks-distro/coredns/" /tmp/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
+  echo "  Pulling: $img"
+  sudo ctr images pull "$img" || true
+done
 
 # Render Karpenter chart and extract images
 echo "==> Extracting and pulling images from Karpenter chart..."
