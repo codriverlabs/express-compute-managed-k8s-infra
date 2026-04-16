@@ -14,6 +14,7 @@ behave equivalently to an EKS managed cluster.
 | [05-containerd.md](05-containerd.md) | containerd sandbox image and cgroup driver configuration |
 | [06-infrastructure.md](06-infrastructure.md) | Terraform: IMDSv2 hop limit and security group rules |
 | [07-install-order.md](07-install-order.md) | Corrected installation order and verification checklist |
+| [08-karpenter.md](08-karpenter.md) | Karpenter OCI registry migration — old helm repo is dead |
 
 ## Problem Summary
 

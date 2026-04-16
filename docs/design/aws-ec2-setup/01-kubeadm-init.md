@@ -73,6 +73,15 @@ and can prevent pods from getting IPs or communicating correctly.
 
 ---
 
+## Verification of EKS-D Version String Acceptance
+
+The EKS-D version string format (e.g., `v1.33.0-eks-1-33-19`) is valid semver with a
+pre-release identifier and is accepted by kubeadm. This is confirmed by the
+[official EKS-D kubeadm example](https://gist.github.com/thebsdbox/6401271aff6671fbd44255e32847455f)
+which uses `--kubernetes-version v1.18.9-eks-1-18-1` directly.
+
+---
+
 ## Fix
 
 Replace the `kubeadm init` CLI call with a config file. The image tags must be extracted from
