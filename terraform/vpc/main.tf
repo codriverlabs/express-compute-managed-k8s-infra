@@ -175,3 +175,21 @@ resource "aws_flow_log" "main" {
 data "aws_availability_zones" "available" {
   state = "available"
 }
+
+# S3 Gateway Endpoint — free, keeps S3 traffic inside AWS network
+# Required for: ECR image pulls, EBS CSI snapshots, CloudWatch logs, Karpenter pricing data
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = [
+    aws_route_table.public.id,
+    aws_route_table.private.id,
+  ]
+
+  tags = {
+    Name    = "${var.project_name}-s3-endpoint"
+    Project = var.project_name
+  }
+}
