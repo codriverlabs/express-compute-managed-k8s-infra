@@ -15,6 +15,7 @@ helm install aws-cloud-controller-manager \
   --set args[0]=--v=2 \
   --set args[1]=--cloud-provider=aws \
   --set args[2]=--use-service-account-credentials=true \
+  --set args[3]=--configure-cloud-routes=false \
   --wait
 
 # The chart doesn't support hostNetwork via values — patch directly.
