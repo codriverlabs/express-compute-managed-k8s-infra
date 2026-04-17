@@ -57,6 +57,12 @@ sudo mv /tmp/karpenter-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 sudo mv /tmp/aws-cloud-controller-manager-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 sudo mv /tmp/aws-ebs-csi-driver-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 
+echo "==> Pre-pulling CloudWatch Observability Helm chart..."
+helm repo add aws-observability https://aws-observability.github.io/helm-charts 2>/dev/null || true
+helm repo update
+helm pull aws-observability/amazon-cloudwatch-observability --destination /tmp || true
+sudo mv /tmp/amazon-cloudwatch-observability-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
+
 echo "==> Pre-downloading manifests..."
 sudo mkdir -p /opt/eks-d/manifests
 sudo curl -sL "https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/v1.20.4/config/master/aws-k8s-cni.yaml" \
@@ -146,6 +152,24 @@ fi
 if [ -n "$METRICS_SERVER_IMAGE" ]; then
   echo "==> Pulling Metrics Server image..."
   sudo ctr images pull "$METRICS_SERVER_IMAGE" || true
+fi
+
+# aws-iam-authenticator — runs as static pod for worker node IAM auth
+echo "==> Pulling aws-iam-authenticator image..."
+if [ -n "$AWS_IAM_AUTHENTICATOR_IMAGE" ]; then
+  sudo ctr images pull "$AWS_IAM_AUTHENTICATOR_IMAGE" || true
+fi
+
+# Render CloudWatch Observability chart and extract images
+echo "==> Extracting and pulling images from CloudWatch Observability chart..."
+CW_CHART=$(ls /opt/eks-d/charts/amazon-cloudwatch-observability-*.tgz 2>/dev/null | head -1)
+if [ -n "$CW_CHART" ]; then
+  helm template amazon-cloudwatch-observability "$CW_CHART" \
+    --set clusterName=build --set region=us-east-1 2>/dev/null | \
+    grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
+      echo "  Pulling: $img"
+      sudo ctr images pull "$img" || true
+    done
 fi
 
 echo ""

@@ -21,10 +21,14 @@ fi
 
 echo "Installing CloudWatch Observability agent..."
 
-helm repo add aws-observability https://aws-observability.github.io/helm-charts 2>/dev/null || true
-helm repo update
+CHART=$(ls /opt/eks-d/charts/amazon-cloudwatch-observability-*.tgz 2>/dev/null | head -1)
+if [ -z "$CHART" ]; then
+  helm repo add aws-observability https://aws-observability.github.io/helm-charts 2>/dev/null || true
+  helm repo update
+  CHART="aws-observability/amazon-cloudwatch-observability"
+fi
 
-helm upgrade --install amazon-cloudwatch-observability aws-observability/amazon-cloudwatch-observability \
+helm upgrade --install amazon-cloudwatch-observability "$CHART" \
   --namespace amazon-cloudwatch \
   --create-namespace \
   --set clusterName="${CLUSTER_NAME}" \
