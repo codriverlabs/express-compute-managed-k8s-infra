@@ -13,6 +13,13 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Persist cluster identity so individual scripts can source it without args
+sudo mkdir -p /opt/eks-d
+cat <<EOF | sudo tee /opt/eks-d/cluster.env
+DEVELOPER_SIGNUM="${DEVELOPER_SIGNUM}"
+CLUSTER_NAME="${CLUSTER_NAME}"
+EOF
+
 echo "=========================================="
 echo "EKS-D Complete Installation"
 echo "=========================================="

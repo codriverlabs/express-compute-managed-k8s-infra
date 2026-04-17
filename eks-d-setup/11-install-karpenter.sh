@@ -1,8 +1,13 @@
 #!/bin/bash
 set -e
 
-DEVELOPER_SIGNUM="${1}"
-CLUSTER_NAME="${2}"
+DEVELOPER_SIGNUM="${1:-${DEVELOPER_SIGNUM:-}}"
+CLUSTER_NAME="${2:-${CLUSTER_NAME:-}}"
+
+# Fall back to persisted cluster identity
+if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
+  [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
+fi
 
 if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
   echo "Usage: $0 <developer-signum> <cluster-name>"
@@ -33,10 +38,14 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
   --set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
   --set settings.eksControlPlane=false \
-  --set controller.resources.requests.cpu=1 \
-  --set controller.resources.requests.memory=1Gi \
-  --set controller.resources.limits.cpu=1 \
-  --set controller.resources.limits.memory=1Gi \
+  --set replicas=1 \
+  --set controller.resources.requests.cpu=500m \
+  --set controller.resources.requests.memory=512Mi \
+  --set controller.resources.limits.cpu=500m \
+  --set controller.resources.limits.memory=512Mi \
+  --set topologySpreadConstraints=null \
+  --set controller.env[0].name=AWS_REGION \
+  --set controller.env[0].value=${AWS_REGION} \
   --wait
 
 echo "✓ Karpenter installed"

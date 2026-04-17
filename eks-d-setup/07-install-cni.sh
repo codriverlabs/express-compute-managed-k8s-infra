@@ -46,5 +46,14 @@ fi
 echo "Waiting for CNI pods to be ready..."
 kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=300s
 
+# Enable EXTERNALSNAT so pod traffic is not SNAT'd to the node IP.
+# Without this, CoreDNS's forward plugin probe queries get SNAT'd back through
+# the node, the loop plugin detects a loop, and silently disables the forward
+# plugin — breaking all external DNS resolution from pods.
+# See: docs/design/aws-ec2-setup/09-coredns-externalsnat.md
+echo "Configuring VPC CNI: enabling EXTERNALSNAT..."
+kubectl set env daemonset aws-node -n kube-system AWS_VPC_K8S_CNI_EXTERNALSNAT=true
+kubectl rollout status daemonset aws-node -n kube-system --timeout=120s
+
 echo "✓ AWS VPC CNI installed"
 kubectl get pods -n kube-system -l k8s-app=aws-node
