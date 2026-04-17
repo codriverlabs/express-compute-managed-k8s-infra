@@ -47,3 +47,8 @@ output "security_group_id" {
   description = "Security group ID"
   value       = aws_security_group.workstation.id
 }
+
+output "karpenter_interruption_queue" {
+  description = "Karpenter interruption SQS queue URL"
+  value       = aws_sqs_queue.karpenter_interruption.url
+}
