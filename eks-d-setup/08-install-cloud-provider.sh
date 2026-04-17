@@ -9,7 +9,6 @@ helm repo update
 helm install aws-cloud-controller-manager \
   aws-cloud-controller-manager/aws-cloud-controller-manager \
   --namespace kube-system \
-  --set hostNetwork=true \
   --set nodeSelector."node-role\.kubernetes\.io/control-plane"="" \
   --set tolerations[0].key="node-role.kubernetes.io/control-plane" \
   --set tolerations[0].effect="NoSchedule" \
@@ -17,6 +16,11 @@ helm install aws-cloud-controller-manager \
   --set args[1]=--cloud-provider=aws \
   --set args[2]=--use-service-account-credentials=true \
   --wait
+
+# The chart doesn't support hostNetwork via values — patch directly.
+# Required so the pod can reach IMDS at 169.254.169.254 (link-local).
+kubectl patch daemonset aws-cloud-controller-manager -n kube-system \
+  --patch '{"spec":{"template":{"spec":{"hostNetwork":true}}}}'
 
 echo "✓ AWS Cloud Provider installed"
 kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-cloud-controller-manager
