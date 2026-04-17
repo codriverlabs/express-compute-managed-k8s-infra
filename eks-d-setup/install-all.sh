@@ -70,8 +70,12 @@ echo "Step 12/12: Installing Metrics Server..."
 bash "${SCRIPT_DIR}/12-install-metrics-server.sh"
 
 # Step 13: Karpenter
-echo "Step 13/12: Installing Karpenter..."
+echo "Step 13/14: Installing Karpenter..."
 bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}"
+
+# Step 14: CloudWatch agent
+echo "Step 14/14: Installing CloudWatch agent..."
+CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh"
 
 echo ""
 echo "=========================================="

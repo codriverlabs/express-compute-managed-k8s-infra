@@ -1,7 +1,7 @@
 locals {
   ami_arch           = var.arch == "arm64" ? "arm64" : "x86_64"
   workstation_name   = var.workstation_name != "" ? var.workstation_name : "eks-d-${var.developer_username}"
-  allowed_cidrs      = length(var.allowed_cidr_blocks) > 0 ? var.allowed_cidr_blocks : ["0.0.0.0/0"]
+  allowed_cidrs      = var.allowed_cidr_blocks
   
   # Auto-discover VPC by tag
   vpc_filter = var.vpc_id != "" ? var.vpc_id : data.aws_vpc.shared[0].id
@@ -125,10 +125,7 @@ data "aws_iam_user" "developer" {
   user_name = var.developer_username
 }
 
-data "external" "developer_policies" {
-  program = ["bash", "-c",
-    "aws iam list-attached-user-policies --user-name '${var.developer_username}' --query '{arns: join(`\",\"`, AttachedPolicies[].PolicyArn)}' --output json | python3 -c \"import sys,json; d=json.load(sys.stdin); print(json.dumps({'arns': d.get('arns') or ''}))\""]
-}
+
 
 resource "aws_iam_role" "workstation" {
   name = "eks-d-workstation-${var.developer_username}"
@@ -160,6 +157,16 @@ resource "aws_iam_role_policy_attachment" "eks_cni" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
+resource "aws_iam_role_policy_attachment" "ebs_csi" {
+  role       = aws_iam_role.workstation.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch" {
+  role       = aws_iam_role.workstation.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
 resource "aws_iam_role_policy" "cloud_provider" {
   name = "eks-d-cloud-provider"
   role = aws_iam_role.workstation.id
@@ -167,6 +174,7 @@ resource "aws_iam_role_policy" "cloud_provider" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # Read-only: no tag restriction needed
       {
         Effect = "Allow"
         Action = [
@@ -176,20 +184,60 @@ resource "aws_iam_role_policy" "cloud_provider" {
           "ec2:DescribeSecurityGroups",
           "ec2:DescribeSubnets",
           "ec2:DescribeVolumes",
-          "ec2:CreateSecurityGroup",
-          "ec2:CreateTags",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeAvailabilityZones",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeLoadBalancerAttributes",
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:DescribeLoadBalancerPolicies",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeTargetHealth",
+          "iam:CreateServiceLinkedRole",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      },
+      # Create new EC2 resources — must be tagged with this cluster at creation time
+      {
+        Effect = "Allow"
+        Action = [
           "ec2:CreateVolume",
+          "ec2:CreateSecurityGroup",
+          "ec2:CreateRoute",
+          "ec2:CreateTags"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:RequestTag/kubernetes.io/cluster/${local.workstation_name}" = "owned"
+          }
+        }
+      },
+      # Mutate/delete existing EC2 resources — only those owned by this cluster
+      {
+        Effect = "Allow"
+        Action = [
           "ec2:ModifyInstanceAttribute",
           "ec2:ModifyVolume",
           "ec2:AttachVolume",
-          "ec2:AuthorizeSecurityGroupIngress",
-          "ec2:CreateRoute",
-          "ec2:DeleteRoute",
-          "ec2:DeleteSecurityGroup",
-          "ec2:DeleteVolume",
           "ec2:DetachVolume",
+          "ec2:DeleteVolume",
+          "ec2:AuthorizeSecurityGroupIngress",
           "ec2:RevokeSecurityGroupIngress",
-          "ec2:DescribeVpcs",
+          "ec2:DeleteSecurityGroup",
+          "ec2:DeleteRoute"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "ec2:ResourceTag/kubernetes.io/cluster/${local.workstation_name}" = "owned"
+          }
+        }
+      },
+      # ELB write actions — only load balancers tagged with this cluster
+      {
+        Effect = "Allow"
+        Action = [
           "elasticloadbalancing:AddTags",
           "elasticloadbalancing:AttachLoadBalancerToSubnets",
           "elasticloadbalancing:ApplySecurityGroupsToLoadBalancer",
@@ -199,40 +247,32 @@ resource "aws_iam_role_policy" "cloud_provider" {
           "elasticloadbalancing:ConfigureHealthCheck",
           "elasticloadbalancing:DeleteLoadBalancer",
           "elasticloadbalancing:DeleteLoadBalancerListeners",
-          "elasticloadbalancing:DescribeLoadBalancers",
-          "elasticloadbalancing:DescribeLoadBalancerAttributes",
           "elasticloadbalancing:DetachLoadBalancerFromSubnets",
           "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
           "elasticloadbalancing:ModifyLoadBalancerAttributes",
           "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
           "elasticloadbalancing:SetLoadBalancerPoliciesForBackendServer",
-          "elasticloadbalancing:AddTags",
           "elasticloadbalancing:CreateListener",
           "elasticloadbalancing:CreateTargetGroup",
           "elasticloadbalancing:DeleteListener",
           "elasticloadbalancing:DeleteTargetGroup",
-          "elasticloadbalancing:DescribeListeners",
-          "elasticloadbalancing:DescribeLoadBalancerPolicies",
-          "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeTargetHealth",
           "elasticloadbalancing:ModifyListener",
           "elasticloadbalancing:ModifyTargetGroup",
           "elasticloadbalancing:RegisterTargets",
-          "elasticloadbalancing:SetLoadBalancerPoliciesOfListener",
-          "iam:CreateServiceLinkedRole",
-          "kms:DescribeKey"
+          "elasticloadbalancing:SetLoadBalancerPoliciesOfListener"
         ]
         Resource = "*"
+        Condition = {
+          StringEquals = {
+            "elasticloadbalancing:ResourceTag/kubernetes.io/cluster/${local.workstation_name}" = "owned"
+          }
+        }
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "developer_policies" {
-  for_each   = toset(split(",", data.external.developer_policies.result["arns"]))
-  role       = aws_iam_role.workstation.name
-  policy_arn = each.value
-}
+
 
 resource "aws_iam_instance_profile" "workstation" {
   name = "eks-d-workstation-${var.developer_username}"

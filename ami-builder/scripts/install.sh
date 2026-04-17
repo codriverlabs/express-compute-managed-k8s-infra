@@ -48,11 +48,14 @@ echo "==> Pre-pulling Karpenter chart from OCI registry..."
 helm registry logout public.ecr.aws 2>/dev/null || true
 helm pull oci://public.ecr.aws/karpenter/karpenter --version "1.10.0" --destination /tmp || true
 helm repo add aws-cloud-controller-manager https://kubernetes.github.io/cloud-provider-aws
+helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
 helm repo update
 helm pull aws-cloud-controller-manager/aws-cloud-controller-manager --destination /tmp || true
+helm pull aws-ebs-csi-driver/aws-ebs-csi-driver --destination /tmp || true
 sudo mkdir -p /opt/eks-d/charts
 sudo mv /tmp/karpenter-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 sudo mv /tmp/aws-cloud-controller-manager-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
+sudo mv /tmp/aws-ebs-csi-driver-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 
 echo "==> Pre-downloading manifests..."
 sudo mkdir -p /opt/eks-d/manifests
@@ -95,6 +98,17 @@ echo "==> Extracting and pulling images from cloud-provider-aws chart..."
 CLOUD_PROVIDER_CHART=$(ls /opt/eks-d/charts/aws-cloud-controller-manager-*.tgz 2>/dev/null | head -1)
 if [ -n "$CLOUD_PROVIDER_CHART" ]; then
   helm template aws-cloud-controller-manager "$CLOUD_PROVIDER_CHART" 2>/dev/null | \
+    grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
+      echo "  Pulling: $img"
+      sudo ctr images pull "$img" || true
+    done
+fi
+
+# Render EBS CSI chart and extract images
+echo "==> Extracting and pulling images from EBS CSI chart..."
+EBS_CSI_CHART=$(ls /opt/eks-d/charts/aws-ebs-csi-driver-*.tgz 2>/dev/null | head -1)
+if [ -n "$EBS_CSI_CHART" ]; then
+  helm template aws-ebs-csi-driver "$EBS_CSI_CHART" 2>/dev/null | \
     grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
       echo "  Pulling: $img"
       sudo ctr images pull "$img" || true

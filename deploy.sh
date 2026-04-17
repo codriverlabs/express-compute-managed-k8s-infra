@@ -72,15 +72,25 @@ if [ -z "${TFSTATE_BUCKET}" ]; then
   echo "ERROR: Terraform state bucket is required." >&2; exit 1
 fi
 
+if [ -z "${SSH_CIDR:-}" ]; then
+  MY_IP="$(curl -sf https://checkip.amazonaws.com/ || true)"
+  if [ -z "$MY_IP" ]; then
+    echo "ERROR: Could not detect public IP. Set SSH_CIDR=x.x.x.x/32 and retry." >&2; exit 1
+  fi
+  SSH_CIDR="${MY_IP}/32"
+fi
+prompt SSH_CIDR "SSH allowed CIDR" "${SSH_CIDR}"
+
 TFVARS="${SCRIPT_DIR}/terraform/terraform.tfvars"
 cat > "${TFVARS}" <<EOF
-developer_username = "${DEVELOPER_USERNAME}"
-workstation_name   = "${WORKSTATION_NAME}"
-aws_region         = "${AWS_REGION}"
-arch               = "${ARCH}"
-instance_type      = "${INSTANCE_TYPE}"
-disk_size_gb       = ${DISK_SIZE_GB}
-key_pair_name      = "${KEY_PAIR_NAME}"
+developer_username  = "${DEVELOPER_USERNAME}"
+workstation_name    = "${WORKSTATION_NAME}"
+aws_region          = "${AWS_REGION}"
+arch                = "${ARCH}"
+instance_type       = "${INSTANCE_TYPE}"
+disk_size_gb        = ${DISK_SIZE_GB}
+key_pair_name       = "${KEY_PAIR_NAME}"
+allowed_cidr_blocks = ["${SSH_CIDR}"]
 EOF
 
 echo "" && echo "==> Written: terraform/terraform.tfvars"
