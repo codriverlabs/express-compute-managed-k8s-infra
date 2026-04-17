@@ -13,6 +13,12 @@ helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --set controller.serviceAccount.create=true \
   --wait
 
+# Use node DNS (dnsPolicy: Default) to bypass CoreDNS external forwarding issue.
+# CoreDNS on EKS-D fails to forward external queries; the node's /etc/resolv.conf
+# points directly to the VPC DNS resolver (10.0.0.2) which works correctly.
+kubectl patch deployment ebs-csi-controller -n kube-system \
+  --patch '{"spec":{"template":{"spec":{"dnsPolicy":"Default"}}}}'
+
 echo "Creating default storage class..."
 cat <<EOF | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
