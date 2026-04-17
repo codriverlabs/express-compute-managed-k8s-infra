@@ -38,13 +38,20 @@ AMI_ID=$(aws ssm get-parameter \
   --name "/eks-d/ami/x86_64" \
   --query 'Parameter.Value' --output text --region "$REGION")
 
+# Discover CA cert for NodeConfig
+CA_BUNDLE=$(sudo cat /etc/kubernetes/pki/ca.crt 2>/dev/null | base64 -w0 || \
+            kubectl get configmap kube-root-ca.crt -n kube-system -o jsonpath='{.data.ca\.crt}' | base64 -w0)
+API_SERVER="https://$(kubectl get endpoints kubernetes -o jsonpath='{.subsets[0].addresses[0].ip}'):6443"
+SERVICE_CIDR=$(kubectl get configmap kubeadm-config -n kube-system -o jsonpath='{.data.ClusterConfiguration}' | grep serviceSubnet | awk '{print $2}')
+
 echo "  Instance Profile : $INSTANCE_PROFILE"
 echo "  Private Subnet   : $PRIVATE_SUBNET"
 echo "  Security Group   : $SECURITY_GROUP"
-echo "  AMI              : $AMI_ID"
+echo "  API Server       : $API_SERVER"
+echo "  Service CIDR     : $SERVICE_CIDR"
 
-# EC2NodeClass — use instanceProfile (not role) since IAM has no VPC endpoint
-# See: https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/#private-clusters
+# EC2NodeClass — AL2023 EKS-Optimized AMI with nodeadm NodeConfig
+# nodeadm authenticates via IAM role → aws-iam-authenticator on control plane
 kubectl apply -f - <<EOF
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
@@ -54,9 +61,9 @@ spec:
   # Use instanceProfile instead of role — IAM API has no VPC endpoint
   instanceProfile: "${INSTANCE_PROFILE}"
 
-  # Pin to the EKS-D AMI; amiFamily Custom requires explicit userData
+  # AL2023 EKS-Optimized AMI — same kubelet as EKS-D (EKS-D is the upstream)
   amiSelectorTerms:
-    - id: "${AMI_ID}"
+    - alias: al2023@v1.35
 
   subnetSelectorTerms:
     - id: "${PRIVATE_SUBNET}"
@@ -64,15 +71,28 @@ spec:
   securityGroupSelectorTerms:
     - id: "${SECURITY_GROUP}"
 
-  # Worker node bootstrap for EKS-D (joins existing kubeadm cluster)
+  # nodeadm NodeConfig — points to our EKS-D control plane instead of EKS endpoint
   userData: |
-    #!/bin/bash
-    set -e
-    CLUSTER_NAME="${CLUSTER_NAME}"
-    DEVELOPER_SIGNUM="${DEVELOPER_SIGNUM}"
-    cd /opt/eks-d-setup
-    bash ./00-configure-containerd.sh
-    bash ./09-configure-node.sh
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="//"
+
+    --//
+    Content-Type: application/node.eks.aws
+
+    ---
+    apiVersion: node.eks.aws/v1alpha1
+    kind: NodeConfig
+    spec:
+      cluster:
+        name: ${CLUSTER_NAME}
+        apiServerEndpoint: ${API_SERVER}
+        certificateAuthority: ${CA_BUNDLE}
+        cidr: ${SERVICE_CIDR}
+      kubelet:
+        flags:
+          - "--node-labels=karpenter.sh/nodepool=default"
+
+    --//--
 
   metadataOptions:
     httpEndpoint: enabled
