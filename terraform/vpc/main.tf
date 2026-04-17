@@ -176,6 +176,13 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# Import block: handles re-deployment when Terraform state is lost.
+# If the log group doesn't exist, this is a no-op.
+import {
+  to = aws_cloudwatch_log_group.flow_logs
+  id = "/aws/vpc/${var.project_name}-flow-logs"
+}
+
 # S3 Gateway Endpoint — free, keeps S3 traffic inside AWS network
 # Required for: ECR image pulls, EBS CSI snapshots, CloudWatch logs, Karpenter pricing data
 resource "aws_vpc_endpoint" "s3" {
