@@ -167,6 +167,85 @@ resource "aws_iam_role_policy_attachment" "cloudwatch" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+resource "aws_iam_role_policy" "karpenter" {
+  name = "eks-d-karpenter"
+  role = aws_iam_role.workstation.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeAvailabilityZones",
+          "ec2:DescribeImages",
+          "ec2:DescribeInstances",
+          "ec2:DescribeInstanceTypeOfferings",
+          "ec2:DescribeInstanceTypes",
+          "ec2:DescribeLaunchTemplates",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeSpotPriceHistory",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeVolumes",
+          "ec2:DescribeVpcs",
+          "pricing:GetProducts",
+          "ssm:GetParameter",
+          "iam:ListInstanceProfiles",
+          "iam:GetInstanceProfile",
+          "iam:CreateInstanceProfile",
+          "iam:DeleteInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:TagInstanceProfile"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:RunInstances",
+          "ec2:CreateFleet",
+          "ec2:CreateLaunchTemplate",
+          "ec2:DeleteLaunchTemplate",
+          "ec2:TerminateInstances",
+          "ec2:CreateTags"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:RequestTag/kubernetes.io/cluster/${local.workstation_name}" = "owned"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = ["ec2:TerminateInstances", "ec2:DeleteLaunchTemplate"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "ec2:ResourceTag/kubernetes.io/cluster/${local.workstation_name}" = "owned"
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
+        Resource = aws_iam_role.workstation.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl",
+          "sqs:ReceiveMessage"
+        ]
+        Resource = "arn:aws:sqs:${var.aws_region}:*:${local.workstation_name}"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "cloud_provider" {
   name = "eks-d-cloud-provider"
   role = aws_iam_role.workstation.id
@@ -324,6 +403,16 @@ resource "aws_security_group" "workstation" {
 
   vpc_id = local.vpc_filter
   tags   = { Name = "eks-d-workstation-${var.developer_username}" }
+}
+
+resource "aws_sqs_queue" "karpenter_interruption" {
+  name                      = local.workstation_name
+  message_retention_seconds = 300
+
+  tags = {
+    Name                                              = local.workstation_name
+    "kubernetes.io/cluster/${local.workstation_name}" = "owned"
+  }
 }
 
 resource "aws_instance" "workstation" {
