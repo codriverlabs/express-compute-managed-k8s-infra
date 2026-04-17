@@ -147,12 +147,6 @@ kubernetesVersion: ${EKSD_K8S_TAG}
 controlPlaneEndpoint: ${PRIVATE_IP}
 networking:
   serviceSubnet: 10.96.0.0/12
-apiServer:
-  extraArgs:
-    cloud-provider: external
-controllerManager:
-  extraArgs:
-    cloud-provider: external
 dns:
   imageRepository: public.ecr.aws/eks-distro/coredns
   imageTag: ${EKSD_COREDNS_TAG}
@@ -165,7 +159,6 @@ apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 nodeRegistration:
   kubeletExtraArgs:
-    cloud-provider: external
     image-credential-provider-config: /etc/kubernetes/credential-provider/config.yaml
     image-credential-provider-bin-dir: /usr/bin
 EOF

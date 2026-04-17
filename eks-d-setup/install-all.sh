@@ -57,13 +57,13 @@ bash "${SCRIPT_DIR}/07-install-cni.sh"
 echo "Step 9/11: Installing AWS Cloud Provider..."
 bash "${SCRIPT_DIR}/08-install-cloud-provider.sh"
 
-# Step 10: EBS CSI Driver
-echo "Step 10/11: Installing EBS CSI Driver..."
-bash "${SCRIPT_DIR}/09-install-ebs-csi.sh"
+# Step 9: Untaint control plane
+echo "Step 9/12: Configuring control plane..."
+bash "${SCRIPT_DIR}/09-configure-node.sh"
 
-# Step 11: Untaint control plane
-echo "Step 11/12: Configuring control plane..."
-bash "${SCRIPT_DIR}/10-configure-node.sh"
+# Step 10: EBS CSI Driver
+echo "Step 10/12: Installing EBS CSI Driver..."
+bash "${SCRIPT_DIR}/10-install-ebs-csi.sh"
 
 # Step 12: Metrics Server
 echo "Step 12/12: Installing Metrics Server..."

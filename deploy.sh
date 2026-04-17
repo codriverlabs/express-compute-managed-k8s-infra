@@ -104,4 +104,4 @@ PUBLIC_IP=$(terraform -chdir="${SCRIPT_DIR}/terraform" output -raw workstation_p
 
 echo "  Workstation : ${WORKSTATION_NAME}"
 echo "  Public IP   : ${PUBLIC_IP}"
-echo "  SSH         : ssh -i ${KEY_FILE} ubuntu@${PUBLIC_IP}"
+echo "  SSH         : ssh -i ${KEY_FILE} ec2-user@${PUBLIC_IP}"
