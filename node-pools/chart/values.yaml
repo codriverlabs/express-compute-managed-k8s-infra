@@ -1,0 +1,25 @@
+# Cluster identity
+clusterName: ""
+developerSignum: ""
+awsRegion: "us-east-1"
+
+# Discovered at runtime by configure-nodepools.sh
+instanceProfile: ""
+subnetId: ""
+securityGroupId: ""
+
+# NodeConfig for nodeadm (AL2023 EKS-Optimized worker nodes)
+nodeConfig:
+  apiServerEndpoint: ""
+  certificateAuthority: ""
+  serviceCidr: "10.96.0.0/12"
+
+# NodePool settings
+nodePool:
+  capacityType: "spot"
+  arch: "arm64"
+  instanceCategories: ["m", "c", "r"]
+  instanceGenerationGt: "5"
+  cpuLimit: "100"
+  memoryLimit: "100Gi"
+  consolidateAfter: "1m"
