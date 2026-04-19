@@ -67,9 +67,10 @@ else
 fi
 
 TFSTATE_BUCKET="${TFSTATE_BUCKET:-}"
-prompt TFSTATE_BUCKET "Terraform state S3 bucket" ""
 if [ -z "${TFSTATE_BUCKET}" ]; then
-  echo "ERROR: Terraform state bucket is required." >&2; exit 1
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  TFSTATE_BUCKET="eks-d-tfstate-${ACCOUNT_ID}"
+  echo "  Auto-derived Terraform state bucket: ${TFSTATE_BUCKET}"
 fi
 
 if [ -z "${SSH_CIDR:-}" ]; then

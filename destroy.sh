@@ -34,8 +34,9 @@ esac
 
 TFSTATE_BUCKET="${TFSTATE_BUCKET:-}"
 if [ -z "$TFSTATE_BUCKET" ]; then
-  read -rp "  Terraform state S3 bucket: " TFSTATE_BUCKET
-  [ -z "${TFSTATE_BUCKET}" ] && { echo "ERROR: bucket required" >&2; exit 1; }
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  TFSTATE_BUCKET="eks-d-tfstate-${ACCOUNT_ID}"
+  echo "  Auto-derived Terraform state bucket: ${TFSTATE_BUCKET}"
 fi
 
 SAFE_USER="$(sanitise "${DEVELOPER_USERNAME}")"

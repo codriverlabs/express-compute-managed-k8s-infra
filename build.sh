@@ -33,9 +33,10 @@ case "${arch_choice:-1}" in
 esac
 
 TFSTATE_BUCKET="${TFSTATE_BUCKET:-}"
-prompt TFSTATE_BUCKET "Terraform state S3 bucket" ""
 if [ -z "${TFSTATE_BUCKET}" ]; then
-  echo "ERROR: Terraform state bucket is required. Run bootstrap.sh first." >&2; exit 1
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  TFSTATE_BUCKET="eks-d-tfstate-${ACCOUNT_ID}"
+  echo "  Auto-derived Terraform state bucket: ${TFSTATE_BUCKET}"
 fi
 
 KEY_NAME="eks-d-builder-${ARCH}-${AMI_VERSION}"
