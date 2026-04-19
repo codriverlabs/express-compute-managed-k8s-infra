@@ -91,6 +91,10 @@ resource "null_resource" "create_ami" {
   provisioner "local-exec" {
     command = <<-EOF
       set -e
+      echo "==> Stopping instance ${aws_instance.builder.id}..."
+      aws ec2 stop-instances --instance-ids ${aws_instance.builder.id} --region ${var.aws_region}
+      aws ec2 wait instance-stopped --instance-ids ${aws_instance.builder.id} --region ${var.aws_region}
+      echo "==> Creating AMI from stopped instance..."
       AMI_ID=$(aws ec2 create-image \
         --instance-id ${aws_instance.builder.id} \
         --name "eks-d-${local.ami_arch}-${var.ami_version}" \
@@ -98,7 +102,7 @@ resource "null_resource" "create_ami" {
         --region ${var.aws_region} \
         --query 'ImageId' --output text)
       echo "==> Waiting for AMI $AMI_ID to become available..."
-      aws ec2 wait image-available --image-ids "$AMI_ID" --region ${var.aws_region}
+      timeout 1200 aws ec2 wait image-available --image-ids "$AMI_ID" --region ${var.aws_region}
       aws ssm put-parameter \
         --name "/eks-d/ami/${local.ami_arch}" \
         --value "$AMI_ID" \

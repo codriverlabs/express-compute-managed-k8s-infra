@@ -5,8 +5,8 @@
 ### Control Plane (Always Running)
 | Component | Instance Type | Hours/Month | On-Demand Price | With Savings Plan | Monthly Cost |
 |-----------|---------------|-------------|-----------------|-------------------|--------------|
-| Control Plane | t3.medium | 744 | $0.0416/hr | $0.0270/hr (35% off) | ~$20.09 |
-| Control Plane | t3.large | 744 | $0.0832/hr | $0.0541/hr (35% off) | ~$40.25 |
+| Control Plane | m6g.large | 744 | $0.077/hr | $0.055/hr (29% off) | ~$41 |
+| Control Plane | m6g.xlarge | 744 | $0.154/hr | $0.110/hr (29% off) | ~$82 |
 
 ### Storage (Always Running)
 | Component | Size | Type | Monthly Cost |
@@ -31,23 +31,48 @@
 
 ## Total Monthly Cost Estimates
 
-### Conservative Estimate (t3.medium control plane)
-- **Control Plane**: $20.09
-- **Storage**: $5.60
-- **Networking**: $35.00
-- **Worker Nodes**: $5-15 (depending on usage)
-- **Total**: **$65-75/month per team member**
+### Realistic Usage Scenarios (m6g.xlarge)
 
-### Recommended Setup (t3.large control plane)
-- **Control Plane**: $40.25
+#### Scenario 1: Full Development Workday (8 hours/day)
+- **Control Plane**: 176 hrs/month × $0.154/hr = $27.10
+- **With Savings Plan**: 176 hrs/month × $0.110/hr = $19.36
+- **Storage**: $5.60 (always running)
+- **Networking**: $35.00 (shared)
+- **Worker Nodes**: $10-25 (Spot, as needed)
+- **Total**: **$69-85/month per developer** (vs. $132-142 full-time)
+
+#### Scenario 2: Business Hours Only (9-5, weekdays)
+- **Control Plane**: 160 hrs/month × $0.110/hr = $17.60
 - **Storage**: $5.60
-- **Networking**: $35.00
-- **Worker Nodes**: $10-25 (moderate usage)
-- **Total**: **$90-105/month per team member**
+- **Networking**: $35.00 (shared)
+- **Worker Nodes**: $5-15 (limited usage)
+- **Total**: **$63-73/month per developer** (vs. $132-142 full-time)
+
+#### Scenario 3: Spot + Hibernation (Ultimate Savings)
+- **Control Plane**: Spot pricing (~70% off) + hibernation
+- **Estimated**: 160 hrs/month × $0.046/hr = $7.36
+- **Storage**: $5.60
+- **Networking**: $35.00 (shared)
+- **Worker Nodes**: $5-15 (Spot)
+- **Total**: **$52-62/month per developer** (vs. $132-142 full-time)
 
 ## Cost Optimization Strategies
 
-### 1. Compute Savings Plans
+### 1. Hibernation & Scheduling (Major Savings)
+```bash
+# Control plane usage patterns
+Full-time (744 hrs/month): $82/month (m6g.xlarge)
+8 hours/day (176 hrs/month): $19.50/month (74% savings)
+Business hours only (160 hrs/month): $17.70/month (78% savings)
+```
+
+**Implementation Options:**
+- **Manual**: Stop/start instances via AWS Console or CLI
+- **Scheduled**: CloudWatch Events + Lambda for auto start/stop
+- **Hibernation**: EBS-backed hibernation for instant resume
+- **Spot + Hibernation**: Additional 60-90% savings on compute
+
+### 2. Compute Savings Plans
 ```bash
 # 1-year commitment examples
 t3.medium: $0.0416 → $0.0270 (35% savings)
@@ -81,17 +106,17 @@ limits:
 
 ## Team Cost Scenarios
 
-### 5-Person Team
-| Scenario | Individual Cost | Team Total | Shared Savings |
-|----------|----------------|------------|----------------|
-| Conservative | $65/month | $325/month | $160/month with shared VPC |
-| Recommended | $90/month | $450/month | $275/month with shared VPC |
+### 5-Person Team (8-hour workdays)
+| Scenario | Individual Cost | Team Total | Annual Savings vs. Full-Time |
+|----------|----------------|------------|------------------------------|
+| Business Hours | $69/month | $345/month | $4,680/year |
+| Spot + Hibernation | $57/month | $285/month | $6,300/year |
 
-### 10-Person Team
-| Scenario | Individual Cost | Team Total | Shared Savings |
-|----------|----------------|------------|----------------|
-| Conservative | $65/month | $650/month | $325/month with shared VPC |
-| Recommended | $90/month | $900/month | $550/month with shared VPC |
+### 10-Person Team (8-hour workdays)
+| Scenario | Individual Cost | Team Total | Annual Savings vs. Full-Time |
+|----------|----------------|------------|------------------------------|
+| Business Hours | $69/month | $690/month | $9,360/year |
+| Spot + Hibernation | $57/month | $570/month | $12,600/year |
 
 ## Comparison with Alternatives
 
@@ -100,18 +125,26 @@ limits:
 ### vs. Managed EKS
 | Component | EKS-D (per cluster) | Managed EKS | Savings |
 |-----------|-------------------|-------------|---------|
-| Control Plane | $20-40/month | $73/month | $33-53/month |
+| Control Plane | $41-82/month | $73/month | Break-even to $32/month |
 | Worker Nodes | Same (Spot) | Same (Spot) | $0 |
-| **Total Savings** | | | **45-70% on control plane** |
+| **Total Savings** | | | **Break-even to 44% savings** |
 
 ### Key Advantages Over Managed EKS
-- **Cost**: 45-70% cheaper on control plane
 - **Isolation**: Dedicated cluster per team member - no resource contention
 - **Full Karpenter**: Complete Karpenter v1 integration with NodePools
 - **No API Limits**: No EKS API server throttling
 - **Complete Control**: Customize control plane, etcd, scheduler settings
+- **Better Performance**: m6g.xlarge handles cert-manager, KEDA, operators smoothly
 - **Use Case 1 - CI/CD**: Instant isolated clusters per PR/branch for integration testing
 - **Use Case 2 - Development**: Safe environment for CRD/operator development without affecting shared clusters
+- **Use Case 3 - Complex Workloads**: Run cert-manager, KEDA, Istio, ArgoCD without resource conflicts
+
+### Additional Benefits with m6g.xlarge
+- **Cert-Manager**: Handles certificate lifecycle without CPU throttling
+- **KEDA**: Smooth autoscaling decisions with adequate resources
+- **Operators**: Multiple operators (Prometheus, Grafana, ArgoCD) run efficiently
+- **Development Velocity**: No waiting for shared cluster resources
+- **Debugging**: Direct etcd access for troubleshooting complex issues
 
 ### When Managed EKS Makes Sense
 - Need cross-team shared cluster
@@ -134,15 +167,15 @@ limits:
 
 ## Budget Planning
 
-### Monthly Budget per Team Member
-- **Minimum**: $65/month (basic development)
-- **Recommended**: $90/month (full testing)
-- **Maximum**: $150/month (heavy load testing)
+### Monthly Budget per Team Member (Realistic Usage)
+- **Business Hours**: $69/month (8 hours/day)
+- **Spot + Hibernation**: $57/month (ultimate optimization)
+- **Full-Time**: $132/month (always-on for CI/CD)
 
 ### Annual Budget (10-person team)
-- **Conservative**: $7,800/year
-- **Recommended**: $10,800/year
-- **With Shared Infrastructure**: $6,600/year
+- **Business Hours**: $8,280/year
+- **Spot + Hibernation**: $6,840/year  
+- **Full-Time**: $15,840/year
 
 ## Cost Monitoring
 

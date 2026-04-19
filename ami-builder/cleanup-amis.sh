@@ -28,26 +28,26 @@ if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo "Deleting AMIs..."
+echo "Deleting AMIs and snapshots..."
 
-# Delete each AMI
+# Delete each AMI and its snapshots
 echo "$AMIS" | jq -r '.[].ImageId' | while read ami_id; do
-  echo "Deleting $ami_id..."
+  echo "Processing $ami_id..."
+  
+  # Get snapshots for this AMI
+  SNAPSHOTS=$(aws ec2 describe-images --image-ids "$ami_id" --query "Images[0].BlockDeviceMappings[?Ebs].Ebs.SnapshotId" --output text | grep -v '^$' || true)
+  
+  # Delete snapshots first
+  if [ -n "$SNAPSHOTS" ]; then
+    echo "  Deleting snapshots: $SNAPSHOTS"
+    echo "$SNAPSHOTS" | xargs -n1 aws ec2 delete-snapshot --snapshot-id
+  fi
+  
+  # Then deregister AMI
+  echo "  Deregistering AMI: $ami_id"
   aws ec2 deregister-image --image-id "$ami_id"
-  echo "✓ Deregistered $ami_id"
+  echo "✓ Deleted $ami_id and associated snapshots"
 done
 
 echo ""
-echo "✓ All EKS-D AMIs deleted successfully!"
-echo ""
-echo "Checking for associated snapshots..."
-SNAPSHOTS=$(aws ec2 describe-snapshots --owner-ids self --query "Snapshots[?contains(Description, 'eks-d')].SnapshotId" --output text | grep -v '^$')
-
-if [ -n "$SNAPSHOTS" ]; then
-  echo "Found EKS-D snapshots to clean up:"
-  echo "$SNAPSHOTS"
-  echo "$SNAPSHOTS" | xargs -n1 aws ec2 delete-snapshot --snapshot-id
-  echo "✓ Snapshots deleted"
-else
-  echo "✓ No EKS-D snapshots found (likely cleaned up automatically)"
-fi
+echo "✓ All EKS-D AMIs and snapshots deleted successfully!"

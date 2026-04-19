@@ -20,7 +20,7 @@ spec:
           values: ["amd64"]
         - key: node.kubernetes.io/instance-type
           operator: In
-          values: ["t3.medium", "t3.large", "t3.xlarge", "m5.large", "m5.xlarge", "c5.large", "c5.xlarge"]
+          values: ["m5.xlarge", "m5.2xlarge", "c5.xlarge", "c5.2xlarge", "r5.xlarge", "r5.2xlarge"]
       
       # Node class reference
       nodeClassRef:
