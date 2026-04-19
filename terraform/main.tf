@@ -139,7 +139,10 @@ resource "aws_iam_role" "workstation" {
     }]
   })
 
-  tags = { Name = "eks-d-workstation-${var.developer_username}" }
+  tags = { 
+    Name = "eks-d-workstation-${var.developer_username}"
+    "eks-cluster-name" = local.workstation_name
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "ssm" {
@@ -159,7 +162,7 @@ resource "aws_iam_role_policy_attachment" "eks_cni" {
 
 resource "aws_iam_role_policy_attachment" "ebs_csi" {
   role       = aws_iam_role.workstation.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEBSCSIDriverEKSClusterScopedPolicy"
 }
 
 resource "aws_iam_role_policy_attachment" "cloudwatch" {

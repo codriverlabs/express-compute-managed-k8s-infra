@@ -8,9 +8,14 @@ if [ -z "$CHART" ]; then
   helm repo update
   CHART="aws-ebs-csi-driver/aws-ebs-csi-driver"
 fi
+
+# Get cluster name from instance metadata
+CLUSTER_NAME=$(curl -s http://169.254.169.254/latest/meta-data/tags/instance/Name | sed 's/eks-d-workstation-//')
+
 helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --namespace kube-system \
   --set controller.serviceAccount.create=true \
+  --set controller.extraVolumeTags."ebs\.csi\.aws\.com/cluster-name"="$CLUSTER_NAME" \
   --wait
 
 # Use node DNS (dnsPolicy: Default) to bypass CoreDNS external forwarding issue.
@@ -18,6 +23,10 @@ helm upgrade --install aws-ebs-csi-driver "$CHART" \
 # points directly to the VPC DNS resolver (10.0.0.2) which works correctly.
 kubectl patch deployment ebs-csi-controller -n kube-system \
   --patch '{"spec":{"template":{"spec":{"dnsPolicy":"Default"}}}}'
+
+# Tag the current instance for EBS CSI cluster scoping
+INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+aws ec2 create-tags --resources "$INSTANCE_ID" --tags Key="ebs.csi.aws.com/cluster-name",Value="$CLUSTER_NAME"
 
 echo "Creating default storage class..."
 cat <<EOF | kubectl apply -f -
@@ -31,10 +40,11 @@ provisioner: ebs.csi.aws.com
 parameters:
   type: gp3
   encrypted: "true"
+  tagSpecification_1: "ebs.csi.aws.com/cluster-name=$CLUSTER_NAME"
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 EOF
 
-echo "✓ EBS CSI Driver installed"
+echo "✓ EBS CSI Driver installed with cluster-scoped policy"
 kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver
 kubectl get storageclass

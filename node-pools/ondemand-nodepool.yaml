@@ -91,3 +91,4 @@ spec:
     Name: "karpenter-ondemand-node"
     Environment: "development"
     ManagedBy: "karpenter"
+    "ebs.csi.aws.com/cluster-name": "REPLACE_WITH_CLUSTER_NAME"
