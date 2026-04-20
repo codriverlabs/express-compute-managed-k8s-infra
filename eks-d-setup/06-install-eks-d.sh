@@ -174,6 +174,7 @@ nodeRegistration:
   kubeletExtraArgs:
     image-credential-provider-config: /etc/kubernetes/credential-provider/config.yaml
     image-credential-provider-bin-dir: /usr/bin
+    cloud-provider: external
 EOF
 
 sudo kubeadm init \
