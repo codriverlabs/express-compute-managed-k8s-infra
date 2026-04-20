@@ -43,35 +43,39 @@ echo "=========================================="
 echo ""
 
 # Step 1: Prepare etcd volume (format if needed)
-echo "Step 1/8: Preparing etcd volume..."
+echo "Step 1/9: Preparing etcd volume..."
 bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
 
-# Step 2: Initialize EKS-D cluster
-echo "Step 2/8: Initializing EKS-D cluster..."
+# Step 2: Configure aws-iam-authenticator (must run before kubeadm init)
+echo "Step 2/9: Configuring aws-iam-authenticator..."
+bash "${SCRIPT_DIR}/05b-install-aws-iam-authenticator.sh"
+
+# Step 3: Initialize EKS-D cluster
+echo "Step 3/9: Initializing EKS-D cluster..."
 bash "${SCRIPT_DIR}/06-install-eks-d.sh"
 
-# Step 3: Install CNI
-echo "Step 3/8: Installing AWS VPC CNI..."
+# Step 4: Install CNI
+echo "Step 4/9: Installing AWS VPC CNI..."
 bash "${SCRIPT_DIR}/07-install-cni.sh"
 
-# Step 4: Install Cloud Provider
-echo "Step 4/8: Installing AWS Cloud Provider..."
+# Step 5: Install Cloud Provider
+echo "Step 5/9: Installing AWS Cloud Provider..."
 bash "${SCRIPT_DIR}/08-install-cloud-provider.sh"
 
-# Step 5: Configure control plane node
-echo "Step 5/8: Configuring control plane..."
+# Step 6: Configure control plane node
+echo "Step 6/9: Configuring control plane..."
 bash "${SCRIPT_DIR}/09-configure-node.sh"
 
-# Step 6: Install EBS CSI Driver
-echo "Step 6/8: Installing EBS CSI Driver..."
+# Step 7: Install EBS CSI Driver
+echo "Step 7/9: Installing EBS CSI Driver..."
 bash "${SCRIPT_DIR}/10-install-ebs-csi.sh"
 
-# Step 7: Install Karpenter
-echo "Step 7/8: Installing Karpenter..."
+# Step 8: Install Karpenter
+echo "Step 8/9: Installing Karpenter..."
 bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}"
 
-# Step 8: Install CloudWatch agent
-echo "Step 8/8: Installing CloudWatch agent..."
+# Step 9: Install CloudWatch agent
+echo "Step 9/9: Installing CloudWatch agent..."
 CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh"
 
 # Mark installation as complete

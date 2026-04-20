@@ -144,85 +144,6 @@ echo "  etcd tag:    ${EKSD_ETCD_TAG}"
 echo "  coredns tag: ${EKSD_COREDNS_TAG}"
 echo "  node IP:     ${PRIVATE_IP}"
 
-# --- aws-iam-authenticator setup (must happen before kubeadm init) ---
-# This enables EKS-Optimized AL2023 worker nodes to authenticate via IAM role.
-echo "Configuring aws-iam-authenticator..."
-source /opt/eks-d/manifests/eks-d-versions.env
-AUTH_IMAGE="${AWS_IAM_AUTHENTICATOR_IMAGE}"
-
-sudo mkdir -p /etc/kubernetes/aws-iam-authenticator
-
-# Authenticator config: map the workstation IAM role to system:nodes
-# The role name pattern matches eks-d-workstation-<signum>
-cat <<AUTHEOF | sudo tee /etc/kubernetes/aws-iam-authenticator/config.yaml
-clusterID: ${CLUSTER_NAME:-eks-d}
-server:
-  mapRoles:
-    # Worker nodes launched by Karpenter use the workstation role
-    - roleARN: arn:aws:iam::${AWS_ACCOUNT_ID}:role/eks-d-workstation-*
-      username: system:node:{{EC2PrivateDNSName}}
-      groups:
-        - system:bootstrappers
-        - system:nodes
-AUTHEOF
-
-# Webhook kubeconfig for the API server to call the authenticator
-cat <<WEBHOOKEOF | sudo tee /etc/kubernetes/aws-iam-authenticator/kubeconfig.yaml
-apiVersion: v1
-kind: Config
-clusters:
-  - name: aws-iam-authenticator
-    cluster:
-      server: https://localhost:21362/authenticate
-      insecure-skip-tls-verify: true
-users:
-  - name: kube-apiserver
-contexts:
-  - name: aws-iam-authenticator
-    context:
-      cluster: aws-iam-authenticator
-      user: kube-apiserver
-current-context: aws-iam-authenticator
-WEBHOOKEOF
-
-# Static pod manifest for the authenticator
-cat <<PODEOF | sudo tee /etc/kubernetes/manifests/aws-iam-authenticator.yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: aws-iam-authenticator
-  namespace: kube-system
-  labels:
-    app: aws-iam-authenticator
-spec:
-  hostNetwork: true
-  containers:
-    - name: aws-iam-authenticator
-      image: ${AUTH_IMAGE}
-      args:
-        - server
-        - --config=/etc/aws-iam-authenticator/config.yaml
-        - --state-dir=/var/aws-iam-authenticator
-        - --generate-kubeconfig=/etc/aws-iam-authenticator/kubeconfig.yaml
-        - --kubeconfig-pregenerated=true
-      volumeMounts:
-        - name: config
-          mountPath: /etc/aws-iam-authenticator
-        - name: state
-          mountPath: /var/aws-iam-authenticator
-  volumes:
-    - name: config
-      hostPath:
-        path: /etc/kubernetes/aws-iam-authenticator
-    - name: state
-      hostPath:
-        path: /var/aws-iam-authenticator
-        type: DirectoryOrCreate
-PODEOF
-
-echo "✓ aws-iam-authenticator configured"
-# --- end aws-iam-authenticator setup ---
-
 cat <<EOF | sudo tee /tmp/kubeadm-config.yaml
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
@@ -257,7 +178,8 @@ EOF
 
 sudo kubeadm init \
   --config /tmp/kubeadm-config.yaml \
-  --ignore-preflight-errors=NumCPU,DirAvailable--var-lib-etcd
+  --ignore-preflight-errors=NumCPU,DirAvailable--var-lib-etcd \
+  --v=5
 
 echo "Setting up kubeconfig..."
 mkdir -p $HOME/.kube
