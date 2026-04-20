@@ -1,12 +1,14 @@
 #!/bin/bash
 set -e
 
+[ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
+
 echo "Installing AWS Cloud Provider..."
 
 helm repo add aws-cloud-controller-manager https://kubernetes.github.io/cloud-provider-aws
 helm repo update
 
-helm install aws-cloud-controller-manager \
+helm upgrade --install aws-cloud-controller-manager \
   aws-cloud-controller-manager/aws-cloud-controller-manager \
   --namespace kube-system \
   --set nodeSelector."node-role\.kubernetes\.io/control-plane"="" \
@@ -14,8 +16,8 @@ helm install aws-cloud-controller-manager \
   --set tolerations[0].effect="NoSchedule" \
   --set args[0]=--v=2 \
   --set args[1]=--cloud-provider=aws \
-  --set args[2]=--use-service-account-credentials=true \
-  --set args[3]=--configure-cloud-routes=false \
+  --set args[2]=--configure-cloud-routes=false \
+  --set args[3]=--cluster-name="${CLUSTER_NAME}" \
   --wait
 
 # The chart doesn't support hostNetwork via values — patch directly.
