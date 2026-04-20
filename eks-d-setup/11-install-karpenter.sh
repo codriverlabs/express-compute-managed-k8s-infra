@@ -39,7 +39,7 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
   --set settings.eksControlPlane=false \
   --set replicas=1 \
-  --set controller.resources.requests.cpu=500m \
+  --set controller.resources.requests.cpu=200m \
   --set controller.resources.requests.memory=512Mi \
   --set controller.resources.limits.cpu=500m \
   --set controller.resources.limits.memory=512Mi \

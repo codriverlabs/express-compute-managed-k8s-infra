@@ -17,6 +17,7 @@ helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --namespace kube-system \
   --set controller.serviceAccount.create=true \
   --set controller.k8sTagClusterId="$CLUSTER_NAME" \
+  --set controller.replicaCount=1 \
   --wait
 
 # Use node DNS (dnsPolicy: Default) to bypass CoreDNS external forwarding issue.

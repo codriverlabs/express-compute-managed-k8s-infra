@@ -183,6 +183,7 @@ resource "aws_iam_role_policy" "karpenter" {
           "ec2:DescribeAvailabilityZones",
           "ec2:DescribeImages",
           "ec2:DescribeInstances",
+          "ec2:DescribeInstanceTopology",
           "ec2:DescribeInstanceTypeOfferings",
           "ec2:DescribeInstanceTypes",
           "ec2:DescribeLaunchTemplates",
@@ -261,6 +262,7 @@ resource "aws_iam_role_policy" "cloud_provider" {
         Effect = "Allow"
         Action = [
           "ec2:DescribeInstances",
+          "ec2:DescribeInstanceTopology",
           "ec2:DescribeRegions",
           "ec2:DescribeRouteTables",
           "ec2:DescribeSecurityGroups",
