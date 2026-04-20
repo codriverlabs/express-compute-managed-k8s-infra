@@ -93,7 +93,21 @@ resource "null_resource" "create_ami" {
       set -e
       echo "==> Stopping instance ${aws_instance.builder.id}..."
       aws ec2 stop-instances --instance-ids ${aws_instance.builder.id} --region ${var.aws_region}
-      aws ec2 wait instance-stopped --instance-ids ${aws_instance.builder.id} --region ${var.aws_region}
+      echo "==> Waiting for instance to stop..."
+      for i in {1..30}; do
+        STATE=$(aws ec2 describe-instances --instance-ids ${aws_instance.builder.id} --region ${var.aws_region} --query 'Reservations[0].Instances[0].State.Name' --output text)
+        if [ "$STATE" = "stopped" ]; then
+          echo "Instance ${aws_instance.builder.id} is now stopped!"
+          break
+        else
+          echo "Instance state: $STATE (attempt $i/30)"
+          sleep 10
+        fi
+      done
+      if [ "$STATE" != "stopped" ]; then
+        echo "ERROR: Instance did not stop within 5 minutes"
+        exit 1
+      fi
       echo "==> Creating AMI from stopped instance..."
       AMI_ID=$(aws ec2 create-image \
         --instance-id ${aws_instance.builder.id} \
@@ -102,7 +116,23 @@ resource "null_resource" "create_ami" {
         --region ${var.aws_region} \
         --query 'ImageId' --output text)
       echo "==> Waiting for AMI $AMI_ID to become available..."
-      timeout 1200 aws ec2 wait image-available --image-ids "$AMI_ID" --region ${var.aws_region}
+      for i in {1..60}; do
+        STATE=$(aws ec2 describe-images --image-ids "$AMI_ID" --region ${var.aws_region} --query 'Images[0].State' --output text)
+        if [ "$STATE" = "available" ]; then
+          echo "AMI $AMI_ID is now available!"
+          break
+        elif [ "$STATE" = "failed" ]; then
+          echo "ERROR: AMI creation failed"
+          exit 1
+        else
+          echo "AMI state: $STATE (attempt $i/60)"
+          sleep 20
+        fi
+      done
+      if [ "$STATE" != "available" ]; then
+        echo "ERROR: AMI did not become available within 20 minutes"
+        exit 1
+      fi
       aws ssm put-parameter \
         --name "/eks-d/ami/${local.ami_arch}" \
         --value "$AMI_ID" \

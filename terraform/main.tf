@@ -433,21 +433,9 @@ resource "aws_instance" "workstation" {
               export CLUSTER_NAME=${local.workstation_name}
               export DEVELOPER_SIGNUM=${var.developer_username}
               
-              # Run eks-d-setup scripts (pre-installed in AMI)
+              # Run workstation boot configuration (AMI has pre-installed components)
               cd /opt/eks-d-setup
-              
-              bash ./00-configure-containerd.sh
-              bash ./05-prepare-etcd.sh
-              bash ./06-install-eks-d.sh
-              bash ./07-install-cni.sh
-              bash ./08-install-cloud-provider.sh
-              bash ./09-install-ebs-csi.sh
-              bash ./10-configure-node.sh
-              bash ./11-install-karpenter.sh "$DEVELOPER_SIGNUM" "$CLUSTER_NAME"
-              
-              echo "==> Workstation ready for $DEVELOPER_SIGNUM"
-              kubectl get nodes
-              kubectl get pods -A
+              bash ./workstation-boot.sh "$DEVELOPER_SIGNUM" "$CLUSTER_NAME"
               EOF
 
   root_block_device {
