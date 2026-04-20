@@ -15,7 +15,6 @@ CLUSTER_NAME=$(curl -s http://169.254.169.254/latest/meta-data/tags/instance/Nam
 helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --namespace kube-system \
   --set controller.serviceAccount.create=true \
-  --set controller.extraVolumeTags."ebs\.csi\.aws\.com/cluster-name"="$CLUSTER_NAME" \
   --wait
 
 # Use node DNS (dnsPolicy: Default) to bypass CoreDNS external forwarding issue.

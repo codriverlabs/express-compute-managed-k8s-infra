@@ -87,7 +87,10 @@ echo "  Node role: ${NODE_ROLE_ARN}"
 echo "  Image:     ${AWS_IAM_AUTHENTICATOR_IMAGE}"
 
 sudo mkdir -p /etc/kubernetes/aws-iam-authenticator
+# The authenticator image runs as a non-root user; the state dir must be world-writable
+# so it can write its TLS cert and key on first start.
 sudo mkdir -p /var/aws-iam-authenticator
+sudo chmod 777 /var/aws-iam-authenticator
 
 # ── 1. Authenticator server config ───────────────────────────────────────────
 # clusterID must match the value used when clients generate their tokens.
