@@ -46,7 +46,6 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
   --set topologySpreadConstraints=null \
   --set controller.env[0].name=AWS_REGION \
   --set controller.env[0].value=${AWS_REGION} \
-  --set dnsPolicy=Default \
   --wait
 
 echo "✓ Karpenter installed"
