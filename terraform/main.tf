@@ -461,5 +461,8 @@ resource "aws_instance" "workstation" {
     Developer                           = var.developer_username
     Arch                                = var.arch
     "kubernetes.io/cluster/eks-d"       = "owned"
+    # Required by AmazonEBSCSIDriverEKSClusterScopedPolicy:
+    # allows attach/detach on instances not managed by EKS (no eks:cluster-name tag)
+    "ebs.csi.aws.com/cluster-name"      = local.workstation_name
   }
 }

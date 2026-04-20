@@ -9,12 +9,14 @@ if [ -z "$CHART" ]; then
   CHART="aws-ebs-csi-driver/aws-ebs-csi-driver"
 fi
 
-# Get cluster name from instance metadata
-CLUSTER_NAME=$(curl -s http://169.254.169.254/latest/meta-data/tags/instance/Name | sed 's/eks-d-workstation-//')
+# Get cluster name from persisted identity
+[ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
+CLUSTER_NAME="${CLUSTER_NAME:-$(curl -s http://169.254.169.254/latest/meta-data/tags/instance/Name)}"
 
 helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --namespace kube-system \
   --set controller.serviceAccount.create=true \
+  --set controller.k8sTagClusterId="$CLUSTER_NAME" \
   --wait
 
 # Use node DNS (dnsPolicy: Default) to bypass CoreDNS external forwarding issue.
@@ -39,7 +41,6 @@ provisioner: ebs.csi.aws.com
 parameters:
   type: gp3
   encrypted: "true"
-  tagSpecification_1: "ebs.csi.aws.com/cluster-name=$CLUSTER_NAME"
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 EOF
