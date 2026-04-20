@@ -2,7 +2,7 @@
 
 ## Status
 
-**Workaround applied.** Root cause partially understood. Full fix pending.
+**Resolved.** The EXTERNALSNAT workaround was incorrect. See resolution below.
 
 ## Symptom
 
@@ -14,7 +14,30 @@ with an empty answer section for all external queries. Internal cluster DNS
 Affected components: EBS CSI controller, Karpenter, CloudWatch agent — all fail
 with DNS resolution errors on startup.
 
-## Investigation (2026-04-17)
+## Resolution (2026-04-20)
+
+The `EXTERNALSNAT=true` workaround was incorrect and caused a worse problem:
+pod-to-internet connectivity was broken because secondary ENI IPs (pod IPs)
+have no public IP, so internet-bound packets were dropped.
+
+The loop plugin does NOT trigger with `EXTERNALSNAT=false` because:
+- CoreDNS forwards to `10.0.0.2` (VPC DNS resolver)
+- `10.0.0.2` is intra-VPC traffic — SNAT only applies to traffic leaving the VPC CIDR
+- The probe packet is never SNAT'd, so the response comes back to the pod IP directly
+- No loop is detected
+
+**Correct configuration: `EXTERNALSNAT=false` (default) with no CoreDNS changes.**
+
+The previous observation that EXTERNALSNAT=true "fixed" DNS was likely due to
+CoreDNS being restarted at the same time, which cleared whatever transient state
+was causing the issue.
+
+## Applied Fix
+
+Reverted `EXTERNALSNAT` to `false` in `07-install-cni.sh`.
+Removed `dnsPolicy: Default` patch from `10-install-ebs-csi.sh`.
+
+## Original Investigation (2026-04-17)
 
 ### What we ruled out
 
