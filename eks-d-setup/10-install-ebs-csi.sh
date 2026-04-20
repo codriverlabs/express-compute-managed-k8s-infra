@@ -20,12 +20,6 @@ helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --set controller.replicaCount=1 \
   --wait
 
-# Use node DNS (dnsPolicy: Default) to bypass CoreDNS external forwarding issue.
-# CoreDNS on EKS-D fails to forward external queries; the node's /etc/resolv.conf
-# points directly to the VPC DNS resolver (10.0.0.2) which works correctly.
-kubectl patch deployment ebs-csi-controller -n kube-system \
-  --patch '{"spec":{"template":{"spec":{"dnsPolicy":"Default"}}}}'
-
 # Tag the current instance for EBS CSI cluster scoping
 INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
 aws ec2 create-tags --resources "$INSTANCE_ID" --tags Key="ebs.csi.aws.com/cluster-name",Value="$CLUSTER_NAME"
