@@ -37,7 +37,11 @@ spec:
 
     --//--
 
-  metadataOptions:
+  # Required when eksControlPlane=false: Karpenter cannot call eks:DescribeCluster
+  # to auto-detect the CIDR, so it must be provided explicitly.
+  kubelet:
+    clusterDNS:
+      - "10.96.0.10"
     httpEndpoint: enabled
     httpProtocolIPv6: disabled
     httpPutResponseHopLimit: 2
