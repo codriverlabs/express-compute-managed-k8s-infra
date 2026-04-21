@@ -42,6 +42,8 @@ spec:
   kubelet:
     clusterDNS:
       - "10.96.0.10"
+
+  metadataOptions:
     httpEndpoint: enabled
     httpProtocolIPv6: disabled
     httpPutResponseHopLimit: 2
