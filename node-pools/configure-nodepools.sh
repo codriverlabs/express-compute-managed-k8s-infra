@@ -28,10 +28,8 @@ AMI_ID=$(aws ssm get-parameter \
 echo "  EKS-Optimized AMI : $AMI_ID (k8s 1.${K8S_MINOR} ${ARCH})"
 
 # Discover AWS resources
-INSTANCE_PROFILE=$(aws iam list-instance-profiles-for-role \
-  --role-name "eks-d-workstation-${DEVELOPER_SIGNUM}" \
-  --query 'InstanceProfiles[0].InstanceProfileName' \
-  --output text --region "$REGION")
+# Instance profile follows the same naming convention as the role
+INSTANCE_PROFILE="eks-d-workstation-${DEVELOPER_SIGNUM}"
 
 SUBNET_ID=$(aws ec2 describe-subnets \
   --filters "Name=tag:Developer,Values=${DEVELOPER_SIGNUM}" "Name=tag:SubnetType,Values=Private" \
