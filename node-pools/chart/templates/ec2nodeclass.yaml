@@ -5,7 +5,10 @@ metadata:
 spec:
   instanceProfile: {{ .Values.instanceProfile | quote }}
 
-  amiFamily: AL2023
+  # Custom AMI family: skips eks:DescribeCluster CIDR detection (Karpenter v1.10 bug -
+  # ResolveClusterCIDR always runs for AL2023 regardless of eksControlPlane=false).
+  # The nodeadm userdata below handles all AL2023 bootstrap configuration.
+  amiFamily: Custom
   amiSelectorTerms:
     - id: {{ .Values.amiId | quote }}
 
@@ -36,12 +39,6 @@ spec:
           - "--node-labels=karpenter.sh/nodepool=default"
 
     --//--
-
-  # Required when eksControlPlane=false: Karpenter cannot call eks:DescribeCluster
-  # to auto-detect the CIDR, so it must be provided explicitly.
-  kubelet:
-    clusterDNS:
-      - "10.96.0.10"
 
   metadataOptions:
     httpEndpoint: enabled
