@@ -15,9 +15,17 @@ if [ -z "$DEVELOPER_SIGNUM" ]; then
 fi
 
 CLUSTER_NAME="${CLUSTER_NAME:-${DEVELOPER_SIGNUM}-eks-d}"
+ARCH="${3:-arm64}"
 OUTPUT_DIR="/opt/eks-d/karpenter_runtime_configuration"
 
 echo "Discovering Karpenter configuration for $DEVELOPER_SIGNUM (cluster: $CLUSTER_NAME)..."
+
+# Discover EKS-Optimized AL2023 AMI for this k8s version and arch
+K8S_MINOR=$(kubectl version --output=json 2>/dev/null | python3 -c "import sys,json; v=json.load(sys.stdin)['serverVersion']['minor']; print(v.rstrip('+'))")
+AMI_ID=$(aws ssm get-parameter \
+  --name "/aws/service/eks/optimized-ami/1.${K8S_MINOR}/amazon-linux-2023/${ARCH}/standard/recommended/image_id" \
+  --query Parameter.Value --output text --region "$REGION")
+echo "  EKS-Optimized AMI : $AMI_ID (k8s 1.${K8S_MINOR} ${ARCH})"
 
 # Discover AWS resources
 INSTANCE_PROFILE=$(aws iam list-instance-profiles-for-role \
@@ -53,6 +61,7 @@ helm template eks-d-karpenter "${SCRIPT_DIR}/chart" \
   --set clusterName="$CLUSTER_NAME" \
   --set developerSignum="$DEVELOPER_SIGNUM" \
   --set awsRegion="$REGION" \
+  --set amiId="$AMI_ID" \
   --set instanceProfile="$INSTANCE_PROFILE" \
   --set subnetId="$SUBNET_ID" \
   --set securityGroupId="$SECURITY_GROUP_ID" \

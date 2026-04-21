@@ -6,7 +6,7 @@ spec:
   instanceProfile: {{ .Values.instanceProfile | quote }}
 
   amiSelectorTerms:
-    - alias: al2023@v1.35
+    - id: {{ .Values.amiId | quote }}
 
   subnetSelectorTerms:
     - id: {{ .Values.subnetId | quote }}

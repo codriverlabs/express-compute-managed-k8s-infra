@@ -3,6 +3,10 @@ clusterName: ""
 developerSignum: ""
 awsRegion: "us-east-1"
 
+# EKS-Optimized AL2023 AMI for arm64 + k8s 1.35
+# Discovered at runtime via SSM: /aws/service/eks/optimized-ami/1.35/amazon-linux-2023/arm64/standard/recommended/image_id
+amiId: ""
+
 # Discovered at runtime by configure-nodepools.sh
 instanceProfile: ""
 subnetId: ""
