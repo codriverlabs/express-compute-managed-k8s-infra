@@ -5,6 +5,7 @@ metadata:
 spec:
   instanceProfile: {{ .Values.instanceProfile | quote }}
 
+  amiFamily: AL2023
   amiSelectorTerms:
     - id: {{ .Values.amiId | quote }}
 
@@ -52,5 +53,4 @@ spec:
 
   tags:
     Developer: {{ .Values.developerSignum | quote }}
-    "kubernetes.io/cluster/{{ .Values.clusterName }}": "owned"
     ManagedBy: Karpenter
