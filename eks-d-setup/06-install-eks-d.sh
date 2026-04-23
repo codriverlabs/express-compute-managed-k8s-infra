@@ -14,22 +14,27 @@ esac
 
 echo "Detected architecture: $ARCH"
 
-# Load EKS-D version information (discovered during AMI build)
-if [ -f "/opt/eks-d/manifests/eks-d-versions.env" ]; then
-  source /opt/eks-d/manifests/eks-d-versions.env
-  echo "Using discovered EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
+# Load EKS version information
+if [ -f "/opt/eks-d/version.env" ]; then
+  source /opt/eks-d/version.env
+  echo "Using stored versions: EKS ${EKS_VERSION}, EKS-D ${EKSD_VERSION}"
 else
-  # Fallback to hardcoded values if discovery file not found
-  echo "Warning: EKS-D discovery file not found, using fallback values"
-  EKSD_VERSION="1-35"
-  EKSD_RELEASE="8"
+  # Fallback to hardcoded values if version file not found
+  echo "Warning: EKS-D version file not found, using fallback values"
+  EKS_VERSION="1.35"
+  EKSD_VERSION="1.35.8"
 fi
+
+# Convert to EKS-D format for manifest lookup
+EKSD_VERSION_PARTS=(${EKSD_VERSION//./ })
+EKSD_MANIFEST_VERSION="${EKSD_VERSION_PARTS[0]}-${EKSD_VERSION_PARTS[1]}"
+EKSD_RELEASE="${EKSD_VERSION_PARTS[2]}"
 
 echo "Installing EKS-D (EKS Distro) ${EKSD_VERSION} for ${ARCH}..."
 
 # Download EKS-D release manifest
 echo "Downloading EKS-D release manifest..."
-curl -sL "https://distro.eks.amazonaws.com/kubernetes-${EKSD_VERSION}/kubernetes-${EKSD_VERSION}-eks-${EKSD_RELEASE}.yaml" \
+curl -sL "https://distro.eks.amazonaws.com/kubernetes-${EKSD_MANIFEST_VERSION}/kubernetes-${EKSD_MANIFEST_VERSION}-eks-${EKSD_RELEASE}.yaml" \
   -o /tmp/eks-d-release.yaml
 
 # Extract component URLs for the detected architecture

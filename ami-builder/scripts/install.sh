@@ -9,8 +9,22 @@ EKS_D_SETUP_DIR="/tmp/eks-d-setup"
 
 # EKS-D version discovery (configurable)
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.35}"
-echo "==> Discovering EKS-D components for Kubernetes ${KUBERNETES_VERSION}..."
-bash "${SCRIPT_DIR}/discover-eks-d.sh" "$KUBERNETES_VERSION" "/opt/eks-d/manifests"
+
+# Get EKS versions from VPC tags or use defaults
+EKS_VERSION=$(aws ec2 describe-vpcs --filters "Name=tag:EKSVersion,Values=*" \
+  --query 'Vpcs[0].Tags[?Key==`EKSVersion`].Value' --output text 2>/dev/null || echo "$KUBERNETES_VERSION")
+EKSD_VERSION=$(aws ec2 describe-vpcs --filters "Name=tag:EKSDVersion,Values=*" \
+  --query 'Vpcs[0].Tags[?Key==`EKSDVersion`].Value' --output text 2>/dev/null || echo "${KUBERNETES_VERSION}.8")
+
+echo "==> Discovering EKS-D components for Kubernetes ${EKS_VERSION} / EKS-D ${EKSD_VERSION}..."
+
+# Store configuration for later use
+sudo mkdir -p /opt/eks-d
+echo "EKS_VERSION=$EKS_VERSION" | sudo tee /opt/eks-d/version.env
+echo "EKSD_VERSION=$EKSD_VERSION" | sudo tee -a /opt/eks-d/version.env
+echo "TAGGED_AMIS=eks-dx-$EKS_VERSION" | sudo tee -a /opt/eks-d/version.env
+
+bash "${SCRIPT_DIR}/discover-eks-d.sh" "$EKS_VERSION" "/opt/eks-d/manifests"
 
 # Load discovered versions
 source /opt/eks-d/manifests/eks-d-versions.env

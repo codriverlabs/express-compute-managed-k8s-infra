@@ -4,7 +4,7 @@ set -e
 
 # Configuration
 EKS_D_VERSION="v1.28.2-eks-1-28-6"
-CLUSTER_NAME=${1:-$(hostname)-eks-d}
+CLUSTER_NAME=${1:-$(hostname)-eks-dx}
 CONTROL_PLANE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 

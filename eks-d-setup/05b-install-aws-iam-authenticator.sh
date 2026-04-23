@@ -37,7 +37,7 @@
 # IAM role mapping
 # ────────────────
 # Both the control-plane EC2 instance and Karpenter worker nodes use the
-# same IAM instance profile: eks-d-workstation-<signum>.
+# same IAM instance profile: eks-dx-workstation-<signum>.
 # The authenticator maps that role to:
 #   username: system:node:{{EC2PrivateDNSName}}
 #   groups:   [system:bootstrappers, system:nodes]

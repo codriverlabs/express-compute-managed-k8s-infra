@@ -15,7 +15,7 @@ prompt() {
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
-echo "║   EKS-D Workstation — Build AMI              ║"
+echo "║   EKS-DX Workstation — Build AMI             ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
@@ -35,11 +35,11 @@ esac
 TFSTATE_BUCKET="${TFSTATE_BUCKET:-}"
 if [ -z "${TFSTATE_BUCKET}" ]; then
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-  TFSTATE_BUCKET="eks-d-tfstate-${ACCOUNT_ID}"
+  TFSTATE_BUCKET="eks-dx-tfstate-${ACCOUNT_ID}"
   echo "  Auto-derived Terraform state bucket: ${TFSTATE_BUCKET}"
 fi
 
-KEY_NAME="eks-d-builder-${ARCH}-${AMI_VERSION}"
+KEY_NAME="eks-dx-builder-${ARCH}-${AMI_VERSION}"
 KEY_FILE="${SCRIPT_DIR}/${KEY_NAME}.pem"
 
 echo ""
@@ -55,7 +55,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-TF_KEY="eks-d/ami-builder/${ARCH}/terraform.tfstate"
+TF_KEY="eks-dx/ami-builder/${ARCH}/terraform.tfstate"
 
 echo "==> Initialising Terraform backend..."
 terraform -chdir="${AMI_BUILDER_DIR}" init -reconfigure \
@@ -85,5 +85,5 @@ echo ""
 echo "╔══════════════════════════════════════════════╗"
 echo "║   AMI build complete                         ║"
 echo "╚══════════════════════════════════════════════╝"
-echo "  AMI ID stored at SSM: /eks-d/ami/${ARCH}"
+echo "  AMI ID stored at SSM: /eks-dx/ami/${ARCH}"
 echo "  Run ./deploy.sh to launch a workstation."

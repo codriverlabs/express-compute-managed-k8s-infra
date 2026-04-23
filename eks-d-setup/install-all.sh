@@ -2,7 +2,7 @@
 set -e
 
 DEVELOPER_SIGNUM="${1}"
-CLUSTER_NAME="${2:-${DEVELOPER_SIGNUM}-eks-d}"
+CLUSTER_NAME="${2:-${DEVELOPER_SIGNUM}-eks-dx}"
 
 if [ -z "$DEVELOPER_SIGNUM" ]; then
   echo "Usage: $0 <developer-signum> [cluster-name]"

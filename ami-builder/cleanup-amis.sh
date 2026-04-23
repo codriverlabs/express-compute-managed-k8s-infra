@@ -1,22 +1,22 @@
 #!/bin/bash
 set -e
 
-# EKS-D AMI Cleanup Script
-# Deletes all EKS-D AMIs owned by the current account
+# EKS-DX AMI Cleanup Script
+# Deletes all EKS-DX AMIs owned by the current account
 
 echo "=========================================="
-echo "EKS-D AMI Cleanup"
+echo "EKS-DX AMI Cleanup"
 echo "=========================================="
 
-# Get all EKS-D AMIs
-AMIS=$(aws ec2 describe-images --owners self --filters "Name=name,Values=eks-d-*" --query "Images[*].{ImageId:ImageId,Name:Name,CreationDate:CreationDate}" --output json)
+# Get all EKS-DX AMIs
+AMIS=$(aws ec2 describe-images --owners self --filters "Name=name,Values=eks-dx-*" --query "Images[*].{ImageId:ImageId,Name:Name,CreationDate:CreationDate}" --output json)
 
 if [ "$(echo "$AMIS" | jq length)" -eq 0 ]; then
-  echo "No EKS-D AMIs found to delete."
+  echo "No EKS-DX AMIs found to delete."
   exit 0
 fi
 
-echo "Found EKS-D AMIs:"
+echo "Found EKS-DX AMIs:"
 echo "$AMIS" | jq -r '.[] | "\(.ImageId) - \(.Name) (\(.CreationDate))"'
 echo ""
 
@@ -30,24 +30,34 @@ fi
 echo ""
 echo "Deleting AMIs and snapshots..."
 
-# Delete each AMI and its snapshots
+# Collect all AMI-snapshot mappings first
+declare -A ami_snapshots
 echo "$AMIS" | jq -r '.[].ImageId' | while read ami_id; do
-  echo "Processing $ami_id..."
-  
-  # Get snapshots for this AMI
   SNAPSHOTS=$(aws ec2 describe-images --image-ids "$ami_id" --query "Images[0].BlockDeviceMappings[?Ebs].Ebs.SnapshotId" --output text | grep -v '^$' || true)
-  
-  # Delete snapshots first
   if [ -n "$SNAPSHOTS" ]; then
-    echo "  Deleting snapshots: $SNAPSHOTS"
-    echo "$SNAPSHOTS" | xargs -n1 aws ec2 delete-snapshot --snapshot-id
+    echo "$ami_id:$SNAPSHOTS" >> /tmp/ami_snapshots.txt
+  else
+    echo "$ami_id:" >> /tmp/ami_snapshots.txt
   fi
-  
-  # Then deregister AMI
-  echo "  Deregistering AMI: $ami_id"
-  aws ec2 deregister-image --image-id "$ami_id"
-  echo "✓ Deleted $ami_id and associated snapshots"
 done
 
+# Deregister all AMIs first
+echo "$AMIS" | jq -r '.[].ImageId' | while read ami_id; do
+  echo "Deregistering AMI: $ami_id"
+  aws ec2 deregister-image --image-id "$ami_id"
+done
+
+# Then delete all snapshots
+while IFS=':' read -r ami_id snapshots; do
+  if [ -n "$snapshots" ]; then
+    echo "Deleting snapshots for $ami_id: $snapshots"
+    echo "$snapshots" | xargs -n1 aws ec2 delete-snapshot --snapshot-id
+  fi
+  echo "✓ Deleted $ami_id and associated snapshots"
+done < /tmp/ami_snapshots.txt
+
+# Cleanup temp file
+rm -f /tmp/ami_snapshots.txt
+
 echo ""
-echo "✓ All EKS-D AMIs and snapshots deleted successfully!"
+echo "✓ All EKS-DX AMIs and snapshots deleted successfully!"

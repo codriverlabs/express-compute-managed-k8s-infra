@@ -7,7 +7,7 @@ sanitise() { echo "$1" | tr '@' '-' | tr -cs 'a-zA-Z0-9-' '-' | sed 's/-*$//'; }
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
-echo "║   EKS-D Workstation — Destroy                ║"
+echo "║   EKS-DX Workstation — Destroy               ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
@@ -35,13 +35,13 @@ esac
 TFSTATE_BUCKET="${TFSTATE_BUCKET:-}"
 if [ -z "$TFSTATE_BUCKET" ]; then
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-  TFSTATE_BUCKET="eks-d-tfstate-${ACCOUNT_ID}"
+  TFSTATE_BUCKET="eks-dx-tfstate-${ACCOUNT_ID}"
   echo "  Auto-derived Terraform state bucket: ${TFSTATE_BUCKET}"
 fi
 
 SAFE_USER="$(sanitise "${DEVELOPER_USERNAME}")"
-WORKSTATION_NAME="${SAFE_USER}-eks-d-${ARCH}"
-TF_KEY="eks-d/${WORKSTATION_NAME}/terraform.tfstate"
+WORKSTATION_NAME="${SAFE_USER}-eks-dx-${ARCH}"
+TF_KEY="eks-dx/${WORKSTATION_NAME}/terraform.tfstate"
 
 echo ""
 echo "  WARNING: This will permanently destroy workstation '${WORKSTATION_NAME}'."
