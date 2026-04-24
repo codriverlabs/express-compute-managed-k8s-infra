@@ -55,8 +55,16 @@ resource "aws_instance" "builder" {
   tags = { Name = "eks-d-builder-${var.arch}" }
 }
 
-resource "null_resource" "install" {
+resource "null_resource" "wait_for_instance" {
   depends_on = [aws_instance.builder]
+
+  provisioner "local-exec" {
+    command = "aws ec2 wait instance-status-ok --instance-ids ${aws_instance.builder.id} --region ${var.aws_region}"
+  }
+}
+
+resource "null_resource" "install" {
+  depends_on = [null_resource.wait_for_instance]
 
   connection {
     type        = "ssh"
