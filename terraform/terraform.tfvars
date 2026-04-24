@@ -4,6 +4,6 @@ aws_region          = "us-east-1"
 project_name        = "eks-dx"
 arch                = "arm64"
 instance_type       = "m6g.large"
-disk_size_gb        = 50
+disk_size_gb        = 20
 key_pair_name       = "karolpiatek-eks-dx-arm64"
 allowed_cidr_blocks = ["18.204.187.252/32"]

@@ -44,7 +44,7 @@ resource "aws_instance" "builder" {
 
   root_block_device {
     volume_type           = "gp3"
-    volume_size           = 50
+    volume_size           = 20
     delete_on_termination = true
   }
 
