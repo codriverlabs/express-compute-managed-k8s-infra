@@ -1,6 +1,6 @@
 output "ami_id" {
   description = "AMI ID stored in SSM"
-  value       = "See SSM parameter: /eks-d/ami/${var.arch}"
+  value       = "See SSM parameter: /eks-dx/ami/${var.arch}"
 }
 
 output "builder_instance_id" {

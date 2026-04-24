@@ -1,6 +1,6 @@
 locals {
   ami_arch           = var.arch == "arm64" ? "arm64" : "x86_64"
-  workstation_name   = var.workstation_name != "" ? var.workstation_name : "eks-d-${var.developer_username}"
+  workstation_name   = var.workstation_name != "" ? var.workstation_name : "eks-dx-${var.developer_username}"
   allowed_cidrs      = var.allowed_cidr_blocks
   
   # Auto-discover VPC by tag
@@ -118,7 +118,7 @@ data "aws_availability_zones" "available" {
 }
 
 data "aws_ssm_parameter" "workstation_ami" {
-  name = "/eks-d/ami/${local.ami_arch}"
+  name = "/eks-dx/ami/${local.ami_arch}"
 }
 
 data "aws_iam_user" "developer" {
@@ -128,7 +128,7 @@ data "aws_iam_user" "developer" {
 
 
 resource "aws_iam_role" "workstation" {
-  name = "eks-d-workstation-${var.developer_username}"
+  name = "eks-dx-workstation-${var.developer_username}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -140,7 +140,7 @@ resource "aws_iam_role" "workstation" {
   })
 
   tags = { 
-    Name = "eks-d-workstation-${var.developer_username}"
+    Name = "eks-dx-workstation-${var.developer_username}"
     "eks-cluster-name" = local.workstation_name
   }
 }
@@ -171,7 +171,7 @@ resource "aws_iam_role_policy_attachment" "cloudwatch" {
 }
 
 resource "aws_iam_role_policy" "karpenter" {
-  name = "eks-d-karpenter"
+  name = "eks-dx-karpenter"
   role = aws_iam_role.workstation.id
 
   policy = jsonencode({
@@ -251,7 +251,7 @@ resource "aws_iam_role_policy" "karpenter" {
 }
 
 resource "aws_iam_role_policy" "cloud_provider" {
-  name = "eks-d-cloud-provider"
+  name = "eks-dx-cloud-provider"
   role = aws_iam_role.workstation.id
 
   policy = jsonencode({
@@ -359,12 +359,12 @@ resource "aws_iam_role_policy" "cloud_provider" {
 
 
 resource "aws_iam_instance_profile" "workstation" {
-  name = "eks-d-workstation-${var.developer_username}"
+  name = "eks-dx-workstation-${var.developer_username}"
   role = aws_iam_role.workstation.name
 }
 
 resource "aws_security_group" "workstation" {
-  name        = "eks-d-workstation-${var.developer_username}"
+  name        = "eks-dx-workstation-${var.developer_username}"
   description = "EKS-D workstation: SSH, Kubernetes API, kubelet, pod networking"
 
   ingress {
@@ -407,7 +407,7 @@ resource "aws_security_group" "workstation" {
   }
 
   vpc_id = local.vpc_filter
-  tags   = { Name = "eks-d-workstation-${var.developer_username}" }
+  tags   = { Name = "eks-dx-workstation-${var.developer_username}" }
 }
 
 resource "aws_sqs_queue" "karpenter_interruption" {

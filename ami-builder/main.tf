@@ -94,7 +94,7 @@ resource "null_resource" "create_ami" {
       echo "==> Stopping instance ${aws_instance.builder.id}..."
       aws ec2 stop-instances --instance-ids ${aws_instance.builder.id} --region ${var.aws_region}
       echo "==> Waiting for instance to stop..."
-      for i in {1..30}; do
+      for i in $(seq 1 30); do
         STATE=$(aws ec2 describe-instances --instance-ids ${aws_instance.builder.id} --region ${var.aws_region} --query 'Reservations[0].Instances[0].State.Name' --output text)
         if [ "$STATE" = "stopped" ]; then
           echo "Instance ${aws_instance.builder.id} is now stopped!"
@@ -111,12 +111,12 @@ resource "null_resource" "create_ami" {
       echo "==> Creating AMI from stopped instance..."
       AMI_ID=$(aws ec2 create-image \
         --instance-id ${aws_instance.builder.id} \
-        --name "eks-d-${local.ami_arch}-${var.ami_version}" \
-        --description "EKS-D with Karpenter - ${var.ami_version}" \
+        --name "eks-dx-${local.ami_arch}-${var.ami_version}" \
+        --description "EKS-DX with Karpenter - ${var.ami_version}" \
         --region ${var.aws_region} \
         --query 'ImageId' --output text)
       echo "==> Waiting for AMI $AMI_ID to become available..."
-      for i in {1..60}; do
+      for i in $(seq 1 60); do
         STATE=$(aws ec2 describe-images --image-ids "$AMI_ID" --region ${var.aws_region} --query 'Images[0].State' --output text)
         if [ "$STATE" = "available" ]; then
           echo "AMI $AMI_ID is now available!"
@@ -134,12 +134,12 @@ resource "null_resource" "create_ami" {
         exit 1
       fi
       aws ssm put-parameter \
-        --name "/eks-d/ami/${local.ami_arch}" \
+        --name "/eks-dx/ami/${local.ami_arch}" \
         --value "$AMI_ID" \
         --type String \
         --overwrite \
         --region ${var.aws_region}
-      echo "==> AMI $AMI_ID stored at SSM: /eks-d/ami/${local.ami_arch}"
+      echo "==> AMI $AMI_ID stored at SSM: /eks-dx/ami/${local.ami_arch}"
     EOF
   }
 }
