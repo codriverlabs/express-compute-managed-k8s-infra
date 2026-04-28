@@ -1,80 +1,92 @@
 # Architecture
 
-## System Architecture
+## Overview
+
+EKS-DX provisions isolated developer Kubernetes environments. Each developer gets a dedicated EC2 instance running EKS-D as a single-node control plane, with Karpenter provisioning Spot/On-Demand worker nodes on demand.
 
 ```mermaid
 graph TB
-    subgraph "AWS Cloud"
-        subgraph "VPC"
-            PublicSubnet[Public Subnet]
-            PrivateSubnet[Private Subnet]
-            
-            subgraph "Developer EC2 Instance"
-                EKS-D[("EKS-D Control Plane")]
-                Karpenter[Karpenter Controller]
-                Kubelet[Kubelet]
-            end
-            
-            WorkerNode[("Karpenter Worker Node<br/>Spot Instance")]
-            EBS[("EBS Volumes")]
-        end
-        
-        IAM[IAM Roles]
-        SSM[Systems Manager]
+    subgraph "Shared Infrastructure"
+        VPC["Shared VPC\neks-dx-shared-vpc"]
+        S3["S3 Bucket\neks-dx-tfstate-{account}"]
+        IGW["Internet Gateway"]
+        NAT["NAT Gateway"]
     end
-    
-    Developer["Team Member"]
-    
-    Developer -->|SSH| PublicSubnet
-    Karpenter -->|Provision| WorkerNode
-    WorkerNode -->|Join| EKS-D
-    EKS-D -->|Store| EBS
-    Karpenter -->|IAM| IAM
-    EKS-D -->|SSM Parameters| SSM
+
+    subgraph "Per-Developer Stack"
+        subgraph "Public Subnet 10.0.N.0/24"
+            WS["Workstation EC2\nalice-eks-dx-arm64\nm6g.large / m6i.xlarge"]
+        end
+        subgraph "Private Subnet 10.0.(100+N).0/24"
+            W1["Worker Node\n(Spot/On-Demand)"]
+            W2["Worker Node\n(Spot/On-Demand)"]
+        end
+        SQS["SQS Queue\nalice-eks-dx\n(Karpenter interruption)"]
+        IAM["IAM Role\neks-dx-workstation-alice\n(shared by control plane + workers)"]
+    end
+
+    subgraph "Workstation EC2"
+        API["kube-apiserver\n:6443"]
+        ETCD["etcd\n/dev/sdf (20GB gp3)"]
+        CCM["AWS Cloud Controller Manager"]
+        KARP["Karpenter v1.10.0\n(kube-system)"]
+        AUTH["aws-iam-authenticator\n(static pod :21362)"]
+    end
+
+    VPC --> WS
+    VPC --> W1
+    VPC --> W2
+    IGW --> VPC
+    NAT --> VPC
+    WS --> SQS
+    WS --> IAM
+    W1 --> IAM
+    W2 --> IAM
+    KARP --> SQS
+    API --> AUTH
 ```
 
-## Component Overview
-
-| Component | Description | Location |
-|-----------|-------------|----------|
-| **EKS-D Control Plane** | Self-managed Kubernetes control plane (API server, etcd, controller, scheduler) | `eks-d-setup/06-install-eks-d.sh` |
-| **Karpenter** | Worker node auto-provisioner | `karpenter-config/`, `eks-d-setup/11-install-karpenter.sh` |
-| **VPC** | Shared VPC with public/private subnets | `infrastructure/shared-vpc-template.yaml` |
-| **Developer Stack** | Per-team-member EC2 with EKS-D | `infrastructure/deploy-developer.sh` |
-| **NodePools** | Karpenter node pool definitions | `node-pools/` |
-
-## Deployment Flow
+## Two Deployment Paths
 
 ```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant CF as CloudFormation
-    participant EC2 as EC2 Instance
-    participant EKS as EKS-D
-    participant K as Karpenter
-    
-    Dev->>CF: Deploy VPC
-    CF->>Dev: VPC Created
-    Dev->>CF: Deploy Developer Stack
-    CF->>EC2: Launch EC2 with User Data
-    EC2->>EKS: Install EKS-D components
-    EC2->>K: Install Karpenter
-    Dev->>K: Configure NodePools
-    K->>EC2: Provision Spot Worker Nodes
+flowchart LR
+    subgraph "AMI Path (recommended)"
+        A1[build.sh] --> A2[Custom AMI\npre-pulled images]
+        A2 --> A3[deploy.sh]
+        A3 --> A4[EC2 first boot\nworkstation-boot.sh]
+        A4 --> A5[Cluster ready\n~5 min]
+    end
+
+    subgraph "Fresh Install Path"
+        B1[deploy.sh] --> B2[EC2 launched]
+        B2 --> B3[SSH + install-all.sh]
+        B3 --> B4[Cluster ready\n~30 min]
+    end
 ```
 
-## Network Architecture
+## Networking
 
-- **Public Subnet**: NAT Gateway, Bastion (optional)
-- **Private Subnet**: EKS-D control plane, worker nodes
-- **Security Groups**: Control plane SG, Worker node SG
+- **Shared VPC**: One per region, shared across all developers
+- **Per-developer subnets**: Public (`10.0.N.0/24`) + Private (`10.0.(100+N).0/24`), auto-indexed
+- **Workstation**: Deployed in public subnet (SSH access, Kubernetes API on :6443)
+- **Worker nodes**: Deployed in private subnet (tagged `SubnetType=Private`, `Developer=<signum>`)
+- **Pod networking**: AWS VPC CNI — pods get VPC IPs from secondary ENIs
+- **ec2-net-utils**: Disabled on AL2023 before VPC CNI install (conflicts with pod routing)
 
-## Data Flow
+## IAM Design
 
-1. Developer deploys VPC → CloudFormation
-2. Developer deploys EC2 stack → CloudFormation provisions EC2
-3. EC2 user data runs `eks-d-setup/install-all.sh`
-4. EKS-D control plane starts on EC2
-5. Karpenter installed and configured
-6. NodePool created → Karpenter provisions Spot instances
-7. Worker nodes join cluster via kubelet
+The control plane EC2 and all Karpenter-provisioned worker nodes share a single IAM role (`eks-dx-workstation-<username>`). This role carries:
+- Managed policies: SSM, ECR pull, EKS CNI, EBS CSI, CloudWatch
+- Inline policy `eks-dx-karpenter`: EC2/SQS permissions for Karpenter (tag-scoped)
+- Inline policy `eks-dx-cloud-provider`: EC2/ELB permissions for AWS CCM (tag-scoped)
+
+Worker node authentication uses `aws-iam-authenticator` (static pod), which maps the shared IAM role to `system:node:{{EC2PrivateDNSName}}` in `system:nodes` group — satisfying the Node Authorizer without any additional role mapping.
+
+## Karpenter on EKS-D (non-EKS)
+
+Key differences from standard EKS Karpenter setup:
+- `settings.eksControlPlane=false` — disables EKS DescribeCluster calls
+- `settings.clusterEndpoint` set explicitly to `https://<private-ip>:6443`
+- `amiFamily: Custom` (not `AL2023`) — avoids Karpenter v1.10 bug where `ResolveClusterCIDR` always runs for AL2023 regardless of `eksControlPlane=false`
+- Worker node bootstrap uses `nodeadm` (AL2023 EKS-Optimized AMI) with explicit `NodeConfig` (cluster name, API endpoint, CA bundle, service CIDR)
+- Helm chart pulled from OCI registry (`public.ecr.aws/karpenter/karpenter`) — `helm repo add` does not work

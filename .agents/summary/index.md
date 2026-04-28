@@ -1,54 +1,38 @@
-# Knowledge Base Index
+# Documentation Index
 
-## Overview
-This directory contains comprehensive documentation for the ECP Single-Node EKS-D project. AI assistants can use this index to locate relevant information about the codebase.
+## How to Use This Documentation
+
+This index is the primary entry point for AI assistants. Each section below describes what a file contains and when to consult it. In most cases, reading this index plus one or two targeted files is sufficient to answer questions about the codebase.
 
 ## File Summary
 
-| File | Purpose | When to Use |
-|------|---------|-------------|
-| `codebase_info.md` | Project overview, structure, tech stack | Understanding the project at a high level |
-| `architecture.md` | System architecture, diagrams, data flow | Understanding how components interact |
-| `components.md` | Core components and their responsibilities | Finding specific component details |
-| `interfaces.md` | APIs, scripts, deployment interfaces | Understanding how to deploy/use components |
-| `data_models.md` | Templates, specs, configurations | Understanding configuration formats |
-| `workflows.md` | Deployment and operational workflows | Following step-by-step procedures |
-| `dependencies.md` | External dependencies and versions | Understanding requirements |
-| `review_notes.md` | Documentation review findings | Identifying gaps or issues |
+| File | Purpose | Consult When |
+|------|---------|--------------|
+| `codebase_info.md` | Project overview, tech stack, directory structure, naming conventions | Getting oriented; understanding what files exist and what they're called |
+| `architecture.md` | System design, deployment paths, networking, IAM design, Karpenter-on-EKS-D specifics | Architecture questions; understanding how components relate; Karpenter configuration |
+| `components.md` | Detailed description of every script, Terraform module, and Helm chart | Understanding what a specific script does; script execution order; entry points |
+| `interfaces.md` | AWS APIs, Kubernetes endpoints, script arguments, env vars, persistent state file paths, Helm chart values | Finding script parameters; understanding what AWS permissions are needed; state file locations |
+| `data_models.md` | Terraform variables, Kubernetes resource schemas, IAM policy structure, security group rules | Terraform variable reference; NodePool/EC2NodeClass schema; IAM policy details |
+| `workflows.md` | Step-by-step sequence diagrams for all major operations | Understanding end-to-end flows; troubleshooting a specific phase |
+| `dependencies.md` | All external dependencies: AWS services, Helm charts, container images, Terraform providers | Dependency versions; image registries; external URLs |
+| `review_notes.md` | Consistency issues and documentation gaps | Understanding known limitations |
 
 ## Quick Reference
 
-### Key Directories
-- `infrastructure/` - CloudFormation templates and deployment scripts
-- `eks-d-setup/` - EKS-D installation scripts (numbered sequence)
-- `karpenter-config/` - Karpenter deployment
-- `node-pools/` - NodePool definitions
+**"How do I deploy a new workstation?"** → `workflows.md` §3, `components.md` §deploy.sh
 
-### Key Scripts
-- `infrastructure/deploy-vpc.sh` - Deploy shared VPC
-- `infrastructure/deploy-developer.sh` - Deploy developer EC2 stack
-- `eks-d-setup/install-all.sh` - Install all EKS-D components
-- `node-pools/configure-nodepools.sh` - Configure Karpenter NodePools
+**"What IAM permissions does Karpenter need?"** → `data_models.md` §IAM Role Policy Structure
 
-### Common Tasks
-| Task | Documentation |
-|------|---------------|
-| Deploy new environment | `workflows.md` |
-| Configure Karpenter | `interfaces.md`, `components.md` |
-| Understand networking | `architecture.md` |
-| Modify NodePool | `data_models.md` |
+**"Why does the NodePool use `amiFamily: Custom`?"** → `architecture.md` §Karpenter on EKS-D
 
-## Usage for AI Assistants
+**"What scripts run at EC2 boot?"** → `components.md` §workstation-boot.sh, `workflows.md` §3
 
-When helping with this codebase:
-1. Start with `codebase_info.md` for context
-2. Use `architecture.md` to understand component relationships
-3. Reference `interfaces.md` for deployment commands
-4. Check `workflows.md` for step-by-step procedures
+**"What env vars does deploy.sh accept?"** → `interfaces.md` §deploy.sh Environment Variables
 
-The documentation uses Mermaid diagrams for visual representations - these render properly in markdown viewers.
+**"Where is cluster state stored on the EC2?"** → `interfaces.md` §Persistent State Files
 
-## Metadata
-- **Generated**: 2026-04-12
-- **Project**: ECP Single-Node EKS-D with Karpenter
-- **Type**: Infrastructure-as-Code (Bash + CloudFormation + Kubernetes)
+**"What's the script execution order?"** → `components.md` §Script Execution Order
+
+**"How does worker node authentication work?"** → `architecture.md` §IAM Design, `components.md` §05b-install-aws-iam-authenticator.sh
+
+**"What Helm charts are pre-pulled into the AMI?"** → `dependencies.md` §Helm Charts, `components.md` §install.sh
