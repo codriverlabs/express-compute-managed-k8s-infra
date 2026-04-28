@@ -1,12 +1,12 @@
 # AGENTS.md - AI Assistant Guide
 
 ## Project Overview
-EKS-DX — Self-managed Kubernetes (EKS-D 1.35) developer workstations on EC2 with Karpenter v1.10.0 managing worker nodes. Each developer gets an isolated single-node control plane EC2 instance; Karpenter provisions Spot/On-Demand workers on demand.
+**EKS-D-Xpress (EKS-DX)** — Self-managed Kubernetes (EKS-D 1.35) developer workstations on EC2, part of the Express Compute (ECP) product suite. Each developer gets an isolated single-node control plane EC2 instance; Karpenter v1.10.0 provisions Spot/On-Demand workers on demand.
 
 ## Directory Overview
 
 ```
-ecp-single-node-eks-d/
+ecp-eks-dx-infra/
 ├── bootstrap.sh              # One-time: create S3 state bucket + shared VPC
 ├── build.sh                  # Build custom AMI (~20-30 min, pre-pulls all images)
 ├── deploy.sh                 # Deploy developer workstation via Terraform

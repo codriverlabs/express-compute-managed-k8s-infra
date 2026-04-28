@@ -1,6 +1,6 @@
 # User Guides
 
-This directory contains user-facing documentation for the ECP Single-Node EKS-D project.
+This directory contains user-facing documentation for the EKS-D-Xpress project.
 
 ## Available Guides
 

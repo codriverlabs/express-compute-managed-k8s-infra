@@ -1,8 +1,8 @@
-# ECP Single-Node EKS-D Architecture
+# EKS-D-Xpress Architecture
 
 ## Overview
 
-This document describes the architecture of the ECP Single-Node EKS-D deployment, which provides each team member with a dedicated Kubernetes control plane running on EC2, with Karpenter managing worker nodes.
+This document describes the architecture of the EKS-D-Xpress deployment, which provides each team member with a dedicated Kubernetes control plane running on EC2, with Karpenter managing worker nodes.
 
 ## System Architecture
 

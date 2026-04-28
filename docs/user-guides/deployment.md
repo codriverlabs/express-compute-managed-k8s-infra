@@ -67,7 +67,7 @@ export CLUSTER_NAME=<your-cluster-name>
 export AWS_REGION=us-east-1
 
 # Install Karpenter
-cd ~/ecp-single-node-eks-d/karpenter-config
+cd ~/ecp-eks-dx-infra/karpenter-config
 ./install-karpenter.sh
 
 # Configure NodePools
@@ -92,7 +92,7 @@ ssh -i ~/.ssh/my-key-pair.pem ubuntu@<public-ip>
 
 # Clone repository
 git clone <repository-url>
-cd ecp-single-node-eks-d/eks-d-setup
+cd ecp-eks-dx-infra/eks-d-setup
 
 # Install all components
 ./install-all.sh

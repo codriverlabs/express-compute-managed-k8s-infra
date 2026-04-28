@@ -2,7 +2,7 @@
 
 ## Overview
 
-EKS-DX provisions isolated developer Kubernetes environments. Each developer gets a dedicated EC2 instance running EKS-D as a single-node control plane, with Karpenter provisioning Spot/On-Demand worker nodes on demand.
+EKS-D-Xpress (EKS-DX) provisions isolated developer Kubernetes environments, part of the Express Compute (ECP) product suite. Each developer gets a dedicated EC2 instance running EKS-D as a single-node control plane, with Karpenter provisioning Spot/On-Demand worker nodes on demand.
 
 ```mermaid
 graph TB

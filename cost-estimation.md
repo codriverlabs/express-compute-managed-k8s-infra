@@ -1,4 +1,4 @@
-# ECP Single-Node EKS-D Cost Estimation
+# EKS-D-Xpress Cost Estimation
 
 ## Monthly Cost Breakdown (per team member)
 

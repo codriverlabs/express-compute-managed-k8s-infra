@@ -1,4 +1,4 @@
-# ECP Single-Node EKS-D Deployment Guide
+# EKS-D-Xpress Deployment Guide
 
 ## Prerequisites
 
@@ -44,7 +44,7 @@ ssh -i ~/.ssh/your-key.pem ubuntu@<control-plane-ip>
 ```bash
 cd /home/ubuntu
 git clone <this-repo> # Or copy files
-cd ecp-single-node-eks-d/eks-d-setup
+cd ecp-eks-dx-infra/eks-d-setup
 
 # Install EKS-D
 ./install.sh

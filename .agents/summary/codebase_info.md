@@ -1,7 +1,7 @@
 # Codebase Info
 
 ## Project
-**EKS-DX** — Self-managed Kubernetes (EKS-D) developer workstations on EC2 with Karpenter-managed worker nodes.
+**EKS-D-Xpress (EKS-DX)** — Self-managed Kubernetes (EKS-D) developer workstations on EC2, part of the Express Compute (ECP) product suite. Infrastructure repo: `ecp-eks-dx-infra`.
 
 ## Language / Technology Stack
 - **Shell (Bash)** — all lifecycle scripts, installation scripts
@@ -19,7 +19,7 @@
 ## Directory Structure
 
 ```
-ecp-single-node-eks-d/
+ecp-eks-dx-infra/
 ├── bootstrap.sh              # One-time account setup (S3 state bucket + VPC)
 ├── build.sh                  # Build custom AMI (~20-30 min)
 ├── deploy.sh                 # Deploy developer workstation via Terraform

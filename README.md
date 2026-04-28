@@ -1,4 +1,4 @@
-# ECP Single-Node EKS-D with Karpenter
+# EKS-D-Xpress — Express Compute
 
 ## Architecture Overview
 
@@ -25,7 +25,7 @@ Team Member EC2 (On-Demand + Compute Savings Plan)
 ## Directory Structure
 
 ```
-ecp-single-node-eks-d/
+ecp-eks-dx-infra/
 ├── README.md                    # This file
 ├── terraform/                   # Terraform for EC2 + infrastructure
 ├── ami-builder/                 # AMI build scripts
