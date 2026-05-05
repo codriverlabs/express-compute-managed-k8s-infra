@@ -63,16 +63,33 @@ terraform -chdir=ami-builder destroy -auto-approve
 
 ---
 
-### Item 9: Spot for Workstation — REJECT
+### Item 9: Spot for Workstation — CONDITIONALLY APPROVE (with hibernation)
 
-The control plane EC2 runs **etcd + API server + controller-manager + scheduler**. A Spot interruption would:
-- Kill etcd → permanent data loss (no quorum recovery on single-node)
-- Kill API server → all worker nodes lose connectivity
-- Require full cluster rebuild
+~~The control plane EC2 runs etcd + API server. A Spot interruption would kill etcd → permanent data loss.~~
 
-This is exactly why the architecture uses On-Demand for control plane and Spot for workers (via Karpenter). The proposal contradicts the core architecture.
+**Correction:** AWS Spot hibernation preserves full memory state to the encrypted root EBS volume on interruption. On capacity restoration, the instance resumes exactly where it left off — etcd, API server, and all processes intact.
 
-**Verdict:** Reject. This would destroy the system's reliability guarantee.
+**Prerequisites for enabling:**
+```hcl
+resource "aws_instance" "workstation" {
+  # ...
+  hibernation = true
+
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = var.disk_size_gb
+    encrypted             = true          # REQUIRED for hibernation
+    delete_on_termination = true
+  }
+}
+```
+
+**Trade-offs:**
+- Cluster unavailable during hibernation (minutes to hours depending on capacity)
+- Worker nodes lose API server connectivity → Karpenter re-provisions after resume
+- 60-70% cost reduction on control plane instance
+
+**Verdict:** Viable for dev workstations. Add `hibernation = true` + encrypted root volume. Acceptable trade-off: temporary unavailability vs significant cost savings.
 
 ---
 
@@ -168,7 +185,7 @@ The S3 Gateway endpoint (already present, free) is the high-value item. Interfac
 | 6  | High | ✅ Approve | Add outputs |
 | 7  | High | ⚠️ Fix approach | Use `terraform destroy` in build.sh |
 | 8  | High | ✅ Approve (fix) | Tag-based with fallback |
-| 9  | Medium | ❌ Reject | Would destroy reliability |
+| 9  | Medium | ✅ Approve (with hibernation) | Add `hibernation=true` + encrypted root |
 | 10 | Medium | ⚠️ Fix rule | NoncurrentVersionExpiration only |
 | 11 | Medium | ❌ Incorrect | Required for VPC CNI |
 | 12 | Medium | ⚠️ Fix resource | Use DLM, not aws_ebs_snapshot |
