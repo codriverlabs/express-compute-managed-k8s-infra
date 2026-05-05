@@ -212,3 +212,6 @@ The S3 Gateway endpoint (already present, free) is the high-value item. Interfac
 8. Externalize Karpenter version (item 13)
 9. Script validation / dry-run (item 14)
 10. Pre-commit hooks (item 15)
+
+**Future improvement:**
+11. Spot with hibernation for control plane (item 9) — requires `hibernation = true` + encrypted root volume; ~60-70% cost savings
