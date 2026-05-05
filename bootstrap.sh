@@ -39,6 +39,9 @@ aws s3api put-public-access-block --bucket "${BUCKET}" \
   --public-access-block-configuration \
   "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
 
+aws s3api put-bucket-lifecycle-configuration --bucket "${BUCKET}" \
+  --lifecycle-configuration '{"Rules":[{"ID":"expire-old-versions","Status":"Enabled","NoncurrentVersionExpiration":{"NoncurrentDays":30},"Filter":{"Prefix":""}}]}'
+
 # 2. Deploy shared VPC if it doesn't exist
 echo ""
 echo "==> Checking for shared VPC..."

@@ -105,6 +105,11 @@ terraform -chdir="${SCRIPT_DIR}/terraform" init -reconfigure \
   -backend-config="region=${AWS_REGION}"
 
 echo "" && echo "==> Applying..."
+if [ "${DRY_RUN:-}" = "true" ]; then
+  terraform -chdir="${SCRIPT_DIR}/terraform" plan
+  echo "" && echo "==> Dry run complete. Set DRY_RUN= to apply."
+  exit 0
+fi
 terraform -chdir="${SCRIPT_DIR}/terraform" apply
 
 echo ""

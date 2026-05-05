@@ -53,6 +53,12 @@ terraform -chdir="${SCRIPT_DIR}/terraform" init -reconfigure \
   -backend-config="key=${TF_KEY}" \
   -backend-config="region=${AWS_REGION}"
 
+if [ "${DRY_RUN:-}" = "true" ]; then
+  terraform -chdir="${SCRIPT_DIR}/terraform" plan -destroy
+  echo "" && echo "==> Dry run complete. Set DRY_RUN= to destroy."
+  exit 0
+fi
+
 terraform -chdir="${SCRIPT_DIR}/terraform" destroy
 
 echo "" && echo "==> Workstation '${WORKSTATION_NAME}' destroyed."

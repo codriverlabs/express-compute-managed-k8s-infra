@@ -9,11 +9,11 @@ locals {
   # Auto-calculate next available subnet index
   subnet_index = var.subnet_index != null ? var.subnet_index : local.next_available_index
 
-  # Find next available subnet index by checking existing developer subnets (exclude NAT subnet at 10.0.0.0/24)
+  # Find next available subnet index using SubnetIndex tags (deterministic allocation)
   existing_indices = [
     for s in data.aws_subnets.developer_public.ids :
-    tonumber(regex("10\\.0\\.(\\d+)\\.0/24", data.aws_subnet.existing[s].cidr_block)[0])
-    if tonumber(regex("10\\.0\\.(\\d+)\\.0/24", data.aws_subnet.existing[s].cidr_block)[0]) > 0
+    tonumber(lookup(data.aws_subnet.existing[s].tags, "SubnetIndex", "0"))
+    if lookup(data.aws_subnet.existing[s].tags, "SubnetIndex", "") != ""
   ]
   next_available_index = length(local.existing_indices) > 0 ? max(local.existing_indices...) + 1 : 1
 
@@ -80,6 +80,7 @@ resource "aws_subnet" "public" {
   tags = {
     Name                                              = "${var.developer_username}-public-subnet"
     Developer                                         = var.developer_username
+    SubnetIndex                                       = tostring(local.subnet_index)
     "kubernetes.io/cluster/${local.workstation_name}" = "owned"
     "kubernetes.io/role/elb"                          = "1"
     ManagedBy                                         = "Terraform"
@@ -507,6 +508,10 @@ resource "aws_instance" "workstation" {
     volume_type           = "gp3"
     volume_size           = 20
     delete_on_termination = true
+    tags = {
+      Name    = "${local.workstation_name}-etcd"
+      Purpose = "etcd"
+    }
   }
 
   metadata_options {
@@ -523,4 +528,58 @@ resource "aws_instance" "workstation" {
     # allows attach/detach on instances not managed by EKS (no eks:cluster-name tag)
     "ebs.csi.aws.com/cluster-name" = local.workstation_name
   }
+}
+
+# DLM lifecycle policy for automated etcd volume snapshots
+resource "aws_iam_role" "dlm" {
+  name = "eks-dx-dlm-${var.developer_username}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "dlm.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "dlm" {
+  role       = aws_iam_role.dlm.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole"
+}
+
+resource "aws_dlm_lifecycle_policy" "etcd_backup" {
+  description        = "Daily etcd volume snapshot for ${local.workstation_name}"
+  execution_role_arn = aws_iam_role.dlm.arn
+  state              = "ENABLED"
+
+  policy_details {
+    resource_types = ["VOLUME"]
+
+    target_tags = {
+      Purpose = "etcd"
+      Name    = "${local.workstation_name}-etcd"
+    }
+
+    schedule {
+      name = "daily-etcd-snapshot"
+
+      create_rule {
+        interval      = 24
+        interval_unit = "HOURS"
+        times         = ["03:00"]
+      }
+
+      retain_rule {
+        count = 3
+      }
+
+      tags_to_add = {
+        SnapshotCreator = "DLM"
+        Cluster         = local.workstation_name
+      }
+    }
+  }
+
+  tags = { Name = "${local.workstation_name}-etcd-backup" }
 }

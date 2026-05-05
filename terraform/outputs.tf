@@ -52,3 +52,8 @@ output "karpenter_interruption_queue" {
   description = "Karpenter interruption SQS queue URL"
   value       = aws_sqs_queue.karpenter_interruption.url
 }
+
+output "ssh_command" {
+  description = "SSH command to connect to workstation"
+  value       = "ssh -i ${var.key_pair_name}.pem ec2-user@${aws_instance.workstation.public_ip}"
+}
