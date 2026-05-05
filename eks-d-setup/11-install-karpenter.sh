@@ -14,7 +14,7 @@ if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
   exit 1
 fi
 
-export AWS_REGION=us-east-1
+export AWS_REGION="${AWS_REGION:-$(curl -sf http://169.254.169.254/latest/meta-data/placement/region)}"
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 # On EKS-D, there is no EKS managed control plane — Karpenter cannot use DescribeCluster.

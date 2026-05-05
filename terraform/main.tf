@@ -1,22 +1,22 @@
 locals {
-  ami_arch           = var.arch == "arm64" ? "arm64" : "x86_64"
-  workstation_name   = var.workstation_name != "" ? var.workstation_name : "eks-dx-${var.developer_username}"
-  allowed_cidrs      = var.allowed_cidr_blocks
-  
+  ami_arch         = var.arch == "arm64" ? "arm64" : "x86_64"
+  workstation_name = var.workstation_name != "" ? var.workstation_name : "eks-dx-${var.developer_username}"
+  allowed_cidrs    = var.allowed_cidr_blocks
+
   # Auto-discover VPC by tag
   vpc_filter = var.vpc_id != "" ? var.vpc_id : data.aws_vpc.shared[0].id
-  
+
   # Auto-calculate next available subnet index
   subnet_index = var.subnet_index != null ? var.subnet_index : local.next_available_index
-  
+
   # Find next available subnet index by checking existing developer subnets (exclude NAT subnet at 10.0.0.0/24)
   existing_indices = [
-    for s in data.aws_subnets.developer_public.ids : 
+    for s in data.aws_subnets.developer_public.ids :
     tonumber(regex("10\\.0\\.(\\d+)\\.0/24", data.aws_subnet.existing[s].cidr_block)[0])
     if tonumber(regex("10\\.0\\.(\\d+)\\.0/24", data.aws_subnet.existing[s].cidr_block)[0]) > 0
   ]
   next_available_index = length(local.existing_indices) > 0 ? max(local.existing_indices...) + 1 : 1
-  
+
   public_subnet_cidr  = "10.0.${local.subnet_index}.0/24"
   private_subnet_cidr = "10.0.${100 + local.subnet_index}.0/24"
 }
@@ -24,7 +24,7 @@ locals {
 # Auto-discover shared VPC
 data "aws_vpc" "shared" {
   count = var.vpc_id == "" ? 1 : 0
-  
+
   filter {
     name   = "tag:Name"
     values = ["${var.project_name}-shared-vpc"]
@@ -37,12 +37,12 @@ data "aws_subnets" "developer_public" {
     name   = "vpc-id"
     values = [local.vpc_filter]
   }
-  
+
   filter {
     name   = "tag:SubnetType"
     values = ["Public"]
   }
-  
+
   filter {
     name   = "tag:Developer"
     values = ["*"]
@@ -78,12 +78,12 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                            = "${var.developer_username}-public-subnet"
-    Developer                                       = var.developer_username
+    Name                                              = "${var.developer_username}-public-subnet"
+    Developer                                         = var.developer_username
     "kubernetes.io/cluster/${local.workstation_name}" = "owned"
-    "kubernetes.io/role/elb"                        = "1"
-    ManagedBy                                       = "Terraform"
-    SubnetType                                      = "Public"
+    "kubernetes.io/role/elb"                          = "1"
+    ManagedBy                                         = "Terraform"
+    SubnetType                                        = "Public"
   }
 }
 
@@ -99,12 +99,12 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available.names[0]
 
   tags = {
-    Name                                            = "${var.developer_username}-private-subnet"
-    Developer                                       = var.developer_username
+    Name                                              = "${var.developer_username}-private-subnet"
+    Developer                                         = var.developer_username
     "kubernetes.io/cluster/${local.workstation_name}" = "owned"
-    "kubernetes.io/role/internal-elb"               = "1"
-    ManagedBy                                       = "Terraform"
-    SubnetType                                      = "Private"
+    "kubernetes.io/role/internal-elb"                 = "1"
+    ManagedBy                                         = "Terraform"
+    SubnetType                                        = "Private"
   }
 }
 
@@ -139,8 +139,8 @@ resource "aws_iam_role" "workstation" {
     }]
   })
 
-  tags = { 
-    Name = "eks-dx-workstation-${var.developer_username}"
+  tags = {
+    Name               = "eks-dx-workstation-${var.developer_username}"
     "eks-cluster-name" = local.workstation_name
   }
 }
@@ -222,8 +222,8 @@ resource "aws_iam_role_policy" "karpenter" {
         }
       },
       {
-        Effect = "Allow"
-        Action = ["ec2:TerminateInstances", "ec2:DeleteLaunchTemplate"]
+        Effect   = "Allow"
+        Action   = ["ec2:TerminateInstances", "ec2:DeleteLaunchTemplate"]
         Resource = "*"
         Condition = {
           StringEquals = {
@@ -420,12 +420,68 @@ resource "aws_sqs_queue" "karpenter_interruption" {
   }
 }
 
+resource "aws_sqs_queue_policy" "karpenter_interruption" {
+  queue_url = aws_sqs_queue.karpenter_interruption.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = ["events.amazonaws.com", "sqs.amazonaws.com"] }
+      Action    = "sqs:SendMessage"
+      Resource  = aws_sqs_queue.karpenter_interruption.arn
+    }]
+  })
+}
+
+# EventBridge rules for Karpenter Spot interruption handling
+resource "aws_cloudwatch_event_rule" "spot_interruption" {
+  name = "${local.workstation_name}-spot-interruption"
+  event_pattern = jsonencode({
+    source      = ["aws.ec2"]
+    detail-type = ["EC2 Spot Instance Interruption Warning"]
+  })
+  tags = { "kubernetes.io/cluster/${local.workstation_name}" = "owned" }
+}
+
+resource "aws_cloudwatch_event_target" "spot_interruption" {
+  rule = aws_cloudwatch_event_rule.spot_interruption.name
+  arn  = aws_sqs_queue.karpenter_interruption.arn
+}
+
+resource "aws_cloudwatch_event_rule" "instance_state_change" {
+  name = "${local.workstation_name}-instance-state-change"
+  event_pattern = jsonencode({
+    source      = ["aws.ec2"]
+    detail-type = ["EC2 Instance State-change Notification"]
+  })
+  tags = { "kubernetes.io/cluster/${local.workstation_name}" = "owned" }
+}
+
+resource "aws_cloudwatch_event_target" "instance_state_change" {
+  rule = aws_cloudwatch_event_rule.instance_state_change.name
+  arn  = aws_sqs_queue.karpenter_interruption.arn
+}
+
+resource "aws_cloudwatch_event_rule" "instance_rebalance" {
+  name = "${local.workstation_name}-instance-rebalance"
+  event_pattern = jsonencode({
+    source      = ["aws.ec2"]
+    detail-type = ["EC2 Instance Rebalance Recommendation"]
+  })
+  tags = { "kubernetes.io/cluster/${local.workstation_name}" = "owned" }
+}
+
+resource "aws_cloudwatch_event_target" "instance_rebalance" {
+  rule = aws_cloudwatch_event_rule.instance_rebalance.name
+  arn  = aws_sqs_queue.karpenter_interruption.arn
+}
+
 resource "aws_instance" "workstation" {
-  ami                  = data.aws_ssm_parameter.workstation_ami.value
-  instance_type        = var.instance_type
-  key_name             = var.key_pair_name != "" ? var.key_pair_name : null
-  iam_instance_profile = aws_iam_instance_profile.workstation.name
-  subnet_id            = aws_subnet.public.id
+  ami                    = data.aws_ssm_parameter.workstation_ami.value
+  instance_type          = var.instance_type
+  key_name               = var.key_pair_name != "" ? var.key_pair_name : null
+  iam_instance_profile   = aws_iam_instance_profile.workstation.name
+  subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.workstation.id]
 
   user_data = <<-EOF
@@ -459,12 +515,12 @@ resource "aws_instance" "workstation" {
   }
 
   tags = {
-    Name                                = local.workstation_name
-    Developer                           = var.developer_username
-    Arch                                = var.arch
-    "kubernetes.io/cluster/eks-d"       = "owned"
+    Name                          = local.workstation_name
+    Developer                     = var.developer_username
+    Arch                          = var.arch
+    "kubernetes.io/cluster/eks-d" = "owned"
     # Required by AmazonEBSCSIDriverEKSClusterScopedPolicy:
     # allows attach/detach on instances not managed by EKS (no eks:cluster-name tag)
-    "ebs.csi.aws.com/cluster-name"      = local.workstation_name
+    "ebs.csi.aws.com/cluster-name" = local.workstation_name
   }
 }
