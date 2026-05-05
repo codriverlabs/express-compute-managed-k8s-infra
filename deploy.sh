@@ -50,6 +50,15 @@ esac
 DISK_SIZE_GB="${DISK_SIZE_GB:-}"
 prompt DISK_SIZE_GB "Root disk size (GB)" "50"
 
+ELASTIC_IP="${ELASTIC_IP:-}"
+if [ -z "$ELASTIC_IP" ]; then
+  read -rp "  Assign Elastic IP (stable IP across stop/start)? [y/N]: " eip_choice
+  case "${eip_choice}" in
+    [yY]*) ELASTIC_IP="true" ;;
+    *) ELASTIC_IP="false" ;;
+  esac
+fi
+
 SAFE_USER="$(sanitise "${DEVELOPER_USERNAME}")"
 WORKSTATION_NAME="${SAFE_USER}-eks-dx-${ARCH}"
 KEY_PAIR_NAME="${WORKSTATION_NAME}"
@@ -92,6 +101,7 @@ instance_type       = "${INSTANCE_TYPE}"
 disk_size_gb        = ${DISK_SIZE_GB}
 key_pair_name       = "${KEY_PAIR_NAME}"
 allowed_cidr_blocks = ["${SSH_CIDR}"]
+assign_elastic_ip   = ${ELASTIC_IP}
 EOF
 
 echo "" && echo "==> Written: terraform/terraform.tfvars"

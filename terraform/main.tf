@@ -530,6 +530,13 @@ resource "aws_instance" "workstation" {
   }
 }
 
+resource "aws_eip" "workstation" {
+  count    = var.assign_elastic_ip ? 1 : 0
+  instance = aws_instance.workstation.id
+  domain   = "vpc"
+  tags     = { Name = local.workstation_name }
+}
+
 # DLM lifecycle policy for automated etcd volume snapshots
 resource "aws_iam_role" "dlm" {
   name = "eks-dx-dlm-${var.developer_username}"

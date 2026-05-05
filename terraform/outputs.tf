@@ -4,8 +4,8 @@ output "workstation_id" {
 }
 
 output "workstation_public_ip" {
-  description = "Public IP address"
-  value       = aws_instance.workstation.public_ip
+  description = "Public IP address (Elastic IP if assigned, otherwise ephemeral)"
+  value       = var.assign_elastic_ip ? aws_eip.workstation[0].public_ip : aws_instance.workstation.public_ip
 }
 
 output "workstation_private_ip" {

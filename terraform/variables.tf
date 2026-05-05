@@ -65,6 +65,12 @@ variable "project_name" {
   default     = "eks-d"
 }
 
+variable "assign_elastic_ip" {
+  description = "Assign Elastic IP (recommended for long-lived dev workstations, not for CI/CD)"
+  type        = bool
+  default     = false
+}
+
 variable "eks_cluster_name" {
   description = "EKS-D cluster name (deprecated, use workstation_name)"
   type        = string
