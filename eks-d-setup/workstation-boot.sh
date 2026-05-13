@@ -67,15 +67,19 @@ echo "Step 6/9: Configuring control plane..."
 bash "${SCRIPT_DIR}/09-configure-node.sh"
 
 # Step 7: Install EBS CSI Driver
-echo "Step 7/9: Installing EBS CSI Driver..."
+echo "Step 7/10: Installing EBS CSI Driver..."
 bash "${SCRIPT_DIR}/10-install-ebs-csi.sh"
 
-# Step 8: Install Karpenter
-echo "Step 8/9: Installing Karpenter..."
+# Step 8: Metrics Server
+echo "Step 8/10: Installing Metrics Server..."
+bash "${SCRIPT_DIR}/12-install-metrics-server.sh"
+
+# Step 9: Install Karpenter
+echo "Step 9/10: Installing Karpenter..."
 bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}"
 
-# Step 9: Install CloudWatch agent
-echo "Step 9/9: Installing CloudWatch agent..."
+# Step 10: Install CloudWatch agent
+echo "Step 10/10: Installing CloudWatch agent..."
 CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh"
 
 # Mark installation as complete

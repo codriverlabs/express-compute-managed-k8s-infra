@@ -5,11 +5,14 @@ set -e
 
 echo "Installing AWS Cloud Provider..."
 
-helm repo add aws-cloud-controller-manager https://kubernetes.github.io/cloud-provider-aws
-helm repo update
+CHART=$(ls /opt/eks-d/charts/aws-cloud-controller-manager-*.tgz 2>/dev/null | head -1)
+if [ -z "$CHART" ]; then
+  helm repo add aws-cloud-controller-manager https://kubernetes.github.io/cloud-provider-aws
+  helm repo update
+  CHART="aws-cloud-controller-manager/aws-cloud-controller-manager"
+fi
 
-helm upgrade --install aws-cloud-controller-manager \
-  aws-cloud-controller-manager/aws-cloud-controller-manager \
+helm upgrade --install aws-cloud-controller-manager "$CHART" \
   --namespace kube-system \
   --set nodeSelector."node-role\.kubernetes\.io/control-plane"="" \
   --set tolerations[0].key="node-role.kubernetes.io/control-plane" \

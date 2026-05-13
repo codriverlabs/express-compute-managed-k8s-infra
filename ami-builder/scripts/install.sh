@@ -38,9 +38,6 @@ bash "${EKS_D_SETUP_DIR}/01-install-base.sh"
 echo "==> Installing Docker..."
 bash "${EKS_D_SETUP_DIR}/02-install-docker.sh"
 
-echo "==> Installing kubectl..."
-bash "${EKS_D_SETUP_DIR}/03-install-kubectl.sh"
-
 echo "==> Installing Helm..."
 bash "${EKS_D_SETUP_DIR}/04-install-helm.sh"
 
@@ -144,9 +141,7 @@ if [ -f /opt/eks-d/manifests/aws-vpc-cni.yaml ]; then
   done
 fi
 
-# EBS CSI driver and other components - pull from discovered versions
-echo "==> Pulling EBS CSI driver and component images..."
-sudo ctr images pull public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.53.0 || true
+# EBS CSI driver images are extracted and pulled from the chart above
 
 # Pull CSI sidecar images using discovered versions
 if [ -n "$CSI_PROVISIONER_IMAGE" ]; then

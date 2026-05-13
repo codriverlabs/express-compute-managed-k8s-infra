@@ -22,7 +22,7 @@ export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output tex
 CLUSTER_ENDPOINT="https://$(hostname -I | awk '{print $1}'):6443"
 
 # Source versions from central config
-[ -f /opt/eks-d/versions.env ] && source /opt/eks-d/versions.env
+[ -f /opt/eks-d/manifests/eks-d-versions.env ] && source /opt/eks-d/manifests/eks-d-versions.env
 KARPENTER_VERSION="${KARPENTER_VERSION:-1.10.0}"
 
 echo "Installing Karpenter ${KARPENTER_VERSION}..."
