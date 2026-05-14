@@ -32,54 +32,17 @@ case "${arch_choice:-1}" in
   *) ARCH="x86_64"; INSTANCE_TYPE="m6i.xlarge" ;;
 esac
 
-TFSTATE_BUCKET="${TFSTATE_BUCKET:-}"
-if [ -z "${TFSTATE_BUCKET}" ]; then
-  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-  TFSTATE_BUCKET="eks-dx-tfstate-${ACCOUNT_ID}"
-  echo "  Auto-derived Terraform state bucket: ${TFSTATE_BUCKET}"
-fi
-
-KEY_NAME="eks-dx-builder-${ARCH}-${AMI_VERSION}"
-KEY_FILE="${SCRIPT_DIR}/${KEY_NAME}.pem"
-
-echo ""
-echo "==> Creating temporary EC2 key pair '${KEY_NAME}'..."
-aws ec2 create-key-pair --key-name "${KEY_NAME}" --region "${AWS_REGION}" \
-  --query 'KeyMaterial' --output text > "${KEY_FILE}"
-chmod 600 "${KEY_FILE}"
-
-cleanup() {
-  echo "" && echo "==> Cleaning up temporary key pair..."
-  aws ec2 delete-key-pair --key-name "${KEY_NAME}" --region "${AWS_REGION}" 2>/dev/null || true
-  rm -f "${KEY_FILE}"
-}
-trap cleanup EXIT
-
-TF_KEY="eks-dx/ami-builder/${ARCH}/terraform.tfstate"
-
-echo "==> Initialising Terraform backend..."
-terraform -chdir="${AMI_BUILDER_DIR}" init -reconfigure \
-  -backend-config="bucket=${TFSTATE_BUCKET}" \
-  -backend-config="key=${TF_KEY}" \
-  -backend-config="region=${AWS_REGION}"
+echo "" && echo "==> Initialising Packer plugins..."
+packer init "${AMI_BUILDER_DIR}/eks-dx.pkr.hcl"
 
 echo "" && echo "==> Building AMI (arch=${ARCH})... (~20-30 min)"
-terraform -chdir="${AMI_BUILDER_DIR}" apply -auto-approve \
+packer build \
   -var "aws_region=${AWS_REGION}" \
   -var "arch=${ARCH}" \
   -var "instance_type=${INSTANCE_TYPE}" \
-  -var "key_pair_name=${KEY_NAME}" \
-  -var "key_file=${KEY_FILE}" \
-  -var "ami_version=${AMI_VERSION}"
-
-echo "" && echo "==> Destroying builder instance..."
-terraform -chdir="${AMI_BUILDER_DIR}" destroy -auto-approve \
-  -var "aws_region=${AWS_REGION}" \
-  -var "arch=${ARCH}" \
-  -var "instance_type=${INSTANCE_TYPE}" \
-  -var "key_pair_name=${KEY_NAME}" \
-  -var "key_file=${KEY_FILE}" \
-  -var "ami_version=${AMI_VERSION}"
+  -var "kubernetes_version=${KUBERNETES_VERSION:-1.35}" \
+  -var "ami_version=${AMI_VERSION}" \
+  "${AMI_BUILDER_DIR}/eks-dx.pkr.hcl"
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
