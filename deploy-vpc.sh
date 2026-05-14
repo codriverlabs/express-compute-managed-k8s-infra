@@ -17,8 +17,8 @@ echo "  Project: ${PROJECT_NAME}"
 echo ""
 
 # Check if AMI builder images are available
-AMI_X86="/eks-dx/ami/x86_64"
-AMI_ARM="/eks-dx/ami/arm64"
+AMI_X86="/eks-dx/ami/${EKS_VERSION}/x86_64"
+AMI_ARM="/eks-dx/ami/${EKS_VERSION}/arm64"
 
 if aws ssm get-parameter --name "${AMI_X86}" --region "${REGION}" >/dev/null 2>&1 || \
    aws ssm get-parameter --name "${AMI_ARM}" --region "${REGION}" >/dev/null 2>&1; then

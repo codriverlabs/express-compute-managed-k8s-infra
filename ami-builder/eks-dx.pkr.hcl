@@ -8,22 +8,16 @@ packer {
 }
 
 variable "aws_region"         { type = string }
-variable "arch"               { type = string  default = "x86_64" }
-variable "instance_type"      { type = string  default = "m6i.xlarge" }
 variable "kubernetes_version" { type = string  default = "1.35" }
 variable "ami_version"        { type = string }
 
-locals {
-  ami_arch = var.arch == "arm64" ? "arm64" : "x86_64"
-}
-
-source "amazon-ebs" "eks_dx" {
+source "amazon-ebs" "x86_64" {
   region        = var.aws_region
-  instance_type = var.instance_type
+  instance_type = "m6a.medium"
 
   source_ami_filter {
     filters = {
-      name                = "al2023-ami-2023*-${local.ami_arch}"
+      name                = "al2023-ami-2023*-x86_64"
       virtualization-type = "hvm"
       root-device-type    = "ebs"
     }
@@ -31,10 +25,9 @@ source "amazon-ebs" "eks_dx" {
     most_recent = true
   }
 
-  ami_name        = "eks-dx-${local.ami_arch}-${var.ami_version}"
-  ami_description = "EKS-DX with Karpenter - ${var.ami_version}"
-
-  ssh_username = "ec2-user"
+  ami_name        = "eks-dx-x86_64-${var.ami_version}"
+  ami_description = "EKS-DX ${var.kubernetes_version} x86_64 - ${var.ami_version}"
+  ssh_username    = "ec2-user"
 
   metadata_options {
     http_tokens                 = "required"
@@ -49,11 +42,45 @@ source "amazon-ebs" "eks_dx" {
     delete_on_termination = true
   }
 
-  run_tags = { Name = "eks-dx-builder-${var.arch}" }
+  run_tags = { Name = "eks-dx-builder-x86_64" }
+}
+
+source "amazon-ebs" "arm64" {
+  region        = var.aws_region
+  instance_type = "m6g.medium"
+
+  source_ami_filter {
+    filters = {
+      name                = "al2023-ami-2023*-arm64"
+      virtualization-type = "hvm"
+      root-device-type    = "ebs"
+    }
+    owners      = ["amazon"]
+    most_recent = true
+  }
+
+  ami_name        = "eks-dx-arm64-${var.ami_version}"
+  ami_description = "EKS-DX ${var.kubernetes_version} arm64 - ${var.ami_version}"
+  ssh_username    = "ec2-user"
+
+  metadata_options {
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+    instance_metadata_tags      = "enabled"
+  }
+
+  launch_block_device_mappings {
+    device_name           = "/dev/xvda"
+    volume_type           = "gp3"
+    volume_size           = 20
+    delete_on_termination = true
+  }
+
+  run_tags = { Name = "eks-dx-builder-arm64" }
 }
 
 build {
-  sources = ["source.amazon-ebs.eks_dx"]
+  sources = ["source.amazon-ebs.x86_64", "source.amazon-ebs.arm64"]
 
   provisioner "file" {
     source      = "${path.root}/../eks-d-setup"
@@ -80,9 +107,7 @@ build {
 
   post-processor "shell-local" {
     inline = [
-      "AMI_ID=$(python3 -c \"import json; d=json.load(open('/tmp/packer-manifest.json')); print(d['builds'][-1]['artifact_id'].split(':')[-1])\")",
-      "aws ssm put-parameter --name /eks-dx/ami/${local.ami_arch} --value $AMI_ID --type String --overwrite --region ${var.aws_region}",
-      "echo 'AMI stored at SSM: /eks-dx/ami/${local.ami_arch} -> '$AMI_ID"
+      "python3 -c \"import json; [print(b['name']+' '+b['artifact_id'].split(':')[-1]) for b in json.load(open('/tmp/packer-manifest.json'))['builds']]\" | while read arch ami_id; do aws ssm put-parameter --name /eks-dx/ami/${var.kubernetes_version}/$arch --value $ami_id --type String --overwrite --region ${var.aws_region} && echo \"Stored /eks-dx/ami/${var.kubernetes_version}/$arch -> $ami_id\"; done"
     ]
   }
 }

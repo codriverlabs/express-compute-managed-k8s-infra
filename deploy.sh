@@ -50,7 +50,8 @@ esac
 DISK_SIZE_GB="${DISK_SIZE_GB:-}"
 prompt DISK_SIZE_GB "Root disk size (GB)" "50"
 
-ELASTIC_IP="${ELASTIC_IP:-}"
+KUBERNETES_VERSION="${KUBERNETES_VERSION:-}"
+prompt KUBERNETES_VERSION "Kubernetes version" "1.35"
 if [ -z "$ELASTIC_IP" ]; then
   read -rp "  Assign Elastic IP (stable IP across stop/start)? [y/N]: " eip_choice
   case "${eip_choice}" in
@@ -102,6 +103,7 @@ disk_size_gb        = ${DISK_SIZE_GB}
 key_pair_name       = "${KEY_PAIR_NAME}"
 allowed_cidr_blocks = ["${SSH_CIDR}"]
 assign_elastic_ip   = ${ELASTIC_IP}
+kubernetes_version  = "${KUBERNETES_VERSION}"
 EOF
 
 echo "" && echo "==> Written: terraform/terraform.tfvars"

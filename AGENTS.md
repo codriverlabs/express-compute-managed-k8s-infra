@@ -63,7 +63,7 @@ ecp-eks-dx-infra/
 - SQS queue: same as cluster name (Karpenter interruption)
 - Terraform state bucket: `eks-dx-tfstate-<account-id>` (auto-derived, no config needed)
 - Terraform state key: `eks-dx/<workstation-name>/terraform.tfstate`
-- SSM AMI parameter: `/eks-dx/ami/x86_64` and `/eks-dx/ami/arm64`
+- SSM AMI parameter: `/eks-dx/ami/<kubernetes-version>/x86_64` and `/eks-dx/ami/<kubernetes-version>/arm64` (e.g. `/eks-dx/ami/1.35/x86_64`)
 
 ### Cluster Identity Persistence
 Scripts source `/opt/eks-d/cluster.env` for `DEVELOPER_SIGNUM` and `CLUSTER_NAME` rather than requiring arguments every time. Written by `install-all.sh` / `workstation-boot.sh`.

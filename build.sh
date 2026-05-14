@@ -20,27 +20,17 @@ echo "╚═══════════════════════�
 echo ""
 
 AWS_REGION="${AWS_REGION:-}"
-prompt AWS_REGION "AWS region" "us-east-1"
+KUBERNETES_VERSION="${KUBERNETES_VERSION:-}"
+prompt AWS_REGION         "AWS region"          "us-east-1"
+prompt KUBERNETES_VERSION "Kubernetes version"  "1.35"
 
-echo ""
-echo "  Architecture:"
-echo "    1) x86_64  (Intel/AMD)"
-echo "    2) arm64   (Graviton)"
-read -rp "  Select [1]: " arch_choice
-case "${arch_choice:-1}" in
-  2) ARCH="arm64"; INSTANCE_TYPE="t4g.large" ;;
-  *) ARCH="x86_64"; INSTANCE_TYPE="m6i.xlarge" ;;
-esac
+echo "" && echo "==> Building x86_64 + arm64 in parallel (arch=${ARCH:-both})... (~20-30 min)"
 
-echo "" && echo "==> Initialising Packer plugins..."
 packer init "${AMI_BUILDER_DIR}/eks-dx.pkr.hcl"
 
-echo "" && echo "==> Building AMI (arch=${ARCH})... (~20-30 min)"
 packer build \
   -var "aws_region=${AWS_REGION}" \
-  -var "arch=${ARCH}" \
-  -var "instance_type=${INSTANCE_TYPE}" \
-  -var "kubernetes_version=${KUBERNETES_VERSION:-1.35}" \
+  -var "kubernetes_version=${KUBERNETES_VERSION}" \
   -var "ami_version=${AMI_VERSION}" \
   "${AMI_BUILDER_DIR}/eks-dx.pkr.hcl"
 
@@ -48,5 +38,7 @@ echo ""
 echo "╔══════════════════════════════════════════════╗"
 echo "║   AMI build complete                         ║"
 echo "╚══════════════════════════════════════════════╝"
-echo "  AMI ID stored at SSM: /eks-dx/ami/${ARCH}"
+echo "  AMI IDs stored at SSM:"
+echo "    /eks-dx/ami/${KUBERNETES_VERSION}/x86_64"
+echo "    /eks-dx/ami/${KUBERNETES_VERSION}/arm64"
 echo "  Run ./deploy.sh to launch a workstation."
