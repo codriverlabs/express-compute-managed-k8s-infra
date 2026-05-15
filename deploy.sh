@@ -143,7 +143,55 @@ echo "╔═══════════════════════�
 echo "║   Workstation ready                          ║"
 echo "╚══════════════════════════════════════════════╝"
 PUBLIC_IP=$(terraform -chdir="${SCRIPT_DIR}/terraform" output -raw workstation_public_ip 2>/dev/null || echo "")
+INSTANCE_ID=$(terraform -chdir="${SCRIPT_DIR}/terraform" output -raw workstation_id 2>/dev/null || echo "")
 
 echo "  Workstation : ${WORKSTATION_NAME}"
 echo "  Public IP   : ${PUBLIC_IP}"
 echo "  SSH         : ssh -i ${KEY_FILE} ec2-user@${PUBLIC_IP}"
+
+# Poll installation status via SSM (no SSH required)
+if [ -n "${INSTANCE_ID}" ]; then
+  echo ""
+  echo "==> Waiting for EKS-D installation to complete (polling via SSM)..."
+  SSM_DOC="eks-dx-status-${DEVELOPER_USERNAME}"
+  TIMEOUT=600   # 10 min max
+  INTERVAL=20
+  ELAPSED=0
+
+  while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
+    CMD_ID=$(aws ssm send-command \
+      --instance-ids "${INSTANCE_ID}" \
+      --document-name "${SSM_DOC}" \
+      --region "${AWS_REGION}" \
+      --query 'Command.CommandId' --output text 2>/dev/null || echo "")
+
+    if [ -z "${CMD_ID}" ]; then
+      echo "  [${ELAPSED}s] SSM not ready yet, retrying..."
+      sleep "$INTERVAL"; ELAPSED=$((ELAPSED + INTERVAL)); continue
+    fi
+
+    sleep 5  # give the command a moment to run
+
+    OUTPUT=$(aws ssm get-command-invocation \
+      --command-id "${CMD_ID}" \
+      --instance-id "${INSTANCE_ID}" \
+      --region "${AWS_REGION}" \
+      --query 'StandardOutputContent' --output text 2>/dev/null || echo "")
+
+    if echo "${OUTPUT}" | grep -q "STATUS=complete"; then
+      echo ""
+      echo "  ✓ Installation complete!"
+      echo "${OUTPUT}" | grep -E "^(COMPLETED_AT|NODE)=" | sed 's/^/    /'
+      break
+    fi
+
+    STEP=$(echo "${OUTPUT}" | grep "CURRENT_STEP=" | cut -d= -f2 || echo "")
+    echo "  [${ELAPSED}s] In progress${STEP:+ — $STEP}..."
+    sleep "$INTERVAL"; ELAPSED=$((ELAPSED + INTERVAL))
+  done
+
+  if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+    echo "  ⚠ Timed out waiting. Check manually:"
+    echo "    aws ssm send-command --instance-ids ${INSTANCE_ID} --document-name ${SSM_DOC} --region ${AWS_REGION}"
+  fi
+fi
