@@ -52,6 +52,19 @@ prompt DISK_SIZE_GB "Root disk size (GB)" "50"
 
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-}"
 prompt KUBERNETES_VERSION "Kubernetes version" "1.35"
+
+WORKSTATION_MODE="${WORKSTATION_MODE:-}"
+if [ -z "$WORKSTATION_MODE" ]; then
+  echo ""
+  echo "  Workstation mode:"
+  echo "    1) on_demand  (stable, higher cost)"
+  echo "    2) spot       (hibernates on interruption, ~70% cheaper)"
+  read -rp "  Select [1]: " mode_choice
+  case "${mode_choice:-1}" in
+    2) WORKSTATION_MODE="spot" ;;
+    *) WORKSTATION_MODE="on_demand" ;;
+  esac
+fi
 if [ -z "$ELASTIC_IP" ]; then
   read -rp "  Assign Elastic IP (stable IP across stop/start)? [y/N]: " eip_choice
   case "${eip_choice}" in
@@ -104,6 +117,7 @@ key_pair_name       = "${KEY_PAIR_NAME}"
 allowed_cidr_blocks = ["${SSH_CIDR}"]
 assign_elastic_ip   = ${ELASTIC_IP}
 kubernetes_version  = "${KUBERNETES_VERSION}"
+workstation_mode    = "${WORKSTATION_MODE}"
 EOF
 
 echo "" && echo "==> Written: terraform/terraform.tfvars"

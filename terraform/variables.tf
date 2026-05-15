@@ -82,3 +82,13 @@ variable "kubernetes_version" {
   type        = string
   default     = "1.35"
 }
+
+variable "workstation_mode" {
+  description = "on_demand or spot (spot enables hibernation on interruption)"
+  type        = string
+  default     = "on_demand"
+  validation {
+    condition     = contains(["on_demand", "spot"], var.workstation_mode)
+    error_message = "workstation_mode must be on_demand or spot"
+  }
+}

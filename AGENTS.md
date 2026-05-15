@@ -96,7 +96,7 @@ Do **not** apply `spot-nodepool.yaml` or `ondemand-nodepool.yaml` directly — t
 ### Environment Variables for `deploy.sh`
 Set these to skip interactive prompts:
 ```
-DEVELOPER_USERNAME, AWS_REGION, ARCH, DISK_SIZE_GB, SSH_CIDR, TFSTATE_BUCKET
+DEVELOPER_USERNAME, AWS_REGION, ARCH, DISK_SIZE_GB, SSH_CIDR, TFSTATE_BUCKET, KUBERNETES_VERSION, WORKSTATION_MODE
 ```
 
 ## Custom Instructions

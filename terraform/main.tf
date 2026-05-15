@@ -477,40 +477,54 @@ resource "aws_cloudwatch_event_target" "instance_rebalance" {
   arn  = aws_sqs_queue.karpenter_interruption.arn
 }
 
-resource "aws_instance" "workstation" {
-  ami                    = data.aws_ssm_parameter.workstation_ami.value
-  instance_type          = var.instance_type
-  key_name               = var.key_pair_name != "" ? var.key_pair_name : null
-  iam_instance_profile   = aws_iam_instance_profile.workstation.name
-  subnet_id              = aws_subnet.public.id
+locals {
+  lt_modes = {
+    on_demand = { spot = false, hibernate = false }
+    spot      = { spot = true,  hibernate = true  }
+  }
+}
+
+resource "aws_launch_template" "workstation" {
+  for_each = local.lt_modes
+
+  name          = "${local.workstation_name}-${each.key}"
+  image_id      = data.aws_ssm_parameter.workstation_ami.value
+  instance_type = var.instance_type
+  key_name      = var.key_pair_name != "" ? var.key_pair_name : null
+
+  iam_instance_profile { name = aws_iam_instance_profile.workstation.name }
+
   vpc_security_group_ids = [aws_security_group.workstation.id]
 
-  user_data = <<-EOF
-              #!/bin/bash
-              set -e
-              
-              export CLUSTER_NAME=${local.workstation_name}
-              export DEVELOPER_SIGNUM=${var.developer_username}
-              
-              # Run workstation boot configuration (AMI has pre-installed components)
-              cd /opt/eks-d-setup
-              bash ./workstation-boot.sh "$DEVELOPER_SIGNUM" "$CLUSTER_NAME"
-              EOF
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    set -e
+    export CLUSTER_NAME=${local.workstation_name}
+    export DEVELOPER_SIGNUM=${var.developer_username}
+    cd /opt/eks-d-setup
+    bash ./workstation-boot.sh "$DEVELOPER_SIGNUM" "$CLUSTER_NAME"
+    EOF
+  )
 
-  root_block_device {
-    volume_type           = "gp3"
-    volume_size           = var.disk_size_gb
-    delete_on_termination = true
+  # Root volume — must be encrypted for hibernation
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_type           = "gp3"
+      volume_size           = var.disk_size_gb
+      delete_on_termination = true
+      encrypted             = each.value.hibernate
+    }
   }
 
-  ebs_block_device {
-    device_name           = "/dev/sdf"
-    volume_type           = "gp3"
-    volume_size           = 20
-    delete_on_termination = true
-    tags = {
-      Name    = "${local.workstation_name}-etcd"
-      Purpose = "etcd"
+  # etcd volume
+  block_device_mappings {
+    device_name = "/dev/sdf"
+    ebs {
+      volume_type           = "gp3"
+      volume_size           = 20
+      delete_on_termination = true
+      encrypted             = each.value.hibernate
     }
   }
 
@@ -519,13 +533,53 @@ resource "aws_instance" "workstation" {
     http_put_response_hop_limit = 2
   }
 
+  dynamic "instance_market_options" {
+    for_each = each.value.spot ? [1] : []
+    content {
+      market_type = "spot"
+      spot_options { instance_interruption_behavior = "hibernate" }
+    }
+  }
+
+  dynamic "hibernation_options" {
+    for_each = each.value.hibernate ? [1] : []
+    content { configured = true }
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name                           = local.workstation_name
+      Developer                      = var.developer_username
+      Arch                           = var.arch
+      WorkstationMode                = each.key
+      "kubernetes.io/cluster/eks-d"  = "owned"
+      "ebs.csi.aws.com/cluster-name" = local.workstation_name
+    }
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = { Developer = var.developer_username }
+  }
+
+  tags = { Name = "${local.workstation_name}-${each.key}" }
+}
+
+resource "aws_instance" "workstation" {
+  subnet_id = aws_subnet.public.id
+
+  launch_template {
+    id      = aws_launch_template.workstation[var.workstation_mode].id
+    version = "$Latest"
+  }
+
   tags = {
-    Name                          = local.workstation_name
-    Developer                     = var.developer_username
-    Arch                          = var.arch
-    "kubernetes.io/cluster/eks-d" = "owned"
-    # Required by AmazonEBSCSIDriverEKSClusterScopedPolicy:
-    # allows attach/detach on instances not managed by EKS (no eks:cluster-name tag)
+    Name                           = local.workstation_name
+    Developer                      = var.developer_username
+    Arch                           = var.arch
+    WorkstationMode                = var.workstation_mode
+    "kubernetes.io/cluster/eks-d"  = "owned"
     "ebs.csi.aws.com/cluster-name" = local.workstation_name
   }
 }
