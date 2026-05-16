@@ -32,6 +32,23 @@ echo "==> Using EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
 
 export AMI_BUILD=true
 
+# Set up ECR pull-through cache for public.ecr.aws
+echo "==> Configuring ECR pull-through cache..."
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION=$(curl -sf http://169.254.169.254/latest/meta-data/placement/region)
+ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+PUBLIC_ECR_CACHE="${ECR_REGISTRY}/public-ecr"
+
+# Authenticate containerd with ECR
+aws ecr get-login-password --region "${REGION}" | \
+  sudo ctr images login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+# Authenticate helm with ECR
+aws ecr get-login-password --region "${REGION}" | \
+  helm registry login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+echo "    ✓ ECR registry: ${ECR_REGISTRY}"
+
 echo "==> Installing base system..."
 bash "${EKS_D_SETUP_DIR}/01-install-base.sh"
 
@@ -57,7 +74,7 @@ sudo chmod +x /opt/eks-d-setup/*.sh
 # Pre-download Helm charts and manifests FIRST (needed for image discovery)
 echo "==> Pre-pulling Karpenter chart from OCI registry..."
 helm registry logout public.ecr.aws 2>/dev/null || true
-helm pull oci://public.ecr.aws/karpenter/karpenter --version "1.10.0" --destination /tmp || true
+helm pull oci://${PUBLIC_ECR_CACHE}/karpenter/karpenter --version "1.10.0" --destination /tmp || true
 helm repo add aws-cloud-controller-manager https://kubernetes.github.io/cloud-provider-aws
 helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
 helm repo update
@@ -87,16 +104,19 @@ sudo systemctl start containerd
 # Pull EKS-D control plane images directly from the downloaded manifest
 echo "==> Pulling EKS-D control plane images..."
 grep "uri: public.ecr.aws/eks-distro/kubernetes/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
-  echo "  Pulling: $img"
-  sudo ctr images pull "$img" || true
+  cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
+  echo "  Pulling: $cache_img"
+  sudo ctr images pull "$cache_img" || true
 done
 grep "uri: public.ecr.aws/eks-distro/etcd-io/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
-  echo "  Pulling: $img"
-  sudo ctr images pull "$img" || true
+  cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
+  echo "  Pulling: $cache_img"
+  sudo ctr images pull "$cache_img" || true
 done
 grep "uri: public.ecr.aws/eks-distro/coredns/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
-  echo "  Pulling: $img"
-  sudo ctr images pull "$img" || true
+  cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
+  echo "  Pulling: $cache_img"
+  sudo ctr images pull "$cache_img" || true
 done
 
 # Render Karpenter chart and extract images
@@ -105,8 +125,9 @@ KARPENTER_CHART=$(ls /opt/eks-d/charts/karpenter-*.tgz 2>/dev/null | head -1)
 if [ -n "$KARPENTER_CHART" ]; then
   helm template karpenter "$KARPENTER_CHART" 2>/dev/null | \
     grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
-      echo "  Pulling: $img"
-      sudo ctr images pull "$img" || true
+      cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
+      echo "  Pulling: $cache_img"
+      sudo ctr images pull "$cache_img" || true
     done
 fi
 
@@ -116,8 +137,9 @@ CLOUD_PROVIDER_CHART=$(ls /opt/eks-d/charts/aws-cloud-controller-manager-*.tgz 2
 if [ -n "$CLOUD_PROVIDER_CHART" ]; then
   helm template aws-cloud-controller-manager "$CLOUD_PROVIDER_CHART" 2>/dev/null | \
     grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
-      echo "  Pulling: $img"
-      sudo ctr images pull "$img" || true
+      cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
+      echo "  Pulling: $cache_img"
+      sudo ctr images pull "$cache_img" || true
     done
 fi
 
@@ -127,8 +149,9 @@ EBS_CSI_CHART=$(ls /opt/eks-d/charts/aws-ebs-csi-driver-*.tgz 2>/dev/null | head
 if [ -n "$EBS_CSI_CHART" ]; then
   helm template aws-ebs-csi-driver "$EBS_CSI_CHART" 2>/dev/null | \
     grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
-      echo "  Pulling: $img"
-      sudo ctr images pull "$img" || true
+      cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
+      echo "  Pulling: $cache_img"
+      sudo ctr images pull "$cache_img" || true
     done
 fi
 
@@ -176,8 +199,9 @@ if [ -n "$CW_CHART" ]; then
   helm template amazon-cloudwatch-observability "$CW_CHART" \
     --set clusterName=build --set region=us-east-1 2>/dev/null | \
     grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
-      echo "  Pulling: $img"
-      sudo ctr images pull "$img" || true
+      cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
+      echo "  Pulling: $cache_img"
+      sudo ctr images pull "$cache_img" || true
     done
 fi
 
