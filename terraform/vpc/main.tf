@@ -111,12 +111,12 @@ resource "aws_route" "private_nat" {
 # Import block: adopts existing log group if present (e.g. after state bucket recreation)
 import {
   to = aws_cloudwatch_log_group.flow_logs
-  id = "/aws/vpc/eks-dx-flow-logs"
+  id = "/aws/vpc/${var.aws_region}/eks-dx-flow-logs"
 }
 
 # VPC Flow Logs
 resource "aws_cloudwatch_log_group" "flow_logs" {
-  name              = "/aws/vpc/${var.project_name}-flow-logs"
+  name              = "/aws/vpc/${var.aws_region}/${var.project_name}-flow-logs"
   retention_in_days = 7
 
   tags = {
