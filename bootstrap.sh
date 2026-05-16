@@ -56,7 +56,7 @@ if [ "${VPC_ID}" = "None" ]; then
   echo "    Shared VPC not found. Deploying..."
   cd "$(dirname "$0")/terraform/vpc"
   
-  terraform init \
+  terraform init -reconfigure \
     -backend-config="bucket=${BUCKET}" \
     -backend-config="key=vpc/terraform.tfstate" \
     -backend-config="region=${AWS_REGION}"
