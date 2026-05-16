@@ -119,7 +119,7 @@ data "aws_availability_zones" "available" {
 }
 
 data "aws_ssm_parameter" "workstation_ami" {
-  name = "/eks-dx/ami/${var.kubernetes_version}/${local.ami_arch}"
+  name = "/eks-dx/ami/${var.aws_region}/${var.kubernetes_version}/${local.ami_arch}"
 }
 
 data "aws_iam_user" "developer" {
