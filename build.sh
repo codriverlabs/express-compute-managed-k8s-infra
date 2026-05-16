@@ -42,7 +42,15 @@ KUBERNETES_VERSION="${KUBERNETES_VERSION:-}"
 prompt AWS_REGION         "AWS region"          "us-east-1"
 prompt KUBERNETES_VERSION "Kubernetes version"  "1.35"
 
-echo "" && echo "==> Building x86_64 + arm64 in parallel (arch=${ARCH:-both})... (~20-30 min)"
+ARCH="${ARCH:-both}"
+case "${ARCH}" in
+  arm64)   ONLY="-only=amazon-ebs.arm64" ;;
+  x86_64)  ONLY="-only=amazon-ebs.x86_64" ;;
+  both)    ONLY="" ;;
+  *) echo "ERROR: ARCH must be arm64, x86_64, or both" >&2; exit 1 ;;
+esac
+
+echo "" && echo "==> Building ${ARCH} (~20-30 min)..."
 
 LOG_FILE="${SCRIPT_DIR}/packer-build-${AMI_VERSION}.log"
 export PACKER_LOG=1
@@ -52,6 +60,7 @@ echo "    Log: ${LOG_FILE}"
 packer init "${AMI_BUILDER_DIR}/eks-dx.pkr.hcl"
 
 packer build \
+  ${ONLY} \
   -var "aws_region=${AWS_REGION}" \
   -var "kubernetes_version=${KUBERNETES_VERSION}" \
   -var "ami_version=${AMI_VERSION}" \
