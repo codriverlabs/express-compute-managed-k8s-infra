@@ -5,6 +5,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AMI_BUILDER_DIR="${SCRIPT_DIR}/ami-builder"
 AMI_VERSION=$(date +%Y%m%d-%H%M)
 
+ensure_packer() {
+  if command -v packer &>/dev/null; then return; fi
+  echo "==> packer not found, installing..."
+  local version
+  version=$(grep '^packer ' "$(dirname "$0")/.tool-versions" | awk '{print $2}')
+  local arch; arch=$(uname -m)
+  [ "${arch}" = "aarch64" ] && arch="arm64" || arch="amd64"
+  local os; os=$(uname -s | tr '[:upper:]' '[:lower:]')
+  local url="https://releases.hashicorp.com/packer/${version}/packer_${version}_${os}_${arch}.zip"
+  curl -fsSL "${url}" -o /tmp/packer.zip
+  unzip -o /tmp/packer.zip -d /tmp
+  sudo mv /tmp/packer /usr/local/bin/packer
+  rm /tmp/packer.zip
+  echo "    ✓ packer ${version} installed"
+}
+
+ensure_packer
+
 prompt() {
   local var="$1" msg="$2" default="$3"
   local current="${!var:-}"
