@@ -44,6 +44,11 @@ prompt KUBERNETES_VERSION "Kubernetes version"  "1.35"
 
 echo "" && echo "==> Building x86_64 + arm64 in parallel (arch=${ARCH:-both})... (~20-30 min)"
 
+LOG_FILE="${SCRIPT_DIR}/packer-build-${AMI_VERSION}.log"
+export PACKER_LOG=1
+export PACKER_LOG_PATH="${LOG_FILE}"
+echo "    Log: ${LOG_FILE}"
+
 packer init "${AMI_BUILDER_DIR}/eks-dx.pkr.hcl"
 
 packer build \

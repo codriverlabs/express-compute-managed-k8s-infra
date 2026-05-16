@@ -21,3 +21,4 @@ test_workspace/
 .vscode/
 .idea/
 *.iml
+packer-build-*.log
