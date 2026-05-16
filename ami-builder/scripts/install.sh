@@ -11,10 +11,13 @@ EKS_D_SETUP_DIR="/tmp/eks-d-setup"
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.35}"
 
 # Get EKS versions from VPC tags or use defaults
-EKS_VERSION=$(aws ec2 describe-vpcs --filters "Name=tag:EKSVersion,Values=*" \
-  --query 'Vpcs[0].Tags[?Key==`EKSVersion`].Value' --output text 2>/dev/null || echo "$KUBERNETES_VERSION")
-EKSD_VERSION=$(aws ec2 describe-vpcs --filters "Name=tag:EKSDVersion,Values=*" \
-  --query 'Vpcs[0].Tags[?Key==`EKSDVersion`].Value' --output text 2>/dev/null || echo "${KUBERNETES_VERSION}.8")
+_EKS=$(aws ec2 describe-vpcs --filters "Name=tag:EKSVersion,Values=*" \
+  --query 'Vpcs[0].Tags[?Key==`EKSVersion`].Value' --output text 2>/dev/null || true)
+EKS_VERSION=$( [ -z "$_EKS" ] || [ "$_EKS" = "None" ] && echo "$KUBERNETES_VERSION" || echo "$_EKS" )
+
+_EKSD=$(aws ec2 describe-vpcs --filters "Name=tag:EKSDVersion,Values=*" \
+  --query 'Vpcs[0].Tags[?Key==`EKSDVersion`].Value' --output text 2>/dev/null || true)
+EKSD_VERSION=$( [ -z "$_EKSD" ] || [ "$_EKSD" = "None" ] && echo "${KUBERNETES_VERSION}.8" || echo "$_EKSD" )
 
 echo "==> Discovering EKS-D components for Kubernetes ${EKS_VERSION} / EKS-D ${EKSD_VERSION}..."
 
