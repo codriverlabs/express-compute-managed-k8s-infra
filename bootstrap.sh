@@ -44,34 +44,23 @@ aws s3api put-bucket-lifecycle-configuration --bucket "${BUCKET}" \
 
 # 2. Deploy shared VPC if it doesn't exist
 echo ""
-echo "==> Checking for shared VPC..."
+echo "==> Deploying shared VPC..."
 
-VPC_ID=$(aws ec2 describe-vpcs \
-  --filters "Name=tag:Name,Values=${PROJECT_NAME}-shared-vpc" \
-  --query 'Vpcs[0].VpcId' \
-  --output text \
-  --region "${AWS_REGION}" 2>/dev/null || echo "None")
+cd "$(dirname "$0")/terraform/vpc"
 
-if [ "${VPC_ID}" = "None" ]; then
-  echo "    Shared VPC not found. Deploying..."
-  cd "$(dirname "$0")/terraform/vpc"
-  
-  terraform init -reconfigure \
-    -backend-config="bucket=${BUCKET}" \
-    -backend-config="key=vpc/terraform.tfstate" \
-    -backend-config="region=${AWS_REGION}"
-  
-  terraform apply \
-    -var="aws_region=${AWS_REGION}" \
-    -var="project_name=${PROJECT_NAME}" \
-    -auto-approve
-  
-  VPC_ID=$(terraform output -raw vpc_id)
-  echo "    ✓ VPC deployed: ${VPC_ID}"
-  cd - > /dev/null
-else
-  echo "    ✓ VPC exists: ${VPC_ID}"
-fi
+terraform init -reconfigure \
+  -backend-config="bucket=${BUCKET}" \
+  -backend-config="key=vpc/terraform.tfstate" \
+  -backend-config="region=${AWS_REGION}"
+
+terraform apply \
+  -var="aws_region=${AWS_REGION}" \
+  -var="project_name=${PROJECT_NAME}" \
+  -auto-approve
+
+VPC_ID=$(terraform output -raw vpc_id)
+echo "    ✓ VPC: ${VPC_ID}"
+cd - > /dev/null
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
