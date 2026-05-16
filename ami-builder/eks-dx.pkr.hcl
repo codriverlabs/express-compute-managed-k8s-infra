@@ -8,7 +8,10 @@ packer {
 }
 
 variable "aws_region"         { type = string }
-variable "kubernetes_version" { type = string  default = "1.35" }
+variable "kubernetes_version" {
+  type    = string
+  default = "1.35"
+}
 variable "ami_version"        { type = string }
 
 source "amazon-ebs" "x86_64" {
