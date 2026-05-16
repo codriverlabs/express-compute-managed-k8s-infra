@@ -184,6 +184,13 @@ data "aws_availability_zones" "available" {
 #   id = "/aws/vpc/${var.project_name}-flow-logs"
 # }
 
+# ECR Pull-Through Cache — routes public.ecr.aws pulls through private ECR
+# so image layer downloads use the S3 Gateway Endpoint (free, no NAT charges)
+resource "aws_ecr_pull_through_cache_rule" "public_ecr" {
+  ecr_repository_prefix = "public-ecr"
+  upstream_registry_url = "public.ecr.aws"
+}
+
 # S3 Gateway Endpoint — free, keeps S3 traffic inside AWS network
 # Required for: ECR image pulls, EBS CSI snapshots, CloudWatch logs, Karpenter pricing data
 resource "aws_vpc_endpoint" "s3" {
