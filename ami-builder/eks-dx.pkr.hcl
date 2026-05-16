@@ -50,7 +50,7 @@ source "amazon-ebs" "x86_64" {
 
 source "amazon-ebs" "arm64" {
   region        = var.aws_region
-  instance_type = "c6g.medium"
+  instance_type = "c6g.large"
 
   source_ami_filter {
     filters = {
