@@ -3,7 +3,7 @@ set -e
 
 REGION="${AWS_REGION:-us-east-1}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-BUCKET="eks-dx-tfstate-${ACCOUNT_ID}"
+BUCKET="eks-dx-tfstate-${ACCOUNT_ID}-${REGION}"
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║   EKS-DX VPC — Destroy                       ║"

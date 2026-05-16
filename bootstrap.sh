@@ -4,7 +4,7 @@ set -euo pipefail
 AWS_REGION="${1:-us-east-1}"
 PROJECT_NAME="${2:-eks-dx}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-BUCKET="eks-dx-tfstate-${ACCOUNT_ID}"
+BUCKET="eks-dx-tfstate-${ACCOUNT_ID}-${AWS_REGION}"
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║   EKS-DX Bootstrap                           ║"

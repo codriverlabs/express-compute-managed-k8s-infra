@@ -61,7 +61,7 @@ ecp-eks-dx-infra/
 - Cluster name: `<signum>-eks-dx`
 - IAM role + instance profile: `eks-dx-workstation-<username>` (shared by control plane and worker nodes)
 - SQS queue: same as cluster name (Karpenter interruption)
-- Terraform state bucket: `eks-dx-tfstate-<account-id>` (auto-derived, no config needed)
+- Terraform state bucket: `eks-dx-tfstate-<account-id>-<region>` (auto-derived, no config needed)
 - Terraform state key: `eks-dx/<workstation-name>/terraform.tfstate`
 - SSM AMI parameter: `/eks-dx/ami/<region>/<kubernetes-version>/x86_64` and `/eks-dx/ami/<region>/<kubernetes-version>/arm64` (e.g. `/eks-dx/ami/us-east-1/1.35/x86_64`)
 

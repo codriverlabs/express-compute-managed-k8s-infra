@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-BUCKET="eks-dx-tfstate-${ACCOUNT_ID}"
+BUCKET="eks-dx-tfstate-${ACCOUNT_ID}-${AWS_REGION}"
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
