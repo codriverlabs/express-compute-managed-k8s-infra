@@ -29,12 +29,17 @@ export AMI_BUILD=true
 # Set up ECR pull-through cache for public.ecr.aws
 echo "==> Configuring ECR pull-through cache..."
 
-# Wait for IAM instance profile to propagate (temporary profiles can take a few seconds)
-for i in $(seq 1 10); do
-  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null) && break
-  echo "    Waiting for IAM credentials... (attempt $i)"
+# Wait for IAM instance profile credentials to be available via IMDS
+ACCOUNT_ID=""
+for i in $(seq 1 12); do
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)
+  [ -n "${ACCOUNT_ID}" ] && [ "${ACCOUNT_ID}" != "None" ] && break
+  echo "    Waiting for IAM credentials... (attempt ${i}/12)"
   sleep 5
 done
+if [ -z "${ACCOUNT_ID}" ] || [ "${ACCOUNT_ID}" = "None" ]; then
+  echo "ERROR: Could not obtain IAM credentials after 60s" >&2; exit 1
+fi
 REGION=$(curl -sf http://169.254.169.254/latest/meta-data/placement/region)
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 PUBLIC_ECR_CACHE="${ECR_REGISTRY}/public-ecr"
