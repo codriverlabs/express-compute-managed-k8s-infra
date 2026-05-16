@@ -16,7 +16,7 @@ variable "ami_version"        { type = string }
 
 source "amazon-ebs" "x86_64" {
   region        = var.aws_region
-  instance_type = "t3.medium"
+  instance_type = "m6a.large"
 
   source_ami_filter {
     filters = {
