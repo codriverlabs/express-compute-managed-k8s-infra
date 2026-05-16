@@ -43,7 +43,7 @@ fi
 
 case "$ARCH" in
   arm64) INSTANCE_TYPE="m6g.large" ;;
-  x86_64) INSTANCE_TYPE="m6i.xlarge" ;;
+  x86_64) INSTANCE_TYPE="m6a.large" ;;
   *) echo "ERROR: Invalid ARCH '$ARCH'. Use 'x86_64' or 'arm64'." >&2; exit 1 ;;
 esac
 

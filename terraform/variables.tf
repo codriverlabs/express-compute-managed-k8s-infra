@@ -22,7 +22,7 @@ variable "arch" {
 variable "instance_type" {
   description = "EC2 instance type (6th generation or newer required, e.g. m6i.xlarge, m6g.large, c6i.2xlarge)"
   type        = string
-  default     = "m6i.xlarge"
+  default     = "m6a.large"
   validation {
     # Matches families like m6i, c6a, r6g, t6, x6, i6, etc. and higher (7, 8...)
     condition     = can(regex("^[a-z]+([6-9]|[1-9][0-9])[a-z]*\\.", var.instance_type))
