@@ -16,7 +16,7 @@ variable "ami_version"        { type = string }
 
 source "amazon-ebs" "x86_64" {
   region        = var.aws_region
-  instance_type = "m6a.large"
+  instance_type = "c6a.large"
 
   source_ami_filter {
     filters = {
@@ -50,7 +50,7 @@ source "amazon-ebs" "x86_64" {
 
 source "amazon-ebs" "arm64" {
   region        = var.aws_region
-  instance_type = "m6g.medium"
+  instance_type = "c6g.medium"
 
   source_ami_filter {
     filters = {
