@@ -69,7 +69,6 @@ source "amazon-ebs" "x86_64" {
         "ecr:BatchGetImage",
         "ecr:GetDownloadUrlForLayer",
         "ssm:GetParameter",
-        "ec2:DescribeVpcs"
       ]
       Resource = ["*"]
     }
@@ -127,7 +126,6 @@ source "amazon-ebs" "arm64" {
         "ecr:BatchGetImage",
         "ecr:GetDownloadUrlForLayer",
         "ssm:GetParameter",
-        "ec2:DescribeVpcs"
       ]
       Resource = ["*"]
     }
