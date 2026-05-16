@@ -12,15 +12,23 @@ variable "kubernetes_version" {
   type    = string
   default = "1.35"
 }
-variable "ami_version"  { type = string }
-variable "vpc_id"       { type = string  default = "" }
-variable "subnet_id"    { type = string  default = "" }
+variable "ami_version"        { type = string }
+variable "project_name" {
+  type    = string
+  default = "eks-dx"
+}
 
 source "amazon-ebs" "x86_64" {
   region        = var.aws_region
   instance_type = "c6a.large"
-  vpc_id        = var.vpc_id != "" ? var.vpc_id : null
-  subnet_id     = var.subnet_id != "" ? var.subnet_id : null
+
+  vpc_filter {
+    filters = { "tag:Name" = "${var.project_name}-shared-vpc" }
+  }
+  subnet_filter {
+    filters   = { "tag:Type" = "NAT" }
+    most_free = true
+  }
   associate_public_ip_address = true
 
   source_ami_filter {
@@ -56,8 +64,14 @@ source "amazon-ebs" "x86_64" {
 source "amazon-ebs" "arm64" {
   region        = var.aws_region
   instance_type = "c6g.large"
-  vpc_id        = var.vpc_id != "" ? var.vpc_id : null
-  subnet_id     = var.subnet_id != "" ? var.subnet_id : null
+
+  vpc_filter {
+    filters = { "tag:Name" = "${var.project_name}-shared-vpc" }
+  }
+  subnet_filter {
+    filters   = { "tag:Type" = "NAT" }
+    most_free = true
+  }
   associate_public_ip_address = true
 
   source_ami_filter {

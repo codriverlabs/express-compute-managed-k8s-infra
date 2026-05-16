@@ -44,26 +44,6 @@ prompt KUBERNETES_VERSION "Kubernetes version"  "1.35"
 
 echo "" && echo "==> Building x86_64 + arm64 in parallel (arch=${ARCH:-both})... (~20-30 min)"
 
-# Discover shared VPC and NAT subnet for S3 Gateway Endpoint routing
-VPC_ID=$(aws ec2 describe-vpcs \
-  --filters "Name=tag:Name,Values=eks-dx-shared-vpc" \
-  --query 'Vpcs[0].VpcId' --output text --region "${AWS_REGION}" 2>/dev/null || echo "")
-SUBNET_ID=""
-if [ -n "${VPC_ID}" ] && [ "${VPC_ID}" != "None" ]; then
-  SUBNET_ID=$(aws ec2 describe-subnets \
-    --filters "Name=vpc-id,Values=${VPC_ID}" "Name=tag:Type,Values=NAT" \
-    --query 'Subnets[0].SubnetId' --output text --region "${AWS_REGION}" 2>/dev/null || echo "")
-  [ "${SUBNET_ID}" = "None" ] && SUBNET_ID=""
-fi
-
-if [ -n "${SUBNET_ID}" ]; then
-  echo "    Using shared VPC subnet ${SUBNET_ID} (S3 Gateway Endpoint active)"
-  EXTRA_VARS="-var vpc_id=${VPC_ID} -var subnet_id=${SUBNET_ID}"
-else
-  echo "    WARNING: shared VPC not found, builder will use default VPC (no S3 endpoint)"
-  EXTRA_VARS=""
-fi
-
 LOG_FILE="${SCRIPT_DIR}/packer-build-${AMI_VERSION}.log"
 export PACKER_LOG=1
 export PACKER_LOG_PATH="${LOG_FILE}"
@@ -75,7 +55,6 @@ packer build \
   -var "aws_region=${AWS_REGION}" \
   -var "kubernetes_version=${KUBERNETES_VERSION}" \
   -var "ami_version=${AMI_VERSION}" \
-  ${EXTRA_VARS} \
   "${AMI_BUILDER_DIR}/eks-dx.pkr.hcl"
 
 echo ""
