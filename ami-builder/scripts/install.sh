@@ -77,10 +77,21 @@ bash "${EKS_D_SETUP_DIR}/00-configure-containerd.sh"
 
 # Authenticate with ECR now that containerd and helm are installed
 echo "==> Authenticating with ECR pull-through cache..."
-aws ecr get-login-password --region "${REGION}" | \
-  sudo ctr images login --username AWS --password-stdin "${ECR_REGISTRY}"
-aws ecr get-login-password --region "${REGION}" | \
-  helm registry login --username AWS --password-stdin "${ECR_REGISTRY}"
+ECR_PASSWORD=$(aws ecr get-login-password --region "${REGION}")
+
+# Write ECR credentials to containerd config directory
+sudo mkdir -p /etc/containerd/certs.d/${ECR_REGISTRY}
+cat <<EOF | sudo tee /etc/containerd/certs.d/${ECR_REGISTRY}/hosts.toml
+server = "https://${ECR_REGISTRY}"
+
+[host."https://${ECR_REGISTRY}"]
+  capabilities = ["pull", "resolve"]
+  [host."https://${ECR_REGISTRY}".header]
+    authorization = ["Basic $(echo -n "AWS:${ECR_PASSWORD}" | base64 -w0)"]
+EOF
+
+# Authenticate helm with ECR
+echo "${ECR_PASSWORD}" | helm registry login --username AWS --password-stdin "${ECR_REGISTRY}"
 
 # Copy eks-d-setup scripts to AMI for use at boot time
 echo "==> Installing eks-d-setup scripts..."
