@@ -24,6 +24,10 @@ bash "${SCRIPT_DIR}/discover-eks-d.sh" "$EKS_VERSION" "/opt/eks-d/manifests"
 source /opt/eks-d/manifests/eks-d-versions.env
 echo "==> Using EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
 
+# Persist full version info for use by 06-install-eks-d.sh at boot time
+EKSD_DOTTED="${EKS_VERSION}.${EKSD_RELEASE}"
+echo "EKSD_VERSION=${EKSD_DOTTED}" | sudo tee -a /opt/eks-d/version.env
+
 export AMI_BUILD=true
 
 # Set up ECR pull-through cache — resolve account/region early but auth after containerd is installed
