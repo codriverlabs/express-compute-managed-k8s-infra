@@ -26,8 +26,8 @@ echo "==> Using EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
 
 export AMI_BUILD=true
 
-# Set up ECR pull-through cache for public.ecr.aws
-echo "==> Configuring ECR pull-through cache..."
+# Set up ECR pull-through cache — resolve account/region early but auth after containerd is installed
+echo "==> Resolving ECR pull-through cache endpoint..."
 
 # Wait for IAM instance profile credentials to be available via IMDS
 ACCOUNT_ID=""
@@ -43,15 +43,6 @@ fi
 REGION=$(curl -sf http://169.254.169.254/latest/meta-data/placement/region)
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 PUBLIC_ECR_CACHE="${ECR_REGISTRY}/public-ecr"
-
-# Authenticate containerd with ECR
-aws ecr get-login-password --region "${REGION}" | \
-  sudo ctr images login --username AWS --password-stdin "${ECR_REGISTRY}"
-
-# Authenticate helm with ECR
-aws ecr get-login-password --region "${REGION}" | \
-  helm registry login --username AWS --password-stdin "${ECR_REGISTRY}"
-
 echo "    ✓ ECR registry: ${ECR_REGISTRY}"
 
 echo "==> Installing base system..."
@@ -69,6 +60,13 @@ bash "${EKS_D_SETUP_DIR}/06-install-eks-d.sh"
 # Configure containerd with EKS-D pause image (release manifest already downloaded by 06)
 echo "==> Configuring containerd..."
 bash "${EKS_D_SETUP_DIR}/00-configure-containerd.sh"
+
+# Authenticate with ECR now that containerd and helm are installed
+echo "==> Authenticating with ECR pull-through cache..."
+aws ecr get-login-password --region "${REGION}" | \
+  sudo ctr images login --username AWS --password-stdin "${ECR_REGISTRY}"
+aws ecr get-login-password --region "${REGION}" | \
+  helm registry login --username AWS --password-stdin "${ECR_REGISTRY}"
 
 # Copy eks-d-setup scripts to AMI for use at boot time
 echo "==> Installing eks-d-setup scripts..."
