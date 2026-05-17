@@ -79,7 +79,7 @@ bash "${EKS_D_SETUP_DIR}/00-configure-containerd.sh"
 echo "==> Authenticating with ECR pull-through cache..."
 ECR_PASSWORD=$(aws ecr get-login-password --region "${REGION}")
 
-# Write ECR credentials to containerd config directory
+# Write temporary ECR credentials for containerd (removed after image pulls)
 sudo mkdir -p /etc/containerd/certs.d/${ECR_REGISTRY}
 cat <<EOF | sudo tee /etc/containerd/certs.d/${ECR_REGISTRY}/hosts.toml
 server = "https://${ECR_REGISTRY}"
@@ -232,6 +232,11 @@ if [ -n "$CW_CHART" ]; then
       sudo ctr images pull "$cache_img" || true
     done
 fi
+
+# Remove temporary ECR credentials — workstations use the ECR credential provider instead
+echo "==> Cleaning up temporary ECR credentials..."
+sudo rm -rf /etc/containerd/certs.d/${ECR_REGISTRY}
+helm registry logout "${ECR_REGISTRY}" 2>/dev/null || true
 
 echo ""
 echo "==> AMI build complete!"
