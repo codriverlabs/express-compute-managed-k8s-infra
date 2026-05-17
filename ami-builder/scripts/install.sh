@@ -31,16 +31,19 @@ echo "==> Resolving ECR pull-through cache endpoint..."
 
 # Wait for IAM instance profile credentials to be available via IMDS
 ACCOUNT_ID=""
+REGION=$(curl -sf http://169.254.169.254/latest/meta-data/placement/region || true)
+echo "    Region: ${REGION}"
+set +e
 for i in $(seq 1 12); do
-  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)
-  [ -n "${ACCOUNT_ID}" ] && [ "${ACCOUNT_ID}" != "None" ] && break
-  echo "    Waiting for IAM credentials... (attempt ${i}/12)"
+  ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>&1)
+  echo "    STS attempt ${i}: ${ACCOUNT_ID}"
+  echo "${ACCOUNT_ID}" | grep -qE '^[0-9]{12}$' && break
   sleep 5
 done
-if [ -z "${ACCOUNT_ID}" ] || [ "${ACCOUNT_ID}" = "None" ]; then
+set -e
+if ! echo "${ACCOUNT_ID}" | grep -qE '^[0-9]{12}$'; then
   echo "ERROR: Could not obtain IAM credentials after 60s" >&2; exit 1
 fi
-REGION=$(curl -sf http://169.254.169.254/latest/meta-data/placement/region)
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 PUBLIC_ECR_CACHE="${ECR_REGISTRY}/public-ecr"
 echo "    ✓ ECR registry: ${ECR_REGISTRY}"
