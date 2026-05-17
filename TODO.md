@@ -1,29 +1,22 @@
 # TODO
 
-## Karpenter EC2NodeClass — DescribeCluster CIDR Bug
+## AMI Builder
 
-### Problem
-Karpenter v1.10 always calls `eks:DescribeCluster` to detect the service CIDR when
-`amiFamily: AL2023` is used, regardless of `eksControlPlane=false`. On EKS-D there
-is no EKS cluster, so this call returns 404 and the EC2NodeClass stays `NotReady`.
+- [ ] Filter out non-essential images from CloudWatch Observability chart during pre-pull
+      (skip `windows`, `nvidia`, `neuron`, `dcgm-exporter`, `kubekins-e2e`)
+- [ ] Restart containerd after writing ECR `hosts.toml` credentials so they are picked up
+      before image pulls begin
+- [ ] Remove debug output from ECR credential wait loop (`STS attempt N: ...`)
 
-Root cause: `pkg/providers/launchtemplate/launchtemplate.go::ResolveClusterCIDR()`
-only skips the call if `ClusterCIDR` is already populated. There is no way to
-pre-seed it via Helm values in v1.10. Not fixed in v1.11.1 either.
+## End-to-End Validation
 
-### Workaround (to implement)
-Use `amiFamily: Custom` instead of `AL2023`. The `Custom` family skips the CIDR
-detection code path entirely. The nodeadm MIME multipart userdata in the EC2NodeClass
-already handles all AL2023 bootstrap (cluster join, kubelet config), so `Custom`
-is functionally equivalent.
+- [ ] Deploy workstation with `./deploy.sh` and verify cluster comes up correctly
+- [ ] Verify Karpenter provisions worker nodes
+- [ ] Verify EBS CSI, VPC CNI, CoreDNS all healthy
+- [ ] Build x86_64 AMI (`ARCH=x86_64 ./build.sh`) and validate
 
-**Plan:**
-1. Change `amiFamily: AL2023` → `amiFamily: Custom` in `node-pools/chart/templates/ec2nodeclass.yaml`
-   (already done in last commit, needs testing)
-2. Verify EC2NodeClass becomes `Ready`
-3. Deploy test workload to trigger Karpenter node provisioning
-4. Verify worker node joins cluster and authenticates via aws-iam-authenticator
+## Cost / Infra
 
-### Instance Resize
-Change `instance_type` in `terraform/terraform.tfvars` from `m6g.large` (2 vCPU)
-to `c6g.xlarge` (4 vCPU, cheaper than m6g.xlarge) before next full reinstall.
+- [ ] Verify ECR pull-through cache is actually used during image pulls
+      (check CloudWatch metrics on ECR pull-through cache hits)
+- [ ] Add Dependabot config for `.tool-versions` packer version bumps
