@@ -65,6 +65,7 @@ if [ -z "$WORKSTATION_MODE" ]; then
     *) WORKSTATION_MODE="on_demand" ;;
   esac
 fi
+ELASTIC_IP="${ELASTIC_IP:-}"
 if [ -z "$ELASTIC_IP" ]; then
   read -rp "  Assign Elastic IP (stable IP across stop/start)? [y/N]: " eip_choice
   case "${eip_choice}" in
