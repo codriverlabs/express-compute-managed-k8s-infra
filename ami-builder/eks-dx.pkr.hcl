@@ -59,7 +59,6 @@ source "amazon-ebs" "x86_64" {
   }
 
   run_tags = { Name = "eks-dx-builder-x86_64" }
-  spot_price = "auto"
 
   temporary_iam_instance_profile_policy_document {
     Version = "2012-10-17"
@@ -69,6 +68,8 @@ source "amazon-ebs" "x86_64" {
         "ecr:GetAuthorizationToken",
         "ecr:BatchGetImage",
         "ecr:GetDownloadUrlForLayer",
+        "ecr:CreateRepository",
+        "ecr:BatchImportUpstreamImage",
         "ssm:GetParameter",
       ]
       Resource = ["*"]
@@ -117,7 +118,6 @@ source "amazon-ebs" "arm64" {
   }
 
   run_tags = { Name = "eks-dx-builder-arm64" }
-  spot_price = "auto"
 
   temporary_iam_instance_profile_policy_document {
     Version = "2012-10-17"
@@ -127,6 +127,8 @@ source "amazon-ebs" "arm64" {
         "ecr:GetAuthorizationToken",
         "ecr:BatchGetImage",
         "ecr:GetDownloadUrlForLayer",
+        "ecr:CreateRepository",
+        "ecr:BatchImportUpstreamImage",
         "ssm:GetParameter",
       ]
       Resource = ["*"]

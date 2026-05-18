@@ -191,6 +191,11 @@ resource "aws_ecr_pull_through_cache_rule" "public_ecr" {
   upstream_registry_url = "public.ecr.aws"
 }
 
+resource "aws_ecr_pull_through_cache_rule" "registry_k8s_io" {
+  ecr_repository_prefix = "registry-k8s-io"
+  upstream_registry_url = "registry.k8s.io"
+}
+
 # S3 Gateway Endpoint — free, keeps S3 traffic inside AWS network
 # Required for: ECR image pulls, EBS CSI snapshots, CloudWatch logs, Karpenter pricing data
 resource "aws_vpc_endpoint" "s3" {

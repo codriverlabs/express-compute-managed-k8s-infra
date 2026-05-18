@@ -39,7 +39,6 @@ REGION=""
 set +e
 for i in $(seq 1 12); do
   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>&1)
-  echo "    STS attempt ${i}: ${ACCOUNT_ID}"
   echo "${ACCOUNT_ID}" | grep -qE '^[0-9]{12}$' && break
   sleep 5
 done
@@ -57,6 +56,7 @@ if [ -z "${REGION}" ] || [ "${REGION}" = "None" ]; then
 fi
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 PUBLIC_ECR_CACHE="${ECR_REGISTRY}/public-ecr"
+K8S_REGISTRY_CACHE="${ECR_REGISTRY}/registry-k8s-io"
 echo "    ✓ ECR registry: ${ECR_REGISTRY}"
 
 echo "==> Installing base system..."
@@ -79,16 +79,8 @@ bash "${EKS_D_SETUP_DIR}/00-configure-containerd.sh"
 echo "==> Authenticating with ECR pull-through cache..."
 ECR_PASSWORD=$(aws ecr get-login-password --region "${REGION}")
 
-# Write temporary ECR credentials for containerd (removed after image pulls)
-sudo mkdir -p /etc/containerd/certs.d/${ECR_REGISTRY}
-cat <<EOF | sudo tee /etc/containerd/certs.d/${ECR_REGISTRY}/hosts.toml
-server = "https://${ECR_REGISTRY}"
-
-[host."https://${ECR_REGISTRY}"]
-  capabilities = ["pull", "resolve"]
-  [host."https://${ECR_REGISTRY}".header]
-    authorization = ["Basic $(echo -n "AWS:${ECR_PASSWORD}" | base64 -w0)"]
-EOF
+# ctr needs explicit --user for authenticated pulls
+ECR_CTR_USER="AWS:${ECR_PASSWORD}"
 
 # Authenticate helm with ECR
 echo "${ECR_PASSWORD}" | helm registry login --username AWS --password-stdin "${ECR_REGISTRY}"
@@ -102,7 +94,7 @@ sudo chmod +x /opt/eks-d-setup/*.sh
 # Pre-download Helm charts and manifests FIRST (needed for image discovery)
 echo "==> Pre-pulling Karpenter chart from OCI registry..."
 helm registry logout public.ecr.aws 2>/dev/null || true
-helm pull oci://${PUBLIC_ECR_CACHE}/karpenter/karpenter --version "1.10.0" --destination /tmp || true
+helm pull oci://public.ecr.aws/karpenter/karpenter --version "1.10.0" --destination /tmp || true
 helm repo add aws-cloud-controller-manager https://kubernetes.github.io/cloud-provider-aws
 helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
 helm repo update
@@ -134,40 +126,50 @@ echo "==> Pulling EKS-D control plane images..."
 grep "uri: public.ecr.aws/eks-distro/kubernetes/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
   echo "  Pulling: $cache_img"
-  sudo ctr images pull "$cache_img" || true
+  sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
 done
 grep "uri: public.ecr.aws/eks-distro/etcd-io/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
   echo "  Pulling: $cache_img"
-  sudo ctr images pull "$cache_img" || true
+  sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
 done
 grep "uri: public.ecr.aws/eks-distro/coredns/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
   echo "  Pulling: $cache_img"
-  sudo ctr images pull "$cache_img" || true
+  sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
 done
 
 # Render Karpenter chart and extract images
+# Pull directly from public.ecr.aws — pull-through cache path for karpenter doesn't exist
 echo "==> Extracting and pulling images from Karpenter chart..."
 KARPENTER_CHART=$(ls /opt/eks-d/charts/karpenter-*.tgz 2>/dev/null | head -1)
 if [ -n "$KARPENTER_CHART" ]; then
   helm template karpenter "$KARPENTER_CHART" 2>/dev/null | \
-    grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
-      cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
-      echo "  Pulling: $cache_img"
-      sudo ctr images pull "$cache_img" || true
+    grep -oP '(?:image|value):\s*\K[^\s"]+' | grep 'public\.ecr\.aws' | sort -u | while read img; do
+      echo "  Pulling: $img"
+      sudo ctr images pull "$img" || true
     done
 fi
 
 # Render cloud-provider-aws chart and extract images
+# registry.k8s.io images routed through ECR pull-through cache (registry-k8s-io prefix)
 echo "==> Extracting and pulling images from cloud-provider-aws chart..."
 CLOUD_PROVIDER_CHART=$(ls /opt/eks-d/charts/aws-cloud-controller-manager-*.tgz 2>/dev/null | head -1)
 if [ -n "$CLOUD_PROVIDER_CHART" ]; then
+  cat > /tmp/extract_images.py << 'PYEOF'
+import sys, re
+for line in sys.stdin:
+    m = re.search(r"image:\s*[\"']?([a-zA-Z0-9._/-]+:[a-zA-Z0-9._/-]+)[\"']?", line)
+    if m:
+        print(m.group(1))
+PYEOF
   helm template aws-cloud-controller-manager "$CLOUD_PROVIDER_CHART" 2>/dev/null | \
-    grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
-      cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
+    python3 /tmp/extract_images.py | sort -u | while read img; do
+      cache_img=$(echo "$img" | sed \
+        -e "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|" \
+        -e "s|registry.k8s.io/|${K8S_REGISTRY_CACHE}/|")
       echo "  Pulling: $cache_img"
-      sudo ctr images pull "$cache_img" || true
+      sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
     done
 fi
 
@@ -179,16 +181,18 @@ if [ -n "$EBS_CSI_CHART" ]; then
     grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
       cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
       echo "  Pulling: $cache_img"
-      sudo ctr images pull "$cache_img" || true
+      sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
     done
 fi
 
 # Extract images from VPC CNI manifest
+# Images are in 602401143452.dkr.ecr.us-west-2 — requires explicit ECR auth for that region
 echo "==> Extracting and pulling images from VPC CNI manifest..."
 if [ -f /opt/eks-d/manifests/aws-vpc-cni.yaml ]; then
+  VPC_CNI_ECR_TOKEN=$(aws ecr get-login-password --region us-west-2)
   grep -oP 'image:\s*\K[^\s]+' /opt/eks-d/manifests/aws-vpc-cni.yaml | sort -u | while read img; do
     echo "  Pulling: $img"
-    sudo ctr images pull "$img" || true
+    sudo ctr images pull --user "AWS:${VPC_CNI_ECR_TOKEN}" "$img" || true
   done
 fi
 
@@ -224,18 +228,25 @@ fi
 echo "==> Extracting and pulling images from CloudWatch Observability chart..."
 CW_CHART=$(ls /opt/eks-d/charts/amazon-cloudwatch-observability-*.tgz 2>/dev/null | head -1)
 if [ -n "$CW_CHART" ]; then
+  cat > /tmp/extract_images_cw.py << 'PYEOF'
+import sys, re
+SKIP = re.compile(r'windows|nvidia|neuron|dcgm-exporter|kubekins-e2e')
+for line in sys.stdin:
+    m = re.search(r"image:\s*[\"']?([a-zA-Z0-9._/-]+:[a-zA-Z0-9._/-]+)[\"']?", line)
+    if m and not SKIP.search(m.group(1)):
+        print(m.group(1))
+PYEOF
   helm template amazon-cloudwatch-observability "$CW_CHART" \
     --set clusterName=build --set region=us-east-1 2>/dev/null | \
-    grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
+    python3 /tmp/extract_images_cw.py | sort -u | while read img; do
       cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
       echo "  Pulling: $cache_img"
-      sudo ctr images pull "$cache_img" || true
+      sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
     done
 fi
 
-# Remove temporary ECR credentials — workstations use the ECR credential provider instead
+# Clean up helm ECR session — workstations use the ECR credential provider instead
 echo "==> Cleaning up temporary ECR credentials..."
-sudo rm -rf /etc/containerd/certs.d/${ECR_REGISTRY}
 helm registry logout "${ECR_REGISTRY}" 2>/dev/null || true
 
 echo ""
