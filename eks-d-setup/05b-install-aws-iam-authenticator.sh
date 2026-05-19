@@ -46,12 +46,18 @@
 
 set -e
 
-# ── Identity ──────────────────────────────────────────────────────────────────
+# ── Identity and AWS Environment ──────────────────────────────────────────────
 [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
 
 if [ -z "${DEVELOPER_SIGNUM}" ] || [ -z "${CLUSTER_NAME}" ]; then
   echo "Error: DEVELOPER_SIGNUM and CLUSTER_NAME must be set."
   echo "       Run install-all.sh <signum> or source /opt/eks-d/cluster.env first."
+  exit 1
+fi
+
+if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$AWS_REGION" ] || [ -z "$NODE_ROLE_ARN" ]; then
+  echo "Error: AWS environment variables not found in /opt/eks-d/cluster.env"
+  echo "Run install-all.sh to calculate these variables first"
   exit 1
 fi
 
@@ -65,16 +71,6 @@ source /opt/eks-d/manifests/eks-d-versions.env
 
 if [ -z "${AWS_IAM_AUTHENTICATOR_IMAGE}" ]; then
   echo "Error: AWS_IAM_AUTHENTICATOR_IMAGE not found in eks-d-versions.env"
-  exit 1
-fi
-
-# ── AWS metadata and identity ─────────────────────────────────────────────────
-# Use pre-calculated AWS variables from cluster.env
-[ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
-
-if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$AWS_REGION" ] || [ -z "$NODE_ROLE_ARN" ]; then
-  echo "Error: AWS environment variables not found in /opt/eks-d/cluster.env"
-  echo "Run install-all.sh to calculate these variables first"
   exit 1
 fi
 

@@ -1,22 +1,15 @@
 #!/bin/bash
 set -e
 
+# Source environment variables first
+[ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
+
 DEVELOPER_SIGNUM="${1:-${DEVELOPER_SIGNUM:-}}"
 CLUSTER_NAME="${2:-${CLUSTER_NAME:-}}"
-
-# Fall back to persisted cluster identity
-if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
-  [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
-fi
 
 if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
   echo "Usage: $0 <developer-signum> <cluster-name>"
   exit 1
-fi
-
-# Fall back to persisted cluster identity and AWS environment
-if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
-  [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
 fi
 
 if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
