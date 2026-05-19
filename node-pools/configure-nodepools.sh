@@ -54,22 +54,6 @@ AMI_ID=$(aws ssm get-parameter --name "$SSM_PATH" \
 echo "  Node variant      : $NODE_VARIANT"
 echo "  EKS-Optimized AMI : $AMI_ID (k8s 1.${K8S_MINOR} ${ARCH})"
 
-# Derive NodePool instance constraints from NODE_VARIANT
-case "$NODE_VARIANT" in
-  *-gpu)
-    # NVIDIA GPU instances: p3+, g4+, g5, p4, p5
-    INSTANCE_CATEGORIES="{p,g}"
-    INSTANCE_GEN_GT="2" ;;
-  *-neuron)
-    # AWS Inferentia (inf1/inf2) and Trainium (trn1/trn2)
-    INSTANCE_CATEGORIES="{inf,trn}"
-    INSTANCE_GEN_GT="0" ;;
-  *)
-    # General purpose compute
-    INSTANCE_CATEGORIES="{m,c,r}"
-    INSTANCE_GEN_GT="5" ;;
-esac
-
 # Discover AWS resources
 # Instance profile follows the same naming convention as the role
 INSTANCE_PROFILE="eks-dx-workstation-${DEVELOPER_SIGNUM}"
@@ -118,8 +102,6 @@ helm template eks-d-karpenter "${SCRIPT_DIR}/chart" \
   --set nodeConfig.certificateAuthority="$CA_BUNDLE" \
   --set nodeConfig.serviceCidr="$SERVICE_CIDR" \
   --set nodeConfig.clusterDnsIp="$CLUSTER_DNS_IP" \
-  --set "nodePool.instanceCategories=$INSTANCE_CATEGORIES" \
-  --set nodePool.instanceGenerationGt="$INSTANCE_GEN_GT" \
   | sudo tee "$OUTPUT_DIR/karpenter-manifests.yaml" > /dev/null
 
 echo "✓ Rendered manifests saved to $OUTPUT_DIR/karpenter-manifests.yaml"

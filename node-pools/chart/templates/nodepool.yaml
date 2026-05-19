@@ -19,12 +19,27 @@ spec:
         - key: karpenter.k8s.aws/instance-category
           operator: In
           values:
-            {{- range .Values.nodePool.instanceCategories }}
-            - {{ . | quote }}
+            {{- if hasSuffix "-gpu" .Values.nodeVariant }}
+            - "p"
+            - "g"
+            {{- else if hasSuffix "-neuron" .Values.nodeVariant }}
+            - "inf"
+            - "trn"
+            {{- else }}
+            - "m"
+            - "c"
+            - "r"
             {{- end }}
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
-          values: [{{ .Values.nodePool.instanceGenerationGt | quote }}]
+          values:
+            {{- if hasSuffix "-gpu" .Values.nodeVariant }}
+            - "2"
+            {{- else if hasSuffix "-neuron" .Values.nodeVariant }}
+            - "0"
+            {{- else }}
+            - {{ .Values.nodePool.instanceGenerationGt | quote }}
+            {{- end }}
   limits:
     cpu: {{ .Values.nodePool.cpuLimit | quote }}
     memory: {{ .Values.nodePool.memoryLimit | quote }}
