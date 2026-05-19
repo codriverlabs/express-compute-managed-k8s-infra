@@ -59,8 +59,8 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
 
 echo "✓ Karpenter installed"
 
-echo "Waiting for Karpenter controller to be ready (timeout: 120s)..."
-kubectl wait --for=condition=available --timeout=120s deployment/karpenter -n kube-system || {
+echo "Waiting for Karpenter controller to be ready (timeout: 30s)..."
+kubectl wait --for=condition=available --timeout=30s deployment/karpenter -n kube-system || {
   echo "Warning: Karpenter deployment timeout, but it may still become ready"
 }
 

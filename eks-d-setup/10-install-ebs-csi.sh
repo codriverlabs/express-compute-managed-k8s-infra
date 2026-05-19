@@ -54,8 +54,8 @@ EOF
 
 echo "✓ EBS CSI Driver installed with cluster-scoped policy"
 
-echo "Waiting for EBS CSI node pods to be ready (timeout: 120s)..."
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-ebs-csi-driver,app.kubernetes.io/component=node -n kube-system --timeout=120s || {
+echo "Waiting for EBS CSI node pods to be ready (timeout: 30s)..."
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-ebs-csi-driver,app.kubernetes.io/component=node -n kube-system --timeout=30s || {
   echo "Warning: EBS CSI node pods timeout, but driver may still become ready"
 }
 

@@ -31,8 +31,8 @@ kubectl patch daemonset aws-cloud-controller-manager -n kube-system \
 echo "✓ AWS Cloud Provider installed"
 
 # Wait for cloud controller manager to be ready
-echo "Waiting for cloud controller manager to be ready (timeout: 120s)..."
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-cloud-controller-manager -n kube-system --timeout=120s || {
+echo "Waiting for cloud controller manager to be ready (timeout: 30s)..."
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-cloud-controller-manager -n kube-system --timeout=30s || {
   echo "Warning: Cloud controller manager timeout, but it may still become ready"
 }
 

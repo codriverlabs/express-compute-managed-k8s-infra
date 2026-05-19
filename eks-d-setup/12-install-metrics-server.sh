@@ -226,8 +226,8 @@ spec:
   versionPriority: 100
 EOF
 
-echo "Waiting for metrics-server to be ready (timeout: 120s)..."
-kubectl wait --for=condition=available --timeout=120s deployment/metrics-server -n kube-system || {
+echo "Waiting for metrics-server to be ready (timeout: 30s)..."
+kubectl wait --for=condition=available --timeout=30s deployment/metrics-server -n kube-system || {
   echo "Warning: Metrics server deployment timeout, but it may still become ready"
   kubectl get pods -n kube-system -l k8s-app=metrics-server
 }
