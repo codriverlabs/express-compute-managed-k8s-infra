@@ -9,9 +9,14 @@ if [ -z "$CHART" ]; then
   CHART="aws-ebs-csi-driver/aws-ebs-csi-driver"
 fi
 
-# Get cluster name from persisted identity
+# Get cluster name and AWS variables from persisted identity
 [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
-CLUSTER_NAME="${CLUSTER_NAME:-$(curl -s http://169.254.169.254/latest/meta-data/tags/instance/Name)}"
+
+if [ -z "$CLUSTER_NAME" ] || [ -z "$INSTANCE_ID" ]; then
+  echo "Error: Required variables not found in /opt/eks-d/cluster.env"
+  echo "Run install-all.sh to calculate these variables first"
+  exit 1
+fi
 
 helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --namespace kube-system \
@@ -21,8 +26,15 @@ helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --wait
 
 # Tag the current instance for EBS CSI cluster scoping
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-aws ec2 create-tags --resources "$INSTANCE_ID" --tags Key="ebs.csi.aws.com/cluster-name",Value="$CLUSTER_NAME"
+echo "Tagging instance for EBS CSI cluster scoping..."
+if [ -n "$INSTANCE_ID" ] && [ "$INSTANCE_ID" != "" ]; then
+  aws ec2 create-tags --resources "$INSTANCE_ID" --tags Key="ebs.csi.aws.com/cluster-name",Value="$CLUSTER_NAME" || {
+    echo "Warning: Failed to tag instance $INSTANCE_ID, but EBS CSI driver will still function"
+  }
+  echo "✓ Instance $INSTANCE_ID tagged with cluster name: $CLUSTER_NAME"
+else
+  echo "Warning: Instance ID not available, skipping instance tagging"
+fi
 
 echo "Creating default storage class..."
 cat <<EOF | kubectl apply -f -

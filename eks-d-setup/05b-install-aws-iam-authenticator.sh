@@ -68,17 +68,15 @@ if [ -z "${AWS_IAM_AUTHENTICATOR_IMAGE}" ]; then
   exit 1
 fi
 
-# ── AWS metadata (IMDSv2) ─────────────────────────────────────────────────────
-TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" \
-  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s)
-AWS_ACCOUNT_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s \
-  http://169.254.169.254/latest/dynamic/instance-identity/document \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['accountId'])")
-AWS_REGION=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s \
-  http://169.254.169.254/latest/meta-data/placement/region)
+# ── AWS metadata and identity ─────────────────────────────────────────────────
+# Use pre-calculated AWS variables from cluster.env
+[ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
 
-# Worker nodes launched by Karpenter assume the same role as the workstation.
-NODE_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/eks-d-workstation-${DEVELOPER_SIGNUM}"
+if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$AWS_REGION" ] || [ -z "$NODE_ROLE_ARN" ]; then
+  echo "Error: AWS environment variables not found in /opt/eks-d/cluster.env"
+  echo "Run install-all.sh to calculate these variables first"
+  exit 1
+fi
 
 echo "Configuring aws-iam-authenticator..."
 echo "  Cluster:   ${CLUSTER_NAME}"
@@ -86,6 +84,8 @@ echo "  Region:    ${AWS_REGION}"
 echo "  Node role: ${NODE_ROLE_ARN}"
 echo "  Image:     ${AWS_IAM_AUTHENTICATOR_IMAGE}"
 
+# Ensure required directories exist
+sudo mkdir -p /etc/kubernetes/manifests
 sudo mkdir -p /etc/kubernetes/aws-iam-authenticator
 # The authenticator image runs as a non-root user; the state dir must be world-writable
 # so it can write its TLS cert and key on first start.

@@ -13,12 +13,61 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Persist cluster identity so individual scripts can source it without args
+# Persist cluster identity and calculate common AWS variables once
 sudo mkdir -p /opt/eks-d
+
+# Calculate AWS metadata once using IMDSv2
+echo "Calculating AWS environment variables..."
+TOKEN=$(curl -sf -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null) || TOKEN=""
+
+if [ -n "$TOKEN" ]; then
+  AWS_ACCOUNT_ID=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" \
+    http://169.254.169.254/latest/dynamic/instance-identity/document 2>/dev/null \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['accountId'])" 2>/dev/null) || AWS_ACCOUNT_ID=""
+  AWS_REGION=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" \
+    http://169.254.169.254/latest/meta-data/placement/region 2>/dev/null) || AWS_REGION=""
+  INSTANCE_ID=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" \
+    http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null) || INSTANCE_ID=""
+else
+  echo "Warning: Could not get IMDS token, trying fallback methods..."
+  AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null) || AWS_ACCOUNT_ID=""
+  AWS_REGION=$(aws configure get region 2>/dev/null) || AWS_REGION="us-east-1"
+  INSTANCE_ID=""
+fi
+
+# Fallback for region if still empty
+if [ -z "$AWS_REGION" ] || [ "$AWS_REGION" = "None" ]; then
+  AWS_REGION="us-east-1"
+fi
+
+# Derive other common variables
+NODE_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/eks-dx-workstation-${DEVELOPER_SIGNUM}"
+CLUSTER_ENDPOINT="https://$(hostname -I | awk '{print $1}'):6443"
+
+# Create comprehensive environment file
 cat <<EOF | sudo tee /opt/eks-d/cluster.env
+# Cluster Identity
 DEVELOPER_SIGNUM="${DEVELOPER_SIGNUM}"
 CLUSTER_NAME="${CLUSTER_NAME}"
+
+# AWS Environment (calculated once)
+AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}"
+AWS_REGION="${AWS_REGION}"
+INSTANCE_ID="${INSTANCE_ID}"
+
+# Derived Variables
+NODE_ROLE_ARN="${NODE_ROLE_ARN}"
+CLUSTER_ENDPOINT="${CLUSTER_ENDPOINT}"
+
+# Calculated at: $(date)
 EOF
+
+echo "✓ Environment variables calculated and persisted to /opt/eks-d/cluster.env"
+echo "  AWS Account: ${AWS_ACCOUNT_ID}"
+echo "  AWS Region: ${AWS_REGION}"
+echo "  Instance ID: ${INSTANCE_ID}"
+echo "  Node Role: ${NODE_ROLE_ARN}"
 
 echo "=========================================="
 echo "EKS-D Complete Installation"
@@ -79,11 +128,11 @@ bash "${SCRIPT_DIR}/12-install-metrics-server.sh"
 
 # Step 13: Karpenter
 echo "Step 13/14: Installing Karpenter..."
-bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}"
+bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}" 2>&1 | tee /tmp/11-install-karpenter.log
 
 # Step 14: CloudWatch agent
 echo "Step 14/14: Installing CloudWatch agent..."
-CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh"
+CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh" 2>&1 | tee /tmp/13-install-cloudwatch.log
 
 echo ""
 echo "=========================================="

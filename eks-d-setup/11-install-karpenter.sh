@@ -14,12 +14,26 @@ if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
   exit 1
 fi
 
-export AWS_REGION="${AWS_REGION:-$(curl -sf http://169.254.169.254/latest/meta-data/placement/region)}"
-export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+# Fall back to persisted cluster identity and AWS environment
+if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
+  [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
+fi
+
+if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
+  echo "Usage: $0 <developer-signum> <cluster-name>"
+  exit 1
+fi
+
+# Use pre-calculated AWS variables from cluster.env
+if [ -z "$AWS_REGION" ] || [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$CLUSTER_ENDPOINT" ]; then
+  echo "Error: AWS environment variables not found in /opt/eks-d/cluster.env"
+  echo "Run install-all.sh to calculate these variables first"
+  exit 1
+fi
 
 # On EKS-D, there is no EKS managed control plane — Karpenter cannot use DescribeCluster.
 # clusterEndpoint must be set explicitly to the API server address.
-CLUSTER_ENDPOINT="https://$(hostname -I | awk '{print $1}'):6443"
+# Use pre-calculated endpoint from cluster.env
 
 # Source versions from central config
 [ -f /opt/eks-d/manifests/eks-d-versions.env ] && source /opt/eks-d/manifests/eks-d-versions.env

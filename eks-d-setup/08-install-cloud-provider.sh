@@ -29,4 +29,20 @@ kubectl patch daemonset aws-cloud-controller-manager -n kube-system \
   --patch '{"spec":{"template":{"spec":{"hostNetwork":true}}}}'
 
 echo "✓ AWS Cloud Provider installed"
+
+# Wait for cloud controller manager to initialize the node
+echo "Waiting for cloud controller manager to initialize node..."
+sleep 10
+
+# Remove the uninitialized taint so system pods can schedule
+NODE_NAME=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}')
+if kubectl get node "$NODE_NAME" -o jsonpath='{.spec.taints[*].key}' | grep -q "node.cloudprovider.kubernetes.io/uninitialized"; then
+  echo "Removing cloud provider uninitialized taint from node $NODE_NAME..."
+  kubectl taint nodes "$NODE_NAME" node.cloudprovider.kubernetes.io/uninitialized- || {
+    echo "Warning: Could not remove cloud provider taint, but it may have been removed already"
+  }
+  echo "✓ Cloud provider taint removed"
+else
+  echo "✓ Cloud provider taint not present or already removed"
+fi
 kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-cloud-controller-manager

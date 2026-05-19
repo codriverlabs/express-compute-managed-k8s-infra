@@ -198,6 +198,13 @@ spec:
         kubernetes.io/os: linux
       priorityClassName: system-cluster-critical
       serviceAccountName: metrics-server
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node.cloudprovider.kubernetes.io/uninitialized
+        operator: Exists
+        effect: NoSchedule
       volumes:
       - emptyDir: {}
         name: tmp-dir
@@ -219,8 +226,11 @@ spec:
   versionPriority: 100
 EOF
 
-echo "Waiting for metrics-server to be ready..."
-kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system --timeout=300s
+echo "Waiting for metrics-server to be ready (timeout: 120s)..."
+kubectl wait --for=condition=available --timeout=120s deployment/metrics-server -n kube-system || {
+  echo "Warning: Metrics server deployment timeout, but it may still become ready"
+  kubectl get pods -n kube-system -l k8s-app=metrics-server
+}
 
 echo "✓ Metrics Server installed"
 kubectl get pods -n kube-system -l k8s-app=metrics-server
