@@ -24,6 +24,11 @@ nodeConfig:
   clusterDnsIp: "10.96.0.10"
 
 # NodePool settings
+# instanceCategories and instanceGenerationGt are overridden at runtime
+# by configure-nodepools.sh based on nodeVariant:
+#   standard  -> {m,c,r} gen > 5
+#   *-gpu     -> {p,g}   gen > 2
+#   *-neuron  -> {inf,trn} gen > 0
 nodePool:
   capacityType: "spot"
   arch: "arm64"
