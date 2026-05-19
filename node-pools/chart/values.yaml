@@ -3,20 +3,25 @@ clusterName: ""
 developerSignum: ""
 awsRegion: "us-east-1"
 
-# EKS-Optimized AL2023 AMI for arm64 + k8s 1.35
-# Discovered at runtime via SSM: /aws/service/eks/optimized-ami/1.35/amazon-linux-2023/arm64/standard/recommended/image_id
+# EKS-Optimized AMI for arm64 + k8s 1.35
+# Discovered at runtime via SSM based on nodeVariant
 amiId: ""
+
+# Node OS/accelerator variant — controls SSM path and userdata format.
+# Values: al2023 | al2023-gpu | al2023-neuron | bottlerocket | bottlerocket-gpu | bottlerocket-neuron
+nodeVariant: "al2023"
 
 # Discovered at runtime by configure-nodepools.sh
 instanceProfile: ""
 subnetId: ""
 securityGroupId: ""
 
-# NodeConfig for nodeadm (AL2023 EKS-Optimized worker nodes)
+# NodeConfig for nodeadm (AL2023) or Bottlerocket TOML
 nodeConfig:
   apiServerEndpoint: ""
   certificateAuthority: ""
   serviceCidr: "10.96.0.0/12"
+  clusterDnsIp: "10.96.0.10"
 
 # NodePool settings
 nodePool:

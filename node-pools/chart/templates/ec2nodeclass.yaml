@@ -7,7 +7,7 @@ spec:
 
   # Custom AMI family: skips eks:DescribeCluster CIDR detection (Karpenter v1.10 bug -
   # ResolveClusterCIDR always runs for AL2023 regardless of eksControlPlane=false).
-  # The nodeadm userdata below handles all AL2023 bootstrap configuration.
+  # Userdata below handles all bootstrap configuration for each OS variant.
   amiFamily: Custom
   amiSelectorTerms:
     - id: {{ .Values.amiId | quote }}
@@ -18,6 +18,17 @@ spec:
   securityGroupSelectorTerms:
     - id: {{ .Values.securityGroupId | quote }}
 
+  {{- if hasPrefix "bottlerocket" .Values.nodeVariant }}
+  userData: |
+    [settings.kubernetes]
+    api-server = {{ .Values.nodeConfig.apiServerEndpoint | quote }}
+    cluster-certificate = {{ .Values.nodeConfig.certificateAuthority | quote }}
+    cluster-name = {{ .Values.clusterName | quote }}
+    cluster-dns-ip = {{ .Values.nodeConfig.clusterDnsIp | quote }}
+
+    [settings.kubernetes.node-labels]
+    "karpenter.sh/nodepool" = "default"
+  {{- else }}
   userData: |
     MIME-Version: 1.0
     Content-Type: multipart/mixed; boundary="//"
@@ -39,6 +50,7 @@ spec:
           - "--node-labels=karpenter.sh/nodepool=default"
 
     --//--
+  {{- end }}
 
   metadataOptions:
     httpEndpoint: enabled
