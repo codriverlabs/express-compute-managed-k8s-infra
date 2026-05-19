@@ -45,6 +45,16 @@ echo "Starting EKS-D installation..."
 cd /opt/eks-d-setup
 ./install-all.sh "${DEVELOPER_SIGNUM}" 2>&1 | tee /var/log/eks-dx-install-all.log
 
+# Copy kubeconfig for the login user (cloud-init runs as root; ec2-user needs access too)
+LOGIN_USER="ec2-user"
+LOGIN_HOME=$(getent passwd "${LOGIN_USER}" | cut -d: -f6)
+if [ -n "${LOGIN_HOME}" ] && [ -f /etc/kubernetes/admin.conf ]; then
+  mkdir -p "${LOGIN_HOME}/.kube"
+  cp /etc/kubernetes/admin.conf "${LOGIN_HOME}/.kube/config"
+  chown -R "${LOGIN_USER}:${LOGIN_USER}" "${LOGIN_HOME}/.kube"
+  echo "✓ kubeconfig copied for ${LOGIN_USER}"
+fi
+
 # Mark installation as complete
 touch /opt/eks-d/.installation_complete
 echo "$(date): Installation completed successfully" >> /opt/eks-d/.installation_complete
