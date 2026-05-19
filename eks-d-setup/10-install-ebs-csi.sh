@@ -53,5 +53,11 @@ allowVolumeExpansion: true
 EOF
 
 echo "✓ EBS CSI Driver installed with cluster-scoped policy"
+
+echo "Waiting for EBS CSI node pods to be ready (timeout: 120s)..."
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=aws-ebs-csi-driver,app.kubernetes.io/component=node -n kube-system --timeout=120s || {
+  echo "Warning: EBS CSI node pods timeout, but driver may still become ready"
+}
+
 kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver
 kubectl get storageclass

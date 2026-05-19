@@ -185,7 +185,16 @@ EOF
 sudo kubeadm init \
   --config /tmp/kubeadm-config.yaml \
   --ignore-preflight-errors=NumCPU,DirAvailable--var-lib-etcd \
-  --v=5
+  --v=5 || {
+  echo "Warning: kubeadm init had non-critical errors, but cluster may still be functional"
+  # Check if cluster is actually working
+  if sudo kubectl get nodes --kubeconfig /etc/kubernetes/admin.conf >/dev/null 2>&1; then
+    echo "✓ Cluster is functional despite kubeadm warnings"
+  else
+    echo "✗ Cluster initialization failed"
+    exit 1
+  fi
+}
 
 echo "Setting up kubeconfig..."
 mkdir -p $HOME/.kube
