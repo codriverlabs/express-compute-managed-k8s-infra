@@ -8,9 +8,9 @@
 ```
 ecp-eks-dx-infra/
 ├── bootstrap.sh              # One-time: create S3 state bucket + shared VPC
-├── build.sh                  # Build custom AMI (~20-30 min, pre-pulls all images)
-├── deploy.sh                 # Deploy developer workstation via Terraform
-├── destroy.sh                # Destroy developer workstation
+├── build-control-plane-ami.sh                  # Build custom AMI (~20-30 min, pre-pulls all images)
+├── provision-tenant.sh                 # Deploy developer workstation via Terraform
+├── deprovision-tenant.sh                # Destroy developer workstation
 ├── deploy-vpc.sh             # Deploy shared VPC (tags AL2023 AMIs, runs Terraform)
 ├── tag-vpc-amis.sh           # Tag AL2023 AMIs with EKS version metadata
 ├── terraform/
@@ -41,16 +41,16 @@ ecp-eks-dx-infra/
 | Task | Command |
 |------|---------|
 | First-time account setup | `./bootstrap.sh [region]` |
-| Build AMI | `./build.sh` |
-| Deploy workstation | `./deploy.sh` |
-| Destroy workstation | `./destroy.sh` |
+| Build AMI | `./build-control-plane-ami.sh` |
+| Deploy workstation | `./provision-tenant.sh` |
+| Destroy workstation | `./deprovision-tenant.sh` |
 | Deploy shared VPC | `./deploy-vpc.sh [region]` |
 | Setup EKS-D cluster (boot) | `./eks-d-setup/setup-eks-d.sh <signum>` (on EC2, AMI path) |
 | Configure NodePool | `./node-pools/configure-nodepools.sh <signum> [region]` (on EC2) |
 
 ## Deployment Paths
 
-**AMI path (only supported path):** `build.sh` → `deploy.sh` → EC2 boots → `workstation-boot.sh` runs automatically → `setup-eks-d.sh` → cluster ready in ~3 min.
+**AMI path (only supported path):** `build-control-plane-ami.sh` → `provision-tenant.sh` → EC2 boots → `workstation-boot.sh` runs automatically → `setup-eks-d.sh` → cluster ready in ~3 min.
 
 ## Repo-Specific Patterns
 
@@ -91,7 +91,7 @@ Do **not** apply `spot-nodepool.yaml` or `ondemand-nodepool.yaml` directly — t
 ### AMI Pre-pull Strategy
 `ami-builder/scripts/install.sh` pre-pulls all container images and Helm chart tarballs into the AMI at `/opt/eks-d/charts/` and `/opt/eks-d/manifests/`. Setup scripts prefer these cached artifacts over downloading at boot time.
 
-### Environment Variables for `deploy.sh`
+### Environment Variables for `provision-tenant.sh`
 Set these to skip interactive prompts:
 ```
 TENANT_ID, AWS_REGION, ARCH, DISK_SIZE_GB, SSH_CIDR, TFSTATE_BUCKET, KUBERNETES_VERSION, WORKSTATION_MODE

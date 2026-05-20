@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EKS_D_SETUP_DIR="/tmp/eks-d-setup"
 
-# EKS-D version — passed from build.sh via KUBERNETES_VERSION env var
+# EKS-D version — passed from build-control-plane-ami.sh via KUBERNETES_VERSION env var
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.35}"
 EKS_VERSION="${KUBERNETES_VERSION}"
 

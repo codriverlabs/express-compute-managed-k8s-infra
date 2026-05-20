@@ -84,4 +84,4 @@ echo "╚═══════════════════════�
 echo "  AMI IDs stored at SSM:"
 echo "    /eks-dx/ami/${KUBERNETES_VERSION}/x86_64"
 echo "    /eks-dx/ami/${KUBERNETES_VERSION}/arm64"
-echo "  Run ./deploy.sh to launch a workstation."
+echo "  Run ./provision-tenant.sh to launch a workstation."
