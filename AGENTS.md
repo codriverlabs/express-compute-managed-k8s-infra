@@ -11,7 +11,7 @@ ecp-eks-dx-infra/
 ├── build-control-plane-ami.sh                  # Build custom AMI (~20-30 min, pre-pulls all images)
 ├── provision-tenant.sh                 # Deploy developer workstation via Terraform
 ├── deprovision-tenant.sh                # Destroy developer workstation
-├── provision-vpc.sh             # Deploy shared VPC (tags AL2023 AMIs, runs Terraform)
+├── provision-shared-infra.sh             # Deploy shared VPC (tags AL2023 AMIs, runs Terraform)
 ├── tag-vpc-amis.sh           # Tag AL2023 AMIs with EKS version metadata
 ├── terraform/
 │   ├── main.tf               # Workstation EC2, IAM role, SG, subnets, SQS queue
@@ -44,7 +44,7 @@ ecp-eks-dx-infra/
 | Build AMI | `./build-control-plane-ami.sh` |
 | Deploy workstation | `./provision-tenant.sh` |
 | Destroy workstation | `./deprovision-tenant.sh` |
-| Deploy shared VPC | `./provision-vpc.sh [region]` |
+| Deploy shared VPC | `./provision-shared-infra.sh [region]` |
 | Setup EKS-D cluster (boot) | `./eks-d-setup/setup-eks-d.sh <signum>` (on EC2, AMI path) |
 | Configure NodePool | `./node-pools/configure-nodepools.sh <signum> [region]` (on EC2) |
 
