@@ -1,13 +1,13 @@
 locals {
   ami_arch         = var.arch == "arm64" ? "arm64" : "x86_64"
-  workstation_name = var.workstation_name != "" ? var.workstation_name : "${var.developer_username}-eks-dx-${var.arch}"
+  workstation_name = var.workstation_name != "" ? var.workstation_name : "${var.tenant_id}-eks-dx-${var.arch}"
   # Cluster name matches workstation name (includes arch so arm64/x86_64 workstations don't collide)
   cluster_name  = local.workstation_name
   allowed_cidrs = var.allowed_cidr_blocks
 
   common_tags = {
     Platform  = "eks-d-xpress"
-    Developer = var.developer_username
+    Developer = var.tenant_id
     Arch      = var.arch
     ManagedBy = "Terraform"
   }
@@ -87,7 +87,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = merge(local.common_tags, {
-    Name                                              = "${var.developer_username}-public-subnet"
+    Name                                              = "${var.tenant_id}-public-subnet"
     SubnetIndex                                       = tostring(local.subnet_index)
     "kubernetes.io/cluster/${local.workstation_name}" = "owned"
     "kubernetes.io/role/elb"                          = "1"
@@ -107,7 +107,7 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available.names[0]
 
   tags = merge(local.common_tags, {
-    Name                                              = "${var.developer_username}-private-subnet"
+    Name                                              = "${var.tenant_id}-private-subnet"
     "kubernetes.io/cluster/${local.workstation_name}" = "owned"
     "kubernetes.io/role/internal-elb"                 = "1"
     SubnetType                                        = "Private"
@@ -128,7 +128,7 @@ data "aws_ssm_parameter" "workstation_ami" {
 }
 
 resource "aws_iam_role" "workstation" {
-  name = "${var.developer_username}-eks-dx-${var.arch}"
+  name = "${var.tenant_id}-eks-dx-${var.arch}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -140,7 +140,7 @@ resource "aws_iam_role" "workstation" {
   })
 
   tags = merge(local.common_tags, {
-    Name               = "${var.developer_username}-eks-dx-${var.arch}"
+    Name               = "${var.tenant_id}-eks-dx-${var.arch}"
     "eks-cluster-name" = local.workstation_name
   })
 }
@@ -359,12 +359,12 @@ resource "aws_iam_role_policy" "cloud_provider" {
 
 
 resource "aws_iam_instance_profile" "workstation" {
-  name = "${var.developer_username}-eks-dx-${var.arch}"
+  name = "${var.tenant_id}-eks-dx-${var.arch}"
   role = aws_iam_role.workstation.name
 }
 
 resource "aws_security_group" "workstation" {
-  name        = "${var.developer_username}-eks-dx-${var.arch}"
+  name        = "${var.tenant_id}-eks-dx-${var.arch}"
   description = "EKS-D workstation: SSH, Kubernetes API, kubelet, pod networking"
 
   ingress {
@@ -407,7 +407,7 @@ resource "aws_security_group" "workstation" {
   }
 
   vpc_id = local.vpc_filter
-  tags   = merge(local.common_tags, { Name = "${var.developer_username}-eks-dx-${var.arch}" })
+  tags   = merge(local.common_tags, { Name = "${var.tenant_id}-eks-dx-${var.arch}" })
 }
 
 resource "aws_sqs_queue" "karpenter_interruption" {
@@ -499,9 +499,9 @@ resource "aws_launch_template" "workstation" {
     #!/bin/bash
     set -e
     export CLUSTER_NAME=${local.workstation_name}
-    export DEVELOPER_SIGNUM=${var.developer_username}
+    export TENANT_ID=${var.tenant_id}
     cd /opt/eks-d-setup
-    bash ./workstation-boot.sh "$DEVELOPER_SIGNUM" "$CLUSTER_NAME"
+    bash ./workstation-boot.sh "$TENANT_ID" "$CLUSTER_NAME"
     EOF
   )
 
@@ -588,7 +588,7 @@ resource "aws_eip" "workstation" {
 
 # DLM lifecycle policy for automated etcd volume snapshots
 resource "aws_iam_role" "dlm" {
-  name = "${var.developer_username}-eks-dx-${var.arch}-dlm"
+  name = "${var.tenant_id}-eks-dx-${var.arch}-dlm"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{

@@ -68,5 +68,5 @@ spec:
 
   tags:
     Platform: eks-d-xpress
-    Developer: {{ .Values.developerSignum | quote }}
+    Developer: {{ .Values.tenantId | quote }}
     ManagedBy: Karpenter

@@ -11,10 +11,10 @@ echo "║   EKS-DX Workstation — Destroy               ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
-DEVELOPER_USERNAME="${DEVELOPER_USERNAME:-}"
-if [ -z "$DEVELOPER_USERNAME" ]; then
-  read -rp "  Developer IAM username: " DEVELOPER_USERNAME
-  [ -z "${DEVELOPER_USERNAME}" ] && { echo "ERROR: username required" >&2; exit 1; }
+TENANT_ID="${TENANT_ID:-}"
+if [ -z "$TENANT_ID" ]; then
+  read -rp "  Developer IAM username: " TENANT_ID
+  [ -z "${TENANT_ID}" ] && { echo "ERROR: username required" >&2; exit 1; }
 fi
 
 AWS_REGION="${AWS_REGION:-}"
@@ -39,7 +39,7 @@ if [ -z "$TFSTATE_BUCKET" ]; then
   echo "  Auto-derived Terraform state bucket: ${TFSTATE_BUCKET}"
 fi
 
-SAFE_USER="$(sanitise "${DEVELOPER_USERNAME}")"
+SAFE_USER="$(sanitise "${TENANT_ID}")"
 WORKSTATION_NAME="${SAFE_USER}-eks-dx-${ARCH}"
 TF_KEY="eks-dx/${WORKSTATION_NAME}/terraform.tfstate"
 

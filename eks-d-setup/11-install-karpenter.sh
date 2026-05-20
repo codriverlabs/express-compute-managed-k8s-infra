@@ -4,16 +4,16 @@ set -e
 # Source environment variables first
 [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
 
-DEVELOPER_SIGNUM="${1:-${DEVELOPER_SIGNUM:-}}"
+TENANT_ID="${1:-${TENANT_ID:-}}"
 CLUSTER_NAME="${2:-${CLUSTER_NAME:-}}"
 
-if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
-  echo "Usage: $0 <developer-signum> <cluster-name>"
+if [ -z "$TENANT_ID" ] || [ -z "$CLUSTER_NAME" ]; then
+  echo "Usage: $0 <tenant-id> <cluster-name>"
   exit 1
 fi
 
-if [ -z "$DEVELOPER_SIGNUM" ] || [ -z "$CLUSTER_NAME" ]; then
-  echo "Usage: $0 <developer-signum> <cluster-name>"
+if [ -z "$TENANT_ID" ] || [ -z "$CLUSTER_NAME" ]; then
+  echo "Usage: $0 <tenant-id> <cluster-name>"
   exit 1
 fi
 

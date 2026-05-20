@@ -19,9 +19,9 @@ echo "║   EKS-DX Workstation — Deploy                ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
-DEVELOPER_USERNAME="${DEVELOPER_USERNAME:-}"
-prompt DEVELOPER_USERNAME "Developer IAM username" ""
-if [ -z "${DEVELOPER_USERNAME}" ]; then
+TENANT_ID="${TENANT_ID:-}"
+prompt TENANT_ID "Developer IAM username" ""
+if [ -z "${TENANT_ID}" ]; then
   echo "ERROR: developer IAM username is required." >&2; exit 1
 fi
 
@@ -74,7 +74,7 @@ if [ -z "$ELASTIC_IP" ]; then
   esac
 fi
 
-SAFE_USER="$(sanitise "${DEVELOPER_USERNAME}")"
+SAFE_USER="$(sanitise "${TENANT_ID}")"
 WORKSTATION_NAME="${SAFE_USER}-eks-dx-${ARCH}"
 KEY_PAIR_NAME="${WORKSTATION_NAME}"
 KEY_FILE="${SCRIPT_DIR}/${KEY_PAIR_NAME}.pem"
@@ -108,7 +108,7 @@ prompt SSH_CIDR "SSH allowed CIDR" "${SSH_CIDR}"
 
 TFVARS="${SCRIPT_DIR}/terraform/terraform.tfvars"
 cat > "${TFVARS}" <<EOF
-developer_username  = "${DEVELOPER_USERNAME}"
+tenant_id  = "${TENANT_ID}"
 workstation_name    = "${WORKSTATION_NAME}"
 aws_region          = "${AWS_REGION}"
 arch                = "${ARCH}"
@@ -154,7 +154,7 @@ echo "  SSH         : ssh -i ${KEY_FILE} ec2-user@${PUBLIC_IP}"
 if [ -n "${INSTANCE_ID}" ]; then
   echo ""
   echo "==> Waiting for EKS-D installation to complete (polling via SSM)..."
-  SSM_DOC="eks-dx-status-${DEVELOPER_USERNAME}"
+  SSM_DOC="eks-dx-status-${TENANT_ID}"
   TIMEOUT=600   # 10 min max
   INTERVAL=20
   ELAPSED=0

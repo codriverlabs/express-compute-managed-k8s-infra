@@ -49,8 +49,8 @@ set -e
 # ── Identity and AWS Environment ──────────────────────────────────────────────
 [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
 
-if [ -z "${DEVELOPER_SIGNUM}" ] || [ -z "${CLUSTER_NAME}" ]; then
-  echo "Error: DEVELOPER_SIGNUM and CLUSTER_NAME must be set."
+if [ -z "${TENANT_ID}" ] || [ -z "${CLUSTER_NAME}" ]; then
+  echo "Error: TENANT_ID and CLUSTER_NAME must be set."
   echo "       Run install-all.sh <signum> or source /opt/eks-d/cluster.env first."
   exit 1
 fi

@@ -1,6 +1,6 @@
 # SSM Document: query installation status without SSH
 resource "aws_ssm_document" "status" {
-  name            = "eks-dx-status-${var.developer_username}"
+  name            = "eks-dx-status-${var.tenant_id}"
   document_type   = "Command"
   document_format = "JSON"
 
@@ -27,12 +27,12 @@ resource "aws_ssm_document" "status" {
     }]
   })
 
-  tags = { Name = "eks-dx-status-${var.developer_username}" }
+  tags = { Name = "eks-dx-status-${var.tenant_id}" }
 }
 
 # SSM Document: re-run bootstrap (e.g. after a failed first boot)
 resource "aws_ssm_document" "bootstrap" {
-  name            = "eks-dx-bootstrap-${var.developer_username}"
+  name            = "eks-dx-bootstrap-${var.tenant_id}"
   document_type   = "Command"
   document_format = "JSON"
 
@@ -40,10 +40,10 @@ resource "aws_ssm_document" "bootstrap" {
     schemaVersion = "2.2"
     description   = "Re-run EKS-DX workstation bootstrap"
     parameters = {
-      DeveloperSignum = {
+      TenantId = {
         type        = "String"
         description = "Developer IAM username / signum"
-        default     = var.developer_username
+        default     = var.tenant_id
       }
       ClusterName = {
         type        = "String"
@@ -71,11 +71,11 @@ resource "aws_ssm_document" "bootstrap" {
           "fi",
           "[ \"{{ Force }}\" = \"true\" ] && rm -f \"$MARKER\"",
           "cd /opt/eks-d-setup",
-          "bash ./workstation-boot.sh '{{ DeveloperSignum }}' '{{ ClusterName }}'"
+          "bash ./workstation-boot.sh '{{ TenantId }}' '{{ ClusterName }}'"
         ]
       }
     }]
   })
 
-  tags = { Name = "eks-dx-bootstrap-${var.developer_username}" }
+  tags = { Name = "eks-dx-bootstrap-${var.tenant_id}" }
 }

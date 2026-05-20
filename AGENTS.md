@@ -64,7 +64,7 @@ ecp-eks-dx-infra/
 - SSM AMI parameter: `/eks-dx/ami/<region>/<kubernetes-version>/x86_64` and `/eks-dx/ami/<region>/<kubernetes-version>/arm64` (e.g. `/eks-dx/ami/us-east-1/1.35/x86_64`)
 
 ### Cluster Identity Persistence
-Scripts source `/opt/eks-d/cluster.env` for `DEVELOPER_SIGNUM` and `CLUSTER_NAME` rather than requiring arguments every time. Written by `install-all.sh` / `workstation-boot.sh`.
+Scripts source `/opt/eks-d/cluster.env` for `TENANT_ID` and `CLUSTER_NAME` rather than requiring arguments every time. Written by `install-all.sh` / `workstation-boot.sh`.
 
 ### Idempotent Boot
 `workstation-boot.sh` checks `/opt/eks-d/.installation_complete` and exits early if present — rebooting the EC2 does not re-run installation.
@@ -94,7 +94,7 @@ Do **not** apply `spot-nodepool.yaml` or `ondemand-nodepool.yaml` directly — t
 ### Environment Variables for `deploy.sh`
 Set these to skip interactive prompts:
 ```
-DEVELOPER_USERNAME, AWS_REGION, ARCH, DISK_SIZE_GB, SSH_CIDR, TFSTATE_BUCKET, KUBERNETES_VERSION, WORKSTATION_MODE
+TENANT_ID, AWS_REGION, ARCH, DISK_SIZE_GB, SSH_CIDR, TFSTATE_BUCKET, KUBERNETES_VERSION, WORKSTATION_MODE
 ```
 
 ## Custom Instructions

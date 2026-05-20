@@ -9,12 +9,12 @@
 #       node config → EBS CSI → metrics-server → Karpenter → CloudWatch
 set -eo pipefail
 
-DEVELOPER_SIGNUM="${1}"
+TENANT_ID="${1}"
 _ARCH="$(uname -m | sed 's/aarch64/arm64/')"
-CLUSTER_NAME="${2:-${DEVELOPER_SIGNUM}-eks-dx-${_ARCH}}"
+CLUSTER_NAME="${2:-${TENANT_ID}-eks-dx-${_ARCH}}"
 
-if [ -z "$DEVELOPER_SIGNUM" ]; then
-  echo "Usage: $0 <developer-signum> [cluster-name]"
+if [ -z "$TENANT_ID" ]; then
+  echo "Usage: $0 <tenant-id> [cluster-name]"
   exit 1
 fi
 
@@ -43,11 +43,11 @@ fi
 
 [ -z "$AWS_REGION" ] || [ "$AWS_REGION" = "None" ] && AWS_REGION="us-east-1"
 
-NODE_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/${DEVELOPER_SIGNUM}-eks-dx-${_ARCH}"
+NODE_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/${TENANT_ID}-eks-dx-${_ARCH}"
 CLUSTER_ENDPOINT="https://$(hostname -I | awk '{print $1}'):6443"
 
 cat <<EOF | sudo tee /opt/eks-d/cluster.env
-DEVELOPER_SIGNUM="${DEVELOPER_SIGNUM}"
+TENANT_ID="${TENANT_ID}"
 CLUSTER_NAME="${CLUSTER_NAME}"
 AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}"
 AWS_REGION="${AWS_REGION}"
@@ -60,7 +60,7 @@ echo "✓ cluster.env written (account=${AWS_ACCOUNT_ID}, region=${AWS_REGION})"
 
 echo "=========================================="
 echo "EKS-D Cluster Setup"
-echo "Developer: ${DEVELOPER_SIGNUM}  Cluster: ${CLUSTER_NAME}"
+echo "Developer: ${TENANT_ID}  Cluster: ${CLUSTER_NAME}"
 echo "=========================================="
 
 # Step 1: etcd volume (EBS attached at instance launch)
@@ -97,7 +97,7 @@ bash "${SCRIPT_DIR}/12-install-metrics-server.sh"
 
 # Step 9: Karpenter
 echo "Step 9/10: Installing Karpenter..."
-bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}"
+bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${TENANT_ID}" "${CLUSTER_NAME}"
 
 # Step 10: CloudWatch
 echo "Step 10/10: Installing CloudWatch agent..."
@@ -109,4 +109,4 @@ echo "✓ EKS-D cluster setup complete!"
 echo "=========================================="
 echo "  kubectl get nodes"
 echo "  kubectl get pods -A"
-echo "  cd ../node-pools && ./configure-nodepools.sh ${DEVELOPER_SIGNUM}"
+echo "  cd ../node-pools && ./configure-nodepools.sh ${TENANT_ID}"

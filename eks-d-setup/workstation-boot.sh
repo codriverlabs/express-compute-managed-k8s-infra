@@ -28,7 +28,7 @@ if [ -f /opt/eks-d/.installation_complete ]; then
 fi
 
 # Ensure we have the required environment
-DEVELOPER_SIGNUM="${1:-}"
+TENANT_ID="${1:-}"
 CLUSTER_NAME="${2:-}"
 
 # Fall back to cluster.env if args not provided (manual invocation)
@@ -36,15 +36,15 @@ if [ -f /opt/eks-d/cluster.env ]; then
   source /opt/eks-d/cluster.env
 fi
 # Args take precedence over cluster.env (Terraform user data path)
-[ -n "${1:-}" ] && DEVELOPER_SIGNUM="$1"
+[ -n "${1:-}" ] && TENANT_ID="$1"
 [ -n "${2:-}" ] && CLUSTER_NAME="$2"
 
-if [ -z "${DEVELOPER_SIGNUM}" ] || [ -z "${CLUSTER_NAME}" ]; then
-  echo "Error: DEVELOPER_SIGNUM and CLUSTER_NAME are required (pass as args or set in /opt/eks-d/cluster.env)"
+if [ -z "${TENANT_ID}" ] || [ -z "${CLUSTER_NAME}" ]; then
+  echo "Error: TENANT_ID and CLUSTER_NAME are required (pass as args or set in /opt/eks-d/cluster.env)"
   exit 1
 fi
 
-echo "Developer: ${DEVELOPER_SIGNUM}"
+echo "Developer: ${TENANT_ID}"
 echo "Cluster: ${CLUSTER_NAME}"
 
 # Verify installation scripts are available
@@ -57,7 +57,7 @@ fi
 # Run boot-time cluster setup
 echo "Starting EKS-D cluster setup..."
 cd /opt/eks-d-setup
-bash setup-eks-d.sh "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}" 2>&1 | tee /var/log/eks-dx-install-all.log
+bash setup-eks-d.sh "${TENANT_ID}" "${CLUSTER_NAME}" 2>&1 | tee /var/log/eks-dx-install-all.log
 
 # Copy kubeconfig for the login user (cloud-init runs as root; ec2-user needs access too)
 LOGIN_USER="ec2-user"

@@ -1,4 +1,4 @@
-developer_username  = "karolpiatek"
+tenant_id  = "karolpiatek"
 workstation_name    = "karolpiatek-eks-dx-arm64"
 aws_region          = "us-east-1"
 arch                = "arm64"

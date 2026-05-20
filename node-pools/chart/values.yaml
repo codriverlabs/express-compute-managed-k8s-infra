@@ -1,6 +1,6 @@
 # Cluster identity
 clusterName: ""
-developerSignum: ""
+tenantId: ""
 awsRegion: "us-east-1"
 
 # EKS-Optimized AMI for arm64 + k8s 1.35

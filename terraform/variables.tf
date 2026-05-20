@@ -1,4 +1,4 @@
-variable "developer_username" {
+variable "tenant_id" {
   description = "Developer username (for IAM user and tags)"
   type        = string
 }

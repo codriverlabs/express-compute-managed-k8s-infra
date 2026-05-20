@@ -6,15 +6,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Load cluster identity
 [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
 
-DEVELOPER_SIGNUM="${1:-${DEVELOPER_SIGNUM}}"
+TENANT_ID="${1:-${TENANT_ID}}"
 REGION="${2:-${AWS_REGION:-us-east-1}}"
 
-if [ -z "$DEVELOPER_SIGNUM" ]; then
-  echo "Usage: $0 <developer-signum> [region]"
+if [ -z "$TENANT_ID" ]; then
+  echo "Usage: $0 <tenant-id> [region]"
   exit 1
 fi
 
-CLUSTER_NAME="${CLUSTER_NAME:-${DEVELOPER_SIGNUM}-eks-dx-${ARCH}}"
+CLUSTER_NAME="${CLUSTER_NAME:-${TENANT_ID}-eks-dx-${ARCH}}"
 ARCH="${3:-arm64}"
 # NODE_VARIANT controls which EKS-optimized AMI family to use.
 # Supported values:
@@ -27,7 +27,7 @@ ARCH="${3:-arm64}"
 NODE_VARIANT="${4:-al2023}"
 OUTPUT_DIR="/opt/eks-d/karpenter_runtime_configuration"
 
-echo "Discovering Karpenter configuration for $DEVELOPER_SIGNUM (cluster: $CLUSTER_NAME)..."
+echo "Discovering Karpenter configuration for $TENANT_ID (cluster: $CLUSTER_NAME)..."
 
 K8S_MINOR=$(kubectl version --output=json 2>/dev/null | python3 -c "import sys,json; v=json.load(sys.stdin)['serverVersion']['minor']; print(v.rstrip('+'))")
 
@@ -56,14 +56,14 @@ echo "  EKS-Optimized AMI : $AMI_ID (k8s 1.${K8S_MINOR} ${ARCH})"
 
 # Discover AWS resources
 # Instance profile follows the same naming convention as the role
-INSTANCE_PROFILE="${DEVELOPER_SIGNUM}-eks-dx-${ARCH}"
+INSTANCE_PROFILE="${TENANT_ID}-eks-dx-${ARCH}"
 
 SUBNET_ID=$(aws ec2 describe-subnets \
-  --filters "Name=tag:Developer,Values=${DEVELOPER_SIGNUM}" "Name=tag:SubnetType,Values=Private" \
+  --filters "Name=tag:Developer,Values=${TENANT_ID}" "Name=tag:SubnetType,Values=Private" \
   --query 'Subnets[0].SubnetId' --output text --region "$REGION")
 
 SECURITY_GROUP_ID=$(aws ec2 describe-security-groups \
-  --filters "Name=group-name,Values=${DEVELOPER_SIGNUM}-eks-dx-${ARCH}" \
+  --filters "Name=group-name,Values=${TENANT_ID}-eks-dx-${ARCH}" \
   --query 'SecurityGroups[0].GroupId' --output text --region "$REGION")
 
 # Discover cluster details
@@ -91,7 +91,7 @@ sudo mkdir -p "$OUTPUT_DIR"
 
 helm template eks-d-karpenter "${SCRIPT_DIR}/chart" \
   --set clusterName="$CLUSTER_NAME" \
-  --set developerSignum="$DEVELOPER_SIGNUM" \
+  --set tenantId="$TENANT_ID" \
   --set awsRegion="$REGION" \
   --set amiId="$AMI_ID" \
   --set nodeVariant="$NODE_VARIANT" \
