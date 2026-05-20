@@ -205,5 +205,10 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 rm -f /tmp/eks-d-release.yaml /tmp/kubeadm /tmp/kubelet /tmp/kubectl /tmp/kubeadm-config.yaml
 
 echo "✓ EKS-D installed"
-kubectl version
+
+# Copy admin.conf for root so all subsequent scripts can use kubectl without --kubeconfig
+mkdir -p /root/.kube
+cp /etc/kubernetes/admin.conf /root/.kube/config
+
+kubectl version --client
 kubectl get nodes
