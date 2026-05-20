@@ -123,6 +123,10 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_ssm_parameter" "control_plane_ami" {
+  name = "/eks-dx/ami/${var.aws_region}/${var.kubernetes_version}/${local.ami_arch}"
+}
+
 resource "aws_iam_role" "workstation" {
   name = "${var.tenant_id}-eks-dx-${var.arch}"
 
@@ -484,6 +488,7 @@ data "aws_launch_template" "control_plane" {
 resource "aws_instance" "workstation" {
   subnet_id              = aws_subnet.public.id
   key_name               = var.key_pair_name != "" ? var.key_pair_name : null
+  ami                    = data.aws_ssm_parameter.control_plane_ami.value
   iam_instance_profile   = aws_iam_instance_profile.workstation.name
   vpc_security_group_ids = [aws_security_group.workstation.id]
 

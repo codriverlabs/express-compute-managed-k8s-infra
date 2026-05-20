@@ -235,8 +235,7 @@ resource "aws_launch_template" "control_plane" {
   name        = "${var.project_name}-${each.key}"
   description = "EKS-DX control plane — ${each.key}"
 
-  # AMI resolved at launch time from SSM — automatically picks up new AMI builds
-  image_id      = "resolve:ssm:/eks-dx/ami/${var.aws_region}/${var.eks_version}/${each.value.arch}"
+  # AMI resolved at launch time by the tenant (passed as override) — no image_id here
   instance_type = each.value.arch == "arm64" ? var.instance_type_arm64 : var.instance_type_x86_64
 
   metadata_options {
