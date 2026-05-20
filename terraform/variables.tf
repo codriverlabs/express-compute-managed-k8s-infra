@@ -67,7 +67,7 @@ variable "subnet_index" {
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
-  default     = "eks-d"
+  default     = "eks-dx"
 }
 
 variable "assign_elastic_ip" {
