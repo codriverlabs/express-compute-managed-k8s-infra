@@ -14,20 +14,11 @@ spec:
       labels:
         app: test-spot-workload
     spec:
-      # Tolerate spot instance taint
-      tolerations:
-        - key: spot-instance
-          operator: Equal
-          value: "true"
-          effect: NoSchedule
-      
-      # Prefer spot nodes
       nodeSelector:
-        node-type: "spot"
-      
+        karpenter.sh/capacity-type: spot
       containers:
       - name: nginx
-        image: nginx:1.21
+        image: public.ecr.aws/docker/library/nginx:latest
         ports:
         - containerPort: 80
         resources:
@@ -55,13 +46,11 @@ spec:
       labels:
         app: test-ondemand-workload
     spec:
-      # Prefer on-demand nodes
       nodeSelector:
-        node-type: "ondemand"
-      
+        karpenter.sh/capacity-type: on-demand
       containers:
       - name: nginx
-        image: nginx:1.21
+        image: public.ecr.aws/docker/library/nginx:latest
         ports:
         - containerPort: 80
         resources:
@@ -73,7 +62,6 @@ spec:
             memory: 256Mi
 
 ---
-# Service to expose the workloads
 apiVersion: v1
 kind: Service
 metadata:

@@ -19,6 +19,11 @@ echo "=========================================="
 # Check if installation already completed
 if [ -f /opt/eks-d/.installation_complete ]; then
   echo "✓ EKS-DX installation already completed, skipping"
+  # kubeadm re-applies the control-plane taint on every node restart;
+  # remove it so EBS CSI and Karpenter can schedule on the control-plane node.
+  echo "Removing control-plane taint (re-applied by kubeadm on reboot)..."
+  kubectl taint nodes --all node-role.kubernetes.io/control-plane- 2>/dev/null || true
+  echo "✓ Control-plane taint removed"
   exit 0
 fi
 
