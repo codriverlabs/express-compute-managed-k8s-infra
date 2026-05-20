@@ -79,25 +79,33 @@ echo "Cluster:   ${CLUSTER_NAME}"
 echo "=========================================="
 echo ""
 
-# Step 1: Base system
-echo "Step 1/14: Installing base system..."
-bash "${SCRIPT_DIR}/01-install-base.sh"
+# AMI_PATH=1 skips steps 1-5 (binaries/config already baked into AMI)
+AMI_PATH="${AMI_PATH:-0}"
 
-# Step 2: containerd
-echo "Step 2/14: Installing containerd..."
-bash "${SCRIPT_DIR}/02-install-docker.sh"
+if [ "$AMI_PATH" != "1" ]; then
+  # Step 1: Base system
+  echo "Step 1/14: Installing base system..."
+  bash "${SCRIPT_DIR}/01-install-base.sh"
 
-# Step 3: Configure containerd (must run after containerd is installed)
-echo "Step 3/14: Configuring containerd..."
-bash "${SCRIPT_DIR}/00-configure-containerd.sh"
+  # Step 2: containerd
+  echo "Step 2/14: Installing containerd..."
+  bash "${SCRIPT_DIR}/02-install-docker.sh"
 
-# Step 4: Helm
-echo "Step 4/14: Installing Helm..."
-bash "${SCRIPT_DIR}/04-install-helm.sh"
+  # Step 3: Configure containerd (must run after containerd is installed)
+  echo "Step 3/14: Configuring containerd..."
+  bash "${SCRIPT_DIR}/00-configure-containerd.sh"
 
-# Step 5: etcd volume
-echo "Step 5/14: Preparing etcd volume..."
-bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
+  # Step 4: Helm
+  echo "Step 4/14: Installing Helm..."
+  bash "${SCRIPT_DIR}/04-install-helm.sh"
+
+  # Step 5: etcd volume
+  echo "Step 5/14: Preparing etcd volume..."
+  bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
+else
+  echo "AMI path — skipping steps 1-4 (pre-baked); running etcd volume setup..."
+  bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
+fi
 
 # Step 6: aws-iam-authenticator (must run before kubeadm init)
 echo "Step 6/14: Configuring aws-iam-authenticator..."
