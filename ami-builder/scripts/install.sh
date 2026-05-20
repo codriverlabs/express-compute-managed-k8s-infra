@@ -178,7 +178,7 @@ echo "==> Extracting and pulling images from EBS CSI chart..."
 EBS_CSI_CHART=$(ls /opt/eks-d/charts/aws-ebs-csi-driver-*.tgz 2>/dev/null | head -1)
 if [ -n "$EBS_CSI_CHART" ]; then
   helm template aws-ebs-csi-driver "$EBS_CSI_CHART" 2>/dev/null | \
-    grep -oP 'image:\s*\K[^\s]+' | sort -u | while read img; do
+    grep -oP 'image:\s*\K[^\s]+' | grep -Ev 'windows|nvidia|neuron|dcgm-exporter|kubekins-e2e|e2e-test' | sort -u | while read img; do
       cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
       echo "  Pulling: $cache_img"
       sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
