@@ -109,6 +109,12 @@ resource "aws_route" "private_nat" {
 }
 
 # VPC Flow Logs
+# Import existing log group if it already exists (survives destroy due to retained logs)
+import {
+  to = aws_cloudwatch_log_group.flow_logs
+  id = "/aws/vpc/${var.aws_region}/${var.project_name}-flow-logs"
+}
+
 resource "aws_cloudwatch_log_group" "flow_logs" {
   name              = "/aws/vpc/${var.aws_region}/${var.project_name}-flow-logs"
   retention_in_days = 7
