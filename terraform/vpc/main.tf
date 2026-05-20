@@ -209,7 +209,98 @@ resource "aws_vpc_endpoint" "s3" {
   ]
 
   tags = {
-    Name    = "${var.project_name}-s3-endpoint"
-    Project = var.project_name
+    Name     = "${var.project_name}-s3-endpoint"
+    Project  = var.project_name
+    Platform = "eks-d-xpress"
+  }
+}
+
+# ── Shared Launch Templates ───────────────────────────────────────────────────
+# One spot (hibernation) + one on-demand per arch.
+# AMI resolved at launch time from SSM — no update needed when AMI is rebuilt.
+# Tenant-specific overrides at launch: IamInstanceProfile, SecurityGroupIds, UserData.
+
+locals {
+  lt_configs = {
+    spot-arm64    = { arch = "arm64",  spot = true }
+    ondemand-arm64  = { arch = "arm64",  spot = false }
+    spot-x86_64   = { arch = "x86_64", spot = true }
+    ondemand-x86_64 = { arch = "x86_64", spot = false }
+  }
+}
+
+resource "aws_launch_template" "control_plane" {
+  for_each = local.lt_configs
+
+  name        = "${var.project_name}-${each.key}"
+  description = "EKS-DX control plane — ${each.key}"
+
+  # AMI resolved at launch time from SSM — automatically picks up new AMI builds
+  image_id      = "resolve:ssm:/eks-dx/ami/${var.aws_region}/${var.eks_version}/${each.value.arch}"
+  instance_type = each.value.arch == "arm64" ? var.instance_type_arm64 : var.instance_type_x86_64
+
+  metadata_options {
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
+  # Root volume — encrypted for hibernation support
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_type           = "gp3"
+      volume_size           = var.disk_size_gb
+      delete_on_termination = true
+      encrypted             = true
+    }
+  }
+
+  # etcd volume
+  block_device_mappings {
+    device_name = "/dev/sdf"
+    ebs {
+      volume_type           = "gp3"
+      volume_size           = 20
+      delete_on_termination = true
+      encrypted             = true
+    }
+  }
+
+  dynamic "instance_market_options" {
+    for_each = each.value.spot ? [1] : []
+    content {
+      market_type = "spot"
+      spot_options { instance_interruption_behavior = "hibernate" }
+    }
+  }
+
+  dynamic "hibernation_options" {
+    for_each = each.value.spot ? [1] : []
+    content { configured = true }
+  }
+
+  tags = {
+    Name     = "${var.project_name}-${each.key}"
+    Platform = "eks-d-xpress"
+    Arch     = each.value.arch
+    Mode     = each.value.spot ? "spot" : "on-demand"
+    ManagedBy = "Terraform"
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Platform  = "eks-d-xpress"
+      Arch      = each.value.arch
+      ManagedBy = "Karpenter"
+    }
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = {
+      Platform  = "eks-d-xpress"
+      ManagedBy = "Terraform"
+    }
   }
 }

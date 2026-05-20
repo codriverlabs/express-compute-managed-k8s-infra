@@ -123,10 +123,6 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-data "aws_ssm_parameter" "workstation_ami" {
-  name = "/eks-dx/ami/${var.aws_region}/${var.kubernetes_version}/${local.ami_arch}"
-}
-
 resource "aws_iam_role" "workstation" {
   name = "${var.tenant_id}-eks-dx-${var.arch}"
 
@@ -477,22 +473,18 @@ resource "aws_cloudwatch_event_target" "instance_rebalance" {
 }
 
 locals {
-  lt_modes = {
-    on_demand = { spot = false, hibernate = false }
-    spot      = { spot = true, hibernate = true }
-  }
+  lt_mode_key = var.workstation_mode == "spot" ? "spot-${local.ami_arch}" : "ondemand-${local.ami_arch}"
 }
 
-resource "aws_launch_template" "workstation" {
-  for_each = local.lt_modes
+# Look up the shared launch template created by provision-shared-infra.sh
+data "aws_launch_template" "control_plane" {
+  name = "${var.project_name}-${local.lt_mode_key}"
+}
 
-  name          = "${local.workstation_name}-${each.key}"
-  image_id      = data.aws_ssm_parameter.workstation_ami.value
-  instance_type = var.instance_type
-  key_name      = var.key_pair_name != "" ? var.key_pair_name : null
-
-  iam_instance_profile { name = aws_iam_instance_profile.workstation.name }
-
+resource "aws_instance" "workstation" {
+  subnet_id              = aws_subnet.public.id
+  key_name               = var.key_pair_name != "" ? var.key_pair_name : null
+  iam_instance_profile   = aws_iam_instance_profile.workstation.name
   vpc_security_group_ids = [aws_security_group.workstation.id]
 
   user_data = base64encode(<<-EOF
@@ -505,69 +497,8 @@ resource "aws_launch_template" "workstation" {
     EOF
   )
 
-  # Root volume — must be encrypted for hibernation
-  block_device_mappings {
-    device_name = "/dev/xvda"
-    ebs {
-      volume_type           = "gp3"
-      volume_size           = var.disk_size_gb
-      delete_on_termination = true
-      encrypted             = each.value.hibernate
-    }
-  }
-
-  # etcd volume
-  block_device_mappings {
-    device_name = "/dev/sdf"
-    ebs {
-      volume_type           = "gp3"
-      volume_size           = 20
-      delete_on_termination = true
-      encrypted             = each.value.hibernate
-    }
-  }
-
-  metadata_options {
-    http_tokens                 = "required"
-    http_put_response_hop_limit = 2
-  }
-
-  dynamic "instance_market_options" {
-    for_each = each.value.spot ? [1] : []
-    content {
-      market_type = "spot"
-      spot_options { instance_interruption_behavior = "hibernate" }
-    }
-  }
-
-  dynamic "hibernation_options" {
-    for_each = each.value.hibernate ? [1] : []
-    content { configured = true }
-  }
-
-  tag_specifications {
-    resource_type = "instance"
-    tags = merge(local.common_tags, {
-      Name                                              = local.workstation_name
-      WorkstationMode                                   = each.key
-      "kubernetes.io/cluster/${local.workstation_name}" = "owned"
-      "ebs.csi.aws.com/cluster-name"                    = local.workstation_name
-    })
-  }
-
-  tag_specifications {
-    resource_type = "volume"
-    tags          = merge(local.common_tags, { Name = "${local.workstation_name}-vol" })
-  }
-
-  tags = merge(local.common_tags, { Name = "${local.workstation_name}-${each.key}" })
-}
-
-resource "aws_instance" "workstation" {
-  subnet_id = aws_subnet.public.id
-
   launch_template {
-    id      = aws_launch_template.workstation[var.workstation_mode].id
+    id      = data.aws_launch_template.control_plane.id
     version = "$Latest"
   }
 

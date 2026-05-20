@@ -32,3 +32,13 @@ output "flow_log_group_name" {
   description = "VPC Flow Logs CloudWatch Log Group"
   value       = aws_cloudwatch_log_group.flow_logs.name
 }
+
+output "launch_template_ids" {
+  description = "Shared control plane launch template IDs keyed by mode-arch"
+  value       = { for k, lt in aws_launch_template.control_plane : k => lt.id }
+}
+
+output "launch_template_names" {
+  description = "Shared control plane launch template names keyed by mode-arch"
+  value       = { for k, lt in aws_launch_template.control_plane : k => lt.name }
+}
