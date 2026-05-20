@@ -44,6 +44,11 @@ else
 fi
 
 echo "Waiting for CNI pods to be ready..."
+# Wait for pod to be created first (apply is async, pod may not exist yet)
+for i in $(seq 1 30); do
+  kubectl get pod -l k8s-app=aws-node -n kube-system 2>/dev/null | grep -q aws-node && break
+  sleep 2
+done
 kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=300s
 
 # EXTERNALSNAT=false (default): SNAT pod traffic to the node's primary IP for
