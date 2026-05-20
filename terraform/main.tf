@@ -1,6 +1,8 @@
 locals {
   ami_arch         = var.arch == "arm64" ? "arm64" : "x86_64"
-  workstation_name = var.workstation_name != "" ? var.workstation_name : "eks-dx-${var.developer_username}"
+  workstation_name = var.workstation_name != "" ? var.workstation_name : "${var.developer_username}-eks-dx-${var.arch}"
+  # Cluster name matches workstation name (includes arch so arm64/x86_64 workstations don't collide)
+  cluster_name     = local.workstation_name
   allowed_cidrs    = var.allowed_cidr_blocks
 
   # Auto-discover VPC by tag

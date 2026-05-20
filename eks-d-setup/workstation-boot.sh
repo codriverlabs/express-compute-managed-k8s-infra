@@ -28,13 +28,22 @@ if [ -f /opt/eks-d/.installation_complete ]; then
 fi
 
 # Ensure we have the required environment
-if [ ! -f /opt/eks-d/cluster.env ]; then
-  echo "Error: /opt/eks-d/cluster.env not found"
-  echo "This file should be created by terraform user data"
+DEVELOPER_SIGNUM="${1:-}"
+CLUSTER_NAME="${2:-}"
+
+# Fall back to cluster.env if args not provided (manual invocation)
+if [ -f /opt/eks-d/cluster.env ]; then
+  source /opt/eks-d/cluster.env
+fi
+# Args take precedence over cluster.env (Terraform user data path)
+[ -n "${1:-}" ] && DEVELOPER_SIGNUM="$1"
+[ -n "${2:-}" ] && CLUSTER_NAME="$2"
+
+if [ -z "${DEVELOPER_SIGNUM}" ] || [ -z "${CLUSTER_NAME}" ]; then
+  echo "Error: DEVELOPER_SIGNUM and CLUSTER_NAME are required (pass as args or set in /opt/eks-d/cluster.env)"
   exit 1
 fi
 
-source /opt/eks-d/cluster.env
 echo "Developer: ${DEVELOPER_SIGNUM}"
 echo "Cluster: ${CLUSTER_NAME}"
 
@@ -48,7 +57,7 @@ fi
 # Run the complete installation
 echo "Starting EKS-D installation..."
 cd /opt/eks-d-setup
-./install-all.sh "${DEVELOPER_SIGNUM}" 2>&1 | tee /var/log/eks-dx-install-all.log
+./install-all.sh "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}" 2>&1 | tee /var/log/eks-dx-install-all.log
 
 # Copy kubeconfig for the login user (cloud-init runs as root; ec2-user needs access too)
 LOGIN_USER="ec2-user"

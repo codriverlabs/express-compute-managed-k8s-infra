@@ -2,7 +2,9 @@
 set -e
 
 DEVELOPER_SIGNUM="${1}"
-CLUSTER_NAME="${2:-${DEVELOPER_SIGNUM}-eks-dx}"
+# Default cluster name includes arch so arm64/x86_64 workstations don't collide
+_ARCH="$(uname -m | sed 's/x86_64/x86_64/;s/aarch64/arm64/')"
+CLUSTER_NAME="${2:-${DEVELOPER_SIGNUM}-eks-dx-${_ARCH}}"
 
 if [ -z "$DEVELOPER_SIGNUM" ]; then
   echo "Usage: $0 <developer-signum> [cluster-name]"
