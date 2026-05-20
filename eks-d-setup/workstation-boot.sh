@@ -5,7 +5,7 @@
 # It runs automatically via cloud-init user data and performs idempotent
 # installation of EKS-D and all required components.
 
-set -eo pipefailo pipefail
+set -eo pipefail
 
 # Logging setup
 BOOT_LOG="/var/log/eks-dx-boot.log"
