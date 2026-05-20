@@ -22,7 +22,7 @@ fi
 # Wait for kube-proxy to be ready so ClusterIP routing (10.96.0.1) is functional
 # before the CloudWatch operator starts — otherwise it can't reach the API server
 echo "Waiting for kube-proxy to be ready..."
-kubectl wait --for=condition=ready pod -l k8s-app=kube-proxy -n kube-system --timeout=120s
+kubectl wait --for=condition=ready pod -l k8s-app=kube-proxy -n kube-system --timeout=30s
 
 echo "Installing CloudWatch Observability agent..."
 
