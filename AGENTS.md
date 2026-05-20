@@ -45,14 +45,12 @@ ecp-eks-dx-infra/
 | Deploy workstation | `./deploy.sh` |
 | Destroy workstation | `./destroy.sh` |
 | Deploy shared VPC | `./deploy-vpc.sh [region]` |
-| Install EKS-D (non-AMI) | `./eks-d-setup/install-all.sh <signum>` (on EC2) |
+| Setup EKS-D cluster (boot) | `./eks-d-setup/setup-eks-d.sh <signum>` (on EC2, AMI path) |
 | Configure NodePool | `./node-pools/configure-nodepools.sh <signum> [region]` (on EC2) |
 
 ## Deployment Paths
 
-**AMI path (recommended):** `build.sh` → `deploy.sh` → EC2 boots → `workstation-boot.sh` runs automatically → cluster ready in ~5 min.
-
-**Fresh install path:** `deploy.sh` → SSH to EC2 → `eks-d-setup/install-all.sh <signum>` → ~30 min.
+**AMI path (only supported path):** `build.sh` → `deploy.sh` → EC2 boots → `workstation-boot.sh` runs automatically → `setup-eks-d.sh` → cluster ready in ~3 min.
 
 ## Repo-Specific Patterns
 
