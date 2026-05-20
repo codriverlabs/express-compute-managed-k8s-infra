@@ -39,7 +39,7 @@ ecp-eks-dx-infra/
 1. **Deploy Shared VPC**: 
    ```bash
    cd infrastructure
-   ./deploy-vpc.sh us-east-1
+   ./provision-vpc.sh us-east-1
    ```
 
 2. **Deploy Developer Stack**: 

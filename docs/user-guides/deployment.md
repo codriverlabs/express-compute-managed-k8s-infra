@@ -16,7 +16,7 @@ The VPC provides networking for all developer environments.
 
 ```bash
 cd infrastructure
-./deploy-vpc.sh us-east-1
+./provision-vpc.sh us-east-1
 ```
 
 This creates:
