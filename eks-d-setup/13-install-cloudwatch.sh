@@ -19,6 +19,11 @@ if [ -z "$CLUSTER_NAME" ] || [ -z "$AWS_REGION" ]; then
   echo "ERROR: CLUSTER_NAME and AWS_REGION must be set" >&2; exit 1
 fi
 
+# Wait for kube-proxy to be ready so ClusterIP routing (10.96.0.1) is functional
+# before the CloudWatch operator starts — otherwise it can't reach the API server
+echo "Waiting for kube-proxy to be ready..."
+kubectl wait --for=condition=ready pod -l k8s-app=kube-proxy -n kube-system --timeout=120s
+
 echo "Installing CloudWatch Observability agent..."
 
 CHART=$(ls /opt/eks-d/charts/amazon-cloudwatch-observability-*.tgz 2>/dev/null | head -1)
