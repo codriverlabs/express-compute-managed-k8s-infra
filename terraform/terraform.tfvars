@@ -9,4 +9,3 @@ allowed_cidr_blocks = ["18.204.187.252/32"]
 assign_elastic_ip   = false
 kubernetes_version  = "1.35"
 workstation_mode    = "on_demand"
-project_name        = "eks-dx"

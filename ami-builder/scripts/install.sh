@@ -60,20 +60,20 @@ K8S_REGISTRY_CACHE="${ECR_REGISTRY}/registry-k8s-io"
 echo "    ✓ ECR registry: ${ECR_REGISTRY}"
 
 echo "==> Installing base system..."
-bash "${EKS_D_SETUP_DIR}/01-install-base.sh"
+bash "${SCRIPT_DIR}/01-install-base.sh"
 
 echo "==> Installing Docker..."
-bash "${EKS_D_SETUP_DIR}/02-install-docker.sh"
+bash "${SCRIPT_DIR}/02-install-docker.sh"
 
 echo "==> Installing Helm..."
-bash "${EKS_D_SETUP_DIR}/04-install-helm.sh"
+bash "${SCRIPT_DIR}/04-install-helm.sh"
 
 echo "==> Installing EKS-D binaries..."
 bash "${EKS_D_SETUP_DIR}/06-install-eks-d.sh"
 
 # Configure containerd with EKS-D pause image (release manifest already downloaded by 06)
 echo "==> Configuring containerd..."
-bash "${EKS_D_SETUP_DIR}/00-configure-containerd.sh"
+bash "${SCRIPT_DIR}/00-configure-containerd.sh"
 
 # Authenticate with ECR now that containerd and helm are installed
 echo "==> Authenticating with ECR pull-through cache..."

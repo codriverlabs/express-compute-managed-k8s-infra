@@ -85,71 +85,20 @@ AMI_PATH="${AMI_PATH:-0}"
 if [ "$AMI_PATH" != "1" ]; then
   # Step 1: Base system
   echo "Step 1/14: Installing base system..."
-  bash "${SCRIPT_DIR}/01-install-base.sh"
+  bash "${SCRIPT_DIR}/../ami-builder/scripts/01-install-base.sh"
 
   # Step 2: containerd
   echo "Step 2/14: Installing containerd..."
-  bash "${SCRIPT_DIR}/02-install-docker.sh"
+  bash "${SCRIPT_DIR}/../ami-builder/scripts/02-install-docker.sh"
 
   # Step 3: Configure containerd (must run after containerd is installed)
   echo "Step 3/14: Configuring containerd..."
-  bash "${SCRIPT_DIR}/00-configure-containerd.sh"
+  bash "${SCRIPT_DIR}/../ami-builder/scripts/00-configure-containerd.sh"
 
   # Step 4: Helm
   echo "Step 4/14: Installing Helm..."
-  bash "${SCRIPT_DIR}/04-install-helm.sh"
-
-  # Step 5: etcd volume
-  echo "Step 5/14: Preparing etcd volume..."
-  bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
-else
-  echo "AMI path — skipping steps 1-4 (pre-baked); running etcd volume setup..."
-  bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
+  bash "${SCRIPT_DIR}/../ami-builder/scripts/04-install-helm.sh"
 fi
 
-# Step 6: aws-iam-authenticator (must run before kubeadm init)
-echo "Step 6/14: Configuring aws-iam-authenticator..."
-bash "${SCRIPT_DIR}/05b-install-aws-iam-authenticator.sh"
-
-# Step 7: EKS-D (kubeadm init with EKS-D images + cloud-provider:external)
-# Note: also installs the EKS-D kubectl binary
-echo "Step 7/14: Installing EKS-D..."
-bash "${SCRIPT_DIR}/06-install-eks-d.sh"
-
-# Step 8: AWS VPC CNI
-echo "Step 8/14: Installing AWS VPC CNI..."
-bash "${SCRIPT_DIR}/07-install-cni.sh"
-
-# Step 9: AWS Cloud Controller Manager (sets node ProviderID, required by Karpenter)
-echo "Step 9/14: Installing AWS Cloud Provider..."
-bash "${SCRIPT_DIR}/08-install-cloud-provider.sh"
-
-# Step 10: Untaint control plane
-echo "Step 10/14: Configuring control plane..."
-bash "${SCRIPT_DIR}/09-configure-node.sh"
-
-# Step 11: EBS CSI Driver
-echo "Step 11/14: Installing EBS CSI Driver..."
-bash "${SCRIPT_DIR}/10-install-ebs-csi.sh"
-
-# Step 12: Metrics Server
-echo "Step 12/14: Installing Metrics Server..."
-bash "${SCRIPT_DIR}/12-install-metrics-server.sh"
-
-# Step 13: Karpenter
-echo "Step 13/14: Installing Karpenter..."
-bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}" 2>&1 | tee /tmp/11-install-karpenter.log
-
-# Step 14: CloudWatch agent
-echo "Step 14/14: Installing CloudWatch agent..."
-CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh" 2>&1 | tee /tmp/13-install-cloudwatch.log
-
-echo ""
-echo "=========================================="
-echo "✓ Installation Complete!"
-echo "=========================================="
-echo ""
-echo "Next steps:"
-echo "1. Verify cluster: kubectl get nodes"
-echo "2. Check Karpenter: kubectl get pods -n karpenter"
-echo "3. Deploy NodePool: cd ../node-pools && ./configure-nodepools.sh ${DEVELOPER_SIGNUM}"
+# Steps 5-14: boot-time cluster setup (shared with AMI path)
+exec bash "${SCRIPT_DIR}/setup-eks-d.sh" "${DEVELOPER_SIGNUM}" "${CLUSTER_NAME}"
