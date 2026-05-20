@@ -58,7 +58,18 @@ source "amazon-ebs" "x86_64" {
     delete_on_termination = true
   }
 
-  run_tags = { Name = "eks-dx-builder-x86_64" }
+  run_tags = {
+    Name     = "eks-dx-builder-x86_64"
+    Platform = "eks-d-xpress"
+    ManagedBy = "Packer"
+  }
+
+  tags = {
+    Name              = "eks-dx-x86_64-${var.ami_version}"
+    Platform          = "eks-d-xpress"
+    KubernetesVersion = var.kubernetes_version
+    ManagedBy         = "Packer"
+  }
 
   temporary_iam_instance_profile_policy_document {
     Version = "2012-10-17"
@@ -117,7 +128,18 @@ source "amazon-ebs" "arm64" {
     delete_on_termination = true
   }
 
-  run_tags = { Name = "eks-dx-builder-arm64" }
+  run_tags = {
+    Name      = "eks-dx-builder-arm64"
+    Platform  = "eks-d-xpress"
+    ManagedBy = "Packer"
+  }
+
+  tags = {
+    Name              = "eks-dx-arm64-${var.ami_version}"
+    Platform          = "eks-d-xpress"
+    KubernetesVersion = var.kubernetes_version
+    ManagedBy         = "Packer"
+  }
 
   temporary_iam_instance_profile_policy_document {
     Version = "2012-10-17"

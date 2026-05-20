@@ -59,7 +59,7 @@ ecp-eks-dx-infra/
 ### Naming Conventions
 - Workstation name: `<sanitised-username>-eks-dx-<arch>` (e.g., `alice-eks-dx-arm64`)
 - Cluster name: `<signum>-eks-dx`
-- IAM role + instance profile: `eks-dx-workstation-<username>` (shared by control plane and worker nodes)
+- IAM role + instance profile: `<username>-eks-dx-<arch>` (shared by control plane and worker nodes)
 - SQS queue: same as cluster name (Karpenter interruption)
 - Terraform state bucket: `eks-dx-tfstate-<account-id>-<region>` (auto-derived, no config needed)
 - Terraform state key: `eks-dx/<workstation-name>/terraform.tfstate`
@@ -85,7 +85,7 @@ Scripts source `/opt/eks-d/cluster.env` for `DEVELOPER_SIGNUM` and `CLUSTER_NAME
 `07-install-cni.sh` disables `ec2-net-utils` policy-routes before installing AWS VPC CNI. On AL2023, `ec2-net-utils` adds secondary ENI IPs to the local routing table and creates per-ENI ip rules that conflict with VPC CNI pod routing (symptom: CoreDNS timeouts, cross-node pod connectivity failures).
 
 ### Worker Node Authentication
-Control plane and worker nodes share the same IAM role (`eks-dx-workstation-<username>`). `aws-iam-authenticator` (static pod) maps that role to `system:node:{{EC2PrivateDNSName}}` in `system:nodes` — no separate worker node role or `aws-auth` ConfigMap needed.
+Control plane and worker nodes share the same IAM role (`<username>-eks-dx-<arch>`). `aws-iam-authenticator` (static pod) maps that role to `system:node:{{EC2PrivateDNSName}}` in `system:nodes` — no separate worker node role or `aws-auth` ConfigMap needed.
 
 ### NodePool Configuration
 Do **not** apply `spot-nodepool.yaml` or `ondemand-nodepool.yaml` directly — they use the deprecated `v1beta1` API. Always use `configure-nodepools.sh` which discovers runtime values (AMI ID, subnet, SG, CA bundle) and renders the Helm chart in `node-pools/chart/`.

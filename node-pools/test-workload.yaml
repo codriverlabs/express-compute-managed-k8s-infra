@@ -30,38 +30,6 @@ spec:
             memory: 256Mi
 
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: test-ondemand-workload
-  labels:
-    app: test-ondemand-workload
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: test-ondemand-workload
-  template:
-    metadata:
-      labels:
-        app: test-ondemand-workload
-    spec:
-      nodeSelector:
-        karpenter.sh/capacity-type: on-demand
-      containers:
-      - name: nginx
-        image: public.ecr.aws/docker/library/nginx:latest
-        ports:
-        - containerPort: 80
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 200m
-            memory: 256Mi
-
----
 apiVersion: v1
 kind: Service
 metadata:

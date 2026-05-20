@@ -44,7 +44,7 @@ if [ -z "$AWS_REGION" ] || [ "$AWS_REGION" = "None" ]; then
 fi
 
 # Derive other common variables
-NODE_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/eks-dx-workstation-${DEVELOPER_SIGNUM}"
+NODE_ROLE_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:role/${DEVELOPER_SIGNUM}-eks-dx-${_ARCH}"
 CLUSTER_ENDPOINT="https://$(hostname -I | awk '{print $1}'):6443"
 
 # Create comprehensive environment file

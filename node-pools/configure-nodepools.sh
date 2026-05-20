@@ -14,7 +14,7 @@ if [ -z "$DEVELOPER_SIGNUM" ]; then
   exit 1
 fi
 
-CLUSTER_NAME="${CLUSTER_NAME:-${DEVELOPER_SIGNUM}-eks-dx}"
+CLUSTER_NAME="${CLUSTER_NAME:-${DEVELOPER_SIGNUM}-eks-dx-${ARCH}}"
 ARCH="${3:-arm64}"
 # NODE_VARIANT controls which EKS-optimized AMI family to use.
 # Supported values:
@@ -56,14 +56,14 @@ echo "  EKS-Optimized AMI : $AMI_ID (k8s 1.${K8S_MINOR} ${ARCH})"
 
 # Discover AWS resources
 # Instance profile follows the same naming convention as the role
-INSTANCE_PROFILE="eks-dx-workstation-${DEVELOPER_SIGNUM}"
+INSTANCE_PROFILE="${DEVELOPER_SIGNUM}-eks-dx-${ARCH}"
 
 SUBNET_ID=$(aws ec2 describe-subnets \
   --filters "Name=tag:Developer,Values=${DEVELOPER_SIGNUM}" "Name=tag:SubnetType,Values=Private" \
   --query 'Subnets[0].SubnetId' --output text --region "$REGION")
 
 SECURITY_GROUP_ID=$(aws ec2 describe-security-groups \
-  --filters "Name=group-name,Values=eks-dx-workstation-${DEVELOPER_SIGNUM}" \
+  --filters "Name=group-name,Values=${DEVELOPER_SIGNUM}-eks-dx-${ARCH}" \
   --query 'SecurityGroups[0].GroupId' --output text --region "$REGION")
 
 # Discover cluster details

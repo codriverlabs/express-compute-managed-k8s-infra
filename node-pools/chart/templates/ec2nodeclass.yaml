@@ -67,5 +67,6 @@ spec:
         deleteOnTermination: true
 
   tags:
+    Platform: eks-d-xpress
     Developer: {{ .Values.developerSignum | quote }}
     ManagedBy: Karpenter

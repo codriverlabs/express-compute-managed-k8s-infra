@@ -66,6 +66,17 @@ packer build \
   -var "ami_version=${AMI_VERSION}" \
   "${AMI_BUILDER_DIR}/eks-dx.pkr.hcl"
 
+# Clean up stale Packer security groups (left behind on interrupted builds)
+echo "==> Cleaning up stale Packer security groups..."
+aws ec2 describe-security-groups --region "${AWS_REGION}" \
+  --filters "Name=group-name,Values=packer_*" \
+  --query 'SecurityGroups[].GroupId' --output text \
+| tr '\t' '\n' | while read -r sg; do
+  [ -z "$sg" ] && continue
+  echo "    Deleting stale SG: $sg"
+  aws ec2 delete-security-group --group-id "$sg" --region "${AWS_REGION}" 2>/dev/null || true
+done
+
 echo ""
 echo "╔══════════════════════════════════════════════╗"
 echo "║   AMI build complete                         ║"

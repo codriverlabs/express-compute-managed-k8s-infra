@@ -2,8 +2,15 @@ locals {
   ami_arch         = var.arch == "arm64" ? "arm64" : "x86_64"
   workstation_name = var.workstation_name != "" ? var.workstation_name : "${var.developer_username}-eks-dx-${var.arch}"
   # Cluster name matches workstation name (includes arch so arm64/x86_64 workstations don't collide)
-  cluster_name     = local.workstation_name
-  allowed_cidrs    = var.allowed_cidr_blocks
+  cluster_name  = local.workstation_name
+  allowed_cidrs = var.allowed_cidr_blocks
+
+  common_tags = {
+    Platform  = "eks-d-xpress"
+    Developer = var.developer_username
+    Arch      = var.arch
+    ManagedBy = "Terraform"
+  }
 
   # Auto-discover VPC by tag
   vpc_filter = var.vpc_id != "" ? var.vpc_id : data.aws_vpc.shared[0].id
@@ -79,15 +86,13 @@ resource "aws_subnet" "public" {
   availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = true
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name                                              = "${var.developer_username}-public-subnet"
-    Developer                                         = var.developer_username
     SubnetIndex                                       = tostring(local.subnet_index)
     "kubernetes.io/cluster/${local.workstation_name}" = "owned"
     "kubernetes.io/role/elb"                          = "1"
-    ManagedBy                                         = "Terraform"
     SubnetType                                        = "Public"
-  }
+  })
 }
 
 resource "aws_route_table_association" "public" {
@@ -101,14 +106,12 @@ resource "aws_subnet" "private" {
   cidr_block        = local.private_subnet_cidr
   availability_zone = data.aws_availability_zones.available.names[0]
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name                                              = "${var.developer_username}-private-subnet"
-    Developer                                         = var.developer_username
     "kubernetes.io/cluster/${local.workstation_name}" = "owned"
     "kubernetes.io/role/internal-elb"                 = "1"
-    ManagedBy                                         = "Terraform"
     SubnetType                                        = "Private"
-  }
+  })
 }
 
 resource "aws_route_table_association" "private" {
@@ -124,14 +127,8 @@ data "aws_ssm_parameter" "workstation_ami" {
   name = "/eks-dx/ami/${var.aws_region}/${var.kubernetes_version}/${local.ami_arch}"
 }
 
-data "aws_iam_user" "developer" {
-  user_name = var.developer_username
-}
-
-
-
 resource "aws_iam_role" "workstation" {
-  name = "eks-dx-workstation-${var.developer_username}"
+  name = "${var.developer_username}-eks-dx-${var.arch}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -142,10 +139,10 @@ resource "aws_iam_role" "workstation" {
     }]
   })
 
-  tags = {
-    Name               = "eks-dx-workstation-${var.developer_username}"
+  tags = merge(local.common_tags, {
+    Name               = "${var.developer_username}-eks-dx-${var.arch}"
     "eks-cluster-name" = local.workstation_name
-  }
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "ssm" {
@@ -362,12 +359,12 @@ resource "aws_iam_role_policy" "cloud_provider" {
 
 
 resource "aws_iam_instance_profile" "workstation" {
-  name = "eks-dx-workstation-${var.developer_username}"
+  name = "${var.developer_username}-eks-dx-${var.arch}"
   role = aws_iam_role.workstation.name
 }
 
 resource "aws_security_group" "workstation" {
-  name        = "eks-dx-workstation-${var.developer_username}"
+  name        = "${var.developer_username}-eks-dx-${var.arch}"
   description = "EKS-D workstation: SSH, Kubernetes API, kubelet, pod networking"
 
   ingress {
@@ -410,17 +407,17 @@ resource "aws_security_group" "workstation" {
   }
 
   vpc_id = local.vpc_filter
-  tags   = { Name = "eks-dx-workstation-${var.developer_username}" }
+  tags   = merge(local.common_tags, { Name = "${var.developer_username}-eks-dx-${var.arch}" })
 }
 
 resource "aws_sqs_queue" "karpenter_interruption" {
   name                      = local.workstation_name
   message_retention_seconds = 300
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name                                              = local.workstation_name
     "kubernetes.io/cluster/${local.workstation_name}" = "owned"
-  }
+  })
 }
 
 resource "aws_sqs_queue_policy" "karpenter_interruption" {
@@ -443,7 +440,7 @@ resource "aws_cloudwatch_event_rule" "spot_interruption" {
     source      = ["aws.ec2"]
     detail-type = ["EC2 Spot Instance Interruption Warning"]
   })
-  tags = { "kubernetes.io/cluster/${local.workstation_name}" = "owned" }
+  tags = merge(local.common_tags, { "kubernetes.io/cluster/${local.workstation_name}" = "owned" })
 }
 
 resource "aws_cloudwatch_event_target" "spot_interruption" {
@@ -457,7 +454,7 @@ resource "aws_cloudwatch_event_rule" "instance_state_change" {
     source      = ["aws.ec2"]
     detail-type = ["EC2 Instance State-change Notification"]
   })
-  tags = { "kubernetes.io/cluster/${local.workstation_name}" = "owned" }
+  tags = merge(local.common_tags, { "kubernetes.io/cluster/${local.workstation_name}" = "owned" })
 }
 
 resource "aws_cloudwatch_event_target" "instance_state_change" {
@@ -471,7 +468,7 @@ resource "aws_cloudwatch_event_rule" "instance_rebalance" {
     source      = ["aws.ec2"]
     detail-type = ["EC2 Instance Rebalance Recommendation"]
   })
-  tags = { "kubernetes.io/cluster/${local.workstation_name}" = "owned" }
+  tags = merge(local.common_tags, { "kubernetes.io/cluster/${local.workstation_name}" = "owned" })
 }
 
 resource "aws_cloudwatch_event_target" "instance_rebalance" {
@@ -482,7 +479,7 @@ resource "aws_cloudwatch_event_target" "instance_rebalance" {
 locals {
   lt_modes = {
     on_demand = { spot = false, hibernate = false }
-    spot      = { spot = true,  hibernate = true  }
+    spot      = { spot = true, hibernate = true }
   }
 }
 
@@ -550,22 +547,20 @@ resource "aws_launch_template" "workstation" {
 
   tag_specifications {
     resource_type = "instance"
-    tags = {
-      Name                           = local.workstation_name
-      Developer                      = var.developer_username
-      Arch                           = var.arch
-      WorkstationMode                = each.key
-      "kubernetes.io/cluster/eks-d"  = "owned"
-      "ebs.csi.aws.com/cluster-name" = local.workstation_name
-    }
+    tags = merge(local.common_tags, {
+      Name                                              = local.workstation_name
+      WorkstationMode                                   = each.key
+      "kubernetes.io/cluster/${local.workstation_name}" = "owned"
+      "ebs.csi.aws.com/cluster-name"                    = local.workstation_name
+    })
   }
 
   tag_specifications {
     resource_type = "volume"
-    tags = { Developer = var.developer_username }
+    tags          = merge(local.common_tags, { Name = "${local.workstation_name}-vol" })
   }
 
-  tags = { Name = "${local.workstation_name}-${each.key}" }
+  tags = merge(local.common_tags, { Name = "${local.workstation_name}-${each.key}" })
 }
 
 resource "aws_instance" "workstation" {
@@ -576,26 +571,24 @@ resource "aws_instance" "workstation" {
     version = "$Latest"
   }
 
-  tags = {
-    Name                           = local.workstation_name
-    Developer                      = var.developer_username
-    Arch                           = var.arch
-    WorkstationMode                = var.workstation_mode
-    "kubernetes.io/cluster/eks-d"  = "owned"
-    "ebs.csi.aws.com/cluster-name" = local.workstation_name
-  }
+  tags = merge(local.common_tags, {
+    Name                                              = local.workstation_name
+    WorkstationMode                                   = var.workstation_mode
+    "kubernetes.io/cluster/${local.workstation_name}" = "owned"
+    "ebs.csi.aws.com/cluster-name"                    = local.workstation_name
+  })
 }
 
 resource "aws_eip" "workstation" {
   count    = var.assign_elastic_ip ? 1 : 0
   instance = aws_instance.workstation.id
   domain   = "vpc"
-  tags     = { Name = local.workstation_name }
+  tags     = merge(local.common_tags, { Name = local.workstation_name })
 }
 
 # DLM lifecycle policy for automated etcd volume snapshots
 resource "aws_iam_role" "dlm" {
-  name = "eks-dx-dlm-${var.developer_username}"
+  name = "${var.developer_username}-eks-dx-${var.arch}-dlm"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -640,9 +633,10 @@ resource "aws_dlm_lifecycle_policy" "etcd_backup" {
       tags_to_add = {
         SnapshotCreator = "DLM"
         Cluster         = local.workstation_name
+        Platform        = "eks-d-xpress"
       }
     }
   }
 
-  tags = { Name = "${local.workstation_name}-etcd-backup" }
+  tags = merge(local.common_tags, { Name = "${local.workstation_name}-etcd-backup" })
 }
