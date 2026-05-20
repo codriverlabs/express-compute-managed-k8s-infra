@@ -1,32 +1,42 @@
 # AGENTS.md - AI Assistant Guide
 
 ## Project Overview
-**EKS-D-Xpress (EKS-DX)** — Self-managed Kubernetes (EKS-D 1.35) developer workstations on EC2, part of the Express Compute (ECP) product suite. Each developer gets an isolated single-node control plane EC2 instance; Karpenter v1.10.0 provisions Spot/On-Demand workers on demand.
+**EKS-D-Xpress (EKS-DX)** — Self-managed Kubernetes (EKS-D 1.35) control planes on EC2, part of the Express Compute (ECP) product suite. Each tenant gets an isolated single-node control plane EC2 instance; Karpenter v1.10.0 provisions Spot workers on demand.
 
 ## Directory Overview
 
 ```
 ecp-eks-dx-infra/
-├── bootstrap.sh              # One-time: create S3 state bucket + shared VPC
-├── build-control-plane-ami.sh                  # Build custom AMI (~20-30 min, pre-pulls all images)
-├── provision-tenant.sh                 # Deploy developer workstation via Terraform
-├── deprovision-tenant.sh                # Destroy developer workstation
-├── provision-shared-infra.sh             # Deploy shared VPC (tags AL2023 AMIs, runs Terraform)
-├── tag-vpc-amis.sh           # Tag AL2023 AMIs with EKS version metadata
+├── bootstrap.sh                    # One-time: create S3 state bucket + shared VPC
+├── build-control-plane-ami.sh      # Build custom AMI (~15-20 min, pre-pulls all images)
+├── provision-tenant.sh             # Provision tenant control plane via Terraform
+├── deprovision-tenant.sh           # Destroy tenant control plane
+├── provision-shared-infra.sh       # Deploy shared VPC (tags AL2023 AMIs, runs Terraform)
+├── deprovision-shared-infra.sh     # Destroy shared VPC
+├── deprovision-all.sh              # Full teardown
+├── tag-vpc-amis.sh                 # Tag AL2023 AMIs with EKS version metadata
 ├── terraform/
-│   ├── main.tf               # Workstation EC2, IAM role, SG, subnets, SQS queue
+│   ├── main.tf               # Tenant EC2, IAM role, SG, subnets, SQS queue
 │   ├── variables.tf
 │   └── vpc/                  # Shared VPC Terraform module
 ├── ami-builder/
 │   ├── main.tf               # Builder EC2 Terraform
 │   └── scripts/
-│       ├── install.sh        # Pre-pulls all images/charts/binaries into AMI
-│       └── discover-eks-d.sh # Discovers EKS-D component versions from release manifest
-├── eks-d-setup/
-│   ├── workstation-boot.sh   # EC2 first-boot entry point (AMI path, idempotent)
-│   ├── install-all.sh        # Manual full install entry point (non-AMI path)
-│   ├── 00–09-*.sh            # Ordered setup scripts (containerd → kubeadm init → CNI → CCM)
+│       ├── install.sh        # AMI build entry point (pre-pulls images/charts/binaries)
+│       ├── discover-eks-d.sh # Discovers EKS-D component versions from release manifest
+│       ├── 00-configure-containerd.sh  # Build-time: containerd config
+│       ├── 01-install-base.sh          # Build-time: base packages
+│       ├── 02-install-docker.sh        # Build-time: containerd install
+│       └── 04-install-helm.sh          # Build-time: helm install
+├── eks-d-setup/                    # Boot-time cluster setup scripts
+│   ├── workstation-boot.sh   # EC2 first-boot entry point (idempotent, calls setup-eks-d.sh)
+│   ├── setup-eks-d.sh        # Boot-time cluster setup entry point
+│   ├── 05-prepare-etcd.sh
 │   ├── 05b-install-aws-iam-authenticator.sh  # Must run before 06
+│   ├── 06-install-eks-d.sh   # kubeadm init
+│   ├── 07-install-cni.sh
+│   ├── 08-install-cloud-provider.sh
+│   ├── 09-configure-node.sh
 │   ├── 10-install-ebs-csi.sh
 │   ├── 11-install-karpenter.sh
 │   ├── 12-install-metrics-server.sh
@@ -41,16 +51,24 @@ ecp-eks-dx-infra/
 | Task | Command |
 |------|---------|
 | First-time account setup | `./bootstrap.sh [region]` |
-| Build AMI | `./build-control-plane-ami.sh` |
-| Deploy workstation | `./provision-tenant.sh` |
-| Destroy workstation | `./deprovision-tenant.sh` |
-| Deploy shared VPC | `./provision-shared-infra.sh [region]` |
-| Setup EKS-D cluster (boot) | `./eks-d-setup/setup-eks-d.sh <signum>` (on EC2, AMI path) |
-| Configure NodePool | `./node-pools/configure-nodepools.sh <signum> [region]` (on EC2) |
+| Build control plane AMI | `./build-control-plane-ami.sh` |
+| Provision shared VPC | `./provision-shared-infra.sh [region]` |
+| Provision tenant | `./provision-tenant.sh` |
+| Deprovision tenant | `./deprovision-tenant.sh` |
+| Configure NodePool | `./node-pools/configure-nodepools.sh <tenant-id> [region]` (on EC2) |
 
-## Deployment Paths
+## Deployment Sequence
 
-**AMI path (only supported path):** `build-control-plane-ami.sh` → `provision-tenant.sh` → EC2 boots → `workstation-boot.sh` runs automatically → `setup-eks-d.sh` → cluster ready in ~3 min.
+```
+bootstrap.sh                    # once per account
+  └── provision-shared-infra.sh # once per region
+build-control-plane-ami.sh      # once per k8s version / arch
+provision-tenant.sh             # per tenant
+  └── EC2 boots automatically
+      └── workstation-boot.sh
+          └── setup-eks-d.sh    # cluster ready in ~3 min
+node-pools/configure-nodepools.sh  # on EC2, after cluster is ready
+```
 
 ## Repo-Specific Patterns
 
@@ -64,7 +82,7 @@ ecp-eks-dx-infra/
 - SSM AMI parameter: `/eks-dx/ami/<region>/<kubernetes-version>/x86_64` and `/eks-dx/ami/<region>/<kubernetes-version>/arm64` (e.g. `/eks-dx/ami/us-east-1/1.35/x86_64`)
 
 ### Cluster Identity Persistence
-Scripts source `/opt/eks-d/cluster.env` for `TENANT_ID` and `CLUSTER_NAME` rather than requiring arguments every time. Written by `install-all.sh` / `workstation-boot.sh`.
+Scripts source `/opt/eks-d/cluster.env` for `TENANT_ID` and `CLUSTER_NAME` rather than requiring arguments every time. Written by `setup-eks-d.sh` / `workstation-boot.sh`.
 
 ### Idempotent Boot
 `workstation-boot.sh` checks `/opt/eks-d/.installation_complete` and exits early if present — rebooting the EC2 does not re-run installation.
