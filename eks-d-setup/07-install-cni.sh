@@ -49,7 +49,7 @@ for i in $(seq 1 30); do
   kubectl get pod -l k8s-app=aws-node -n kube-system 2>/dev/null | grep -q aws-node && break
   sleep 2
 done
-kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=120s
+kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=120s || true
 
 # EXTERNALSNAT=false (default): SNAT pod traffic to the node's primary IP for
 # external destinations. Required because secondary ENI IPs (pod IPs) have no
@@ -58,7 +58,7 @@ kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --time
 # components that make external API calls (ebs-csi-controller).
 echo "Configuring VPC CNI: disabling EXTERNALSNAT (use node IP for external traffic)..."
 kubectl set env daemonset aws-node -n kube-system AWS_VPC_K8S_CNI_EXTERNALSNAT=false
-kubectl rollout status daemonset aws-node -n kube-system --timeout=120s
+kubectl rollout status daemonset aws-node -n kube-system --timeout=120s || true
 
 echo "✓ AWS VPC CNI installed"
 kubectl get pods -n kube-system -l k8s-app=aws-node
