@@ -96,6 +96,10 @@ echo "Enabling IP forwarding..."
 echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 
+echo "Loading required kernel modules..."
+sudo modprobe nf_conntrack
+sudo modprobe br_netfilter
+
 echo "Starting containerd..."
 sudo systemctl enable containerd
 sudo systemctl start containerd
