@@ -126,17 +126,17 @@ echo "==> Pulling EKS-D control plane images..."
 grep "uri: public.ecr.aws/eks-distro/kubernetes/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
   echo "  Pulling: $cache_img"
-  sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
+  sudo ctr -n k8s.io images pull --user "${ECR_CTR_USER}" "$cache_img" || true
 done
 grep "uri: public.ecr.aws/eks-distro/etcd-io/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
   echo "  Pulling: $cache_img"
-  sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
+  sudo ctr -n k8s.io images pull --user "${ECR_CTR_USER}" "$cache_img" || true
 done
 grep "uri: public.ecr.aws/eks-distro/coredns/" /opt/eks-d/manifests/eks-d-release.yaml | awk '{print $2}' | sort -u | while read img; do
   cache_img="${PUBLIC_ECR_CACHE}/${img#public.ecr.aws/}"
   echo "  Pulling: $cache_img"
-  sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
+  sudo ctr -n k8s.io images pull --user "${ECR_CTR_USER}" "$cache_img" || true
 done
 
 # Render Karpenter chart and extract images
@@ -147,7 +147,7 @@ if [ -n "$KARPENTER_CHART" ]; then
   helm template karpenter "$KARPENTER_CHART" 2>/dev/null | \
     grep -oP '(?:image|value):\s*\K[^\s"]+' | grep 'public\.ecr\.aws' | sort -u | while read img; do
       echo "  Pulling: $img"
-      sudo ctr images pull "$img" || true
+      sudo ctr -n k8s.io images pull "$img" || true
     done
 fi
 
@@ -169,7 +169,7 @@ PYEOF
         -e "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|" \
         -e "s|registry.k8s.io/|${K8S_REGISTRY_CACHE}/|")
       echo "  Pulling: $cache_img"
-      sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
+      sudo ctr -n k8s.io images pull --user "${ECR_CTR_USER}" "$cache_img" || true
     done
 fi
 
@@ -181,7 +181,7 @@ if [ -n "$EBS_CSI_CHART" ]; then
     grep -oP 'image:\s*\K[^\s]+' | grep -Ev 'windows|nvidia|neuron|dcgm-exporter|kubekins-e2e|e2e-test' | sort -u | while read img; do
       cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
       echo "  Pulling: $cache_img"
-      sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
+      sudo ctr -n k8s.io images pull --user "${ECR_CTR_USER}" "$cache_img" || true
     done
 fi
 
@@ -192,7 +192,7 @@ if [ -f /opt/eks-d/manifests/aws-vpc-cni.yaml ]; then
   VPC_CNI_ECR_TOKEN=$(aws ecr get-login-password --region us-west-2)
   grep -oP 'image:\s*\K[^\s]+' /opt/eks-d/manifests/aws-vpc-cni.yaml | sort -u | while read img; do
     echo "  Pulling: $img"
-    sudo ctr images pull --user "AWS:${VPC_CNI_ECR_TOKEN}" "$img" || true
+    sudo ctr -n k8s.io images pull --user "AWS:${VPC_CNI_ECR_TOKEN}" "$img" || true
   done
 fi
 
@@ -200,28 +200,28 @@ fi
 
 # Pull CSI sidecar images using discovered versions
 if [ -n "$CSI_PROVISIONER_IMAGE" ]; then
-  sudo ctr images pull "$CSI_PROVISIONER_IMAGE" || true
+  sudo ctr -n k8s.io images pull "$CSI_PROVISIONER_IMAGE" || true
 fi
 if [ -n "$CSI_ATTACHER_IMAGE" ]; then
-  sudo ctr images pull "$CSI_ATTACHER_IMAGE" || true
+  sudo ctr -n k8s.io images pull "$CSI_ATTACHER_IMAGE" || true
 fi
 if [ -n "$LIVENESSPROBE_IMAGE" ]; then
-  sudo ctr images pull "$LIVENESSPROBE_IMAGE" || true
+  sudo ctr -n k8s.io images pull "$LIVENESSPROBE_IMAGE" || true
 fi
 if [ -n "$CSI_RESIZER_IMAGE" ]; then
-  sudo ctr images pull "$CSI_RESIZER_IMAGE" || true
+  sudo ctr -n k8s.io images pull "$CSI_RESIZER_IMAGE" || true
 fi
 
 # Metrics Server
 if [ -n "$METRICS_SERVER_IMAGE" ]; then
   echo "==> Pulling Metrics Server image..."
-  sudo ctr images pull "$METRICS_SERVER_IMAGE" || true
+  sudo ctr -n k8s.io images pull "$METRICS_SERVER_IMAGE" || true
 fi
 
 # aws-iam-authenticator — runs as static pod for worker node IAM auth
 echo "==> Pulling aws-iam-authenticator image..."
 if [ -n "$AWS_IAM_AUTHENTICATOR_IMAGE" ]; then
-  sudo ctr images pull "$AWS_IAM_AUTHENTICATOR_IMAGE" || true
+  sudo ctr -n k8s.io images pull "$AWS_IAM_AUTHENTICATOR_IMAGE" || true
 fi
 
 # Render CloudWatch Observability chart and extract images
@@ -241,7 +241,7 @@ PYEOF
     python3 /tmp/extract_images_cw.py | sort -u | while read img; do
       cache_img=$(echo "$img" | sed "s|public.ecr.aws/|${PUBLIC_ECR_CACHE}/|")
       echo "  Pulling: $cache_img"
-      sudo ctr images pull --user "${ECR_CTR_USER}" "$cache_img" || true
+      sudo ctr -n k8s.io images pull --user "${ECR_CTR_USER}" "$cache_img" || true
     done
 fi
 
