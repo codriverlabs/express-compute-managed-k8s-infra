@@ -223,12 +223,12 @@ kubectl get nodes
 
 # Wait for kube-proxy to program ClusterIP iptables/nftables rules.
 # On cold boot, kube-proxy takes ~30s to sync informers and program rules.
-# Without this, aws-node (CNI) crashes trying to reach the API server via 10.96.0.1.
+# Without this, aws-node (CNI) crashes trying to reach the API server via ClusterIP.
 echo "Waiting for kube-proxy to program service routing rules..."
+KUBE_SVC_IP=$(kubectl get svc kubernetes -o jsonpath='{.spec.clusterIP}')
 for i in $(seq 1 60); do
-  if curl -sk --connect-timeout 2 "https://${PRIVATE_IP}:6443/version" >/dev/null 2>&1 && \
-     curl -sk --connect-timeout 2 https://10.96.0.1:443/version >/dev/null 2>&1; then
-    echo "✓ kube-proxy rules active (ClusterIP 10.96.0.1 routable)"
+  if curl -sk --connect-timeout 2 "https://${KUBE_SVC_IP}:443/version" >/dev/null 2>&1; then
+    echo "✓ kube-proxy rules active (ClusterIP ${KUBE_SVC_IP} routable)"
     break
   fi
   [ "$i" -eq 60 ] && echo "Warning: kube-proxy rules not confirmed after 60s, proceeding anyway"
