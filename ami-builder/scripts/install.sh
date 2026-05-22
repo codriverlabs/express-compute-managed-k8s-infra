@@ -245,6 +245,12 @@ PYEOF
     done
 fi
 
+# Install eks-dx-boot systemd service (starts cluster bootstrap at multi-user.target)
+echo "==> Installing eks-dx-boot.service..."
+sudo cp /tmp/ami-scripts/eks-dx-boot.service /etc/systemd/system/eks-dx-boot.service
+sudo systemctl daemon-reload
+sudo systemctl enable eks-dx-boot.service
+
 # Clean up helm ECR session — workstations use the ECR credential provider instead
 echo "==> Cleaning up temporary ECR credentials..."
 helm registry logout "${ECR_REGISTRY}" 2>/dev/null || true

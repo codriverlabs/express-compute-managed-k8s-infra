@@ -494,33 +494,13 @@ resource "aws_instance" "workstation" {
 
   user_data = base64encode(<<-EOF
     #!/bin/bash
-    # Write a systemd service that runs AFTER networking is fully up.
-    # Running workstation-boot.sh directly in user-data causes CNI failures
-    # because cloud-init user-data executes before network-online.target.
-    cat > /etc/systemd/system/eks-dx-boot.service <<'UNIT'
-    [Unit]
-    Description=EKS-DX Cluster Bootstrap
-    After=network-online.target
-    Wants=network-online.target
-    ConditionPathExists=!/opt/eks-d/.installation_complete
-
-    [Service]
-    Type=oneshot
-    RemainAfterExit=true
-    Environment=TENANT_ID=${var.tenant_id}
-    Environment=CLUSTER_NAME=${local.workstation_name}
-    WorkingDirectory=/opt/eks-d-setup
-    ExecStart=/bin/bash /opt/eks-d-setup/workstation-boot.sh ${var.tenant_id} ${local.workstation_name}
-    StandardOutput=journal+console
-    StandardError=journal+console
-    TimeoutStartSec=180
-
-    [Install]
-    WantedBy=multi-user.target
-    UNIT
-
-    systemctl daemon-reload
-    systemctl enable --now eks-dx-boot.service
+    # Write tenant config for eks-dx-boot.service (baked into AMI).
+    # The service starts at multi-user.target and reads this file.
+    mkdir -p /opt/eks-d
+    cat > /opt/eks-d/cluster.env <<CONF
+    TENANT_ID="${var.tenant_id}"
+    CLUSTER_NAME="${local.workstation_name}"
+    CONF
     EOF
   )
 
