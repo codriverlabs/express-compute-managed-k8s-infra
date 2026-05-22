@@ -28,6 +28,24 @@ echo "==> Using EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
 EKSD_DOTTED="${EKS_VERSION}.${EKSD_RELEASE}"
 echo "EKSD_VERSION=${EKSD_DOTTED}" | sudo tee -a /opt/eks-d/version.env
 
+# Pre-install EKS-D binaries (kubeadm, kubelet, kubectl) to avoid downloading at boot
+echo "==> Pre-installing EKS-D binaries..."
+ARCH=$(uname -m)
+[ "$ARCH" = "aarch64" ] && ARCH="arm64"
+[ "$ARCH" = "x86_64" ] && ARCH="amd64"
+RELEASE_MANIFEST="/opt/eks-d/manifests/eks-d-release.yaml"
+KUBEADM_URL=$(grep "bin/linux/${ARCH}/kubeadm" "$RELEASE_MANIFEST" -B 1 | grep "uri:" | awk '{print $2}')
+KUBELET_URL=$(grep "bin/linux/${ARCH}/kubelet" "$RELEASE_MANIFEST" -B 1 | grep "uri:" | awk '{print $2}')
+KUBECTL_URL=$(grep "bin/linux/${ARCH}/kubectl" "$RELEASE_MANIFEST" -B 1 | grep "uri:" | awk '{print $2}')
+curl -sL "$KUBEADM_URL" -o /tmp/kubeadm
+curl -sL "$KUBELET_URL" -o /tmp/kubelet
+curl -sL "$KUBECTL_URL" -o /tmp/kubectl
+sudo install -o root -g root -m 0755 /tmp/kubeadm /usr/local/bin/kubeadm
+sudo install -o root -g root -m 0755 /tmp/kubelet /usr/local/bin/kubelet
+sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+rm -f /tmp/kubeadm /tmp/kubelet /tmp/kubectl
+echo "✓ EKS-D binaries installed (kubeadm, kubelet, kubectl)"
+
 export AMI_BUILD=true
 
 # Set up ECR pull-through cache — resolve account/region early but auth after containerd is installed

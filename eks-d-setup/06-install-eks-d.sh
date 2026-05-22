@@ -44,14 +44,18 @@ KUBELET_URL=$(grep "bin/linux/${ARCH}/kubelet" /tmp/eks-d-release.yaml -B 1 | gr
 KUBECTL_URL=$(grep "bin/linux/${ARCH}/kubectl" /tmp/eks-d-release.yaml -B 1 | grep "uri:" | awk '{print $2}')
 
 echo "Downloading EKS-D binaries..."
-curl -sL "${KUBEADM_URL}" -o /tmp/kubeadm
-sudo install -o root -g root -m 0755 /tmp/kubeadm /usr/local/bin/kubeadm
+if [ -x /usr/local/bin/kubeadm ] && [ -x /usr/local/bin/kubelet ] && [ -x /usr/local/bin/kubectl ]; then
+  echo "✓ EKS-D binaries already installed (pre-baked in AMI)"
+else
+  curl -sL "${KUBEADM_URL}" -o /tmp/kubeadm
+  sudo install -o root -g root -m 0755 /tmp/kubeadm /usr/local/bin/kubeadm
 
-curl -sL "${KUBELET_URL}" -o /tmp/kubelet
-sudo install -o root -g root -m 0755 /tmp/kubelet /usr/local/bin/kubelet
+  curl -sL "${KUBELET_URL}" -o /tmp/kubelet
+  sudo install -o root -g root -m 0755 /tmp/kubelet /usr/local/bin/kubelet
 
-curl -sL "${KUBECTL_URL}" -o /tmp/kubectl
-sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+  curl -sL "${KUBECTL_URL}" -o /tmp/kubectl
+  sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+fi
 
 # Create kubelet systemd service
 echo "Creating kubelet systemd service..."
