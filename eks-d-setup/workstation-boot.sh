@@ -14,10 +14,11 @@ exec > >(tee -a "$BOOT_LOG") 2>&1
 # Wait for IMDS to be reachable (ENI must be fully attached)
 echo "Waiting for IMDS..."
 for i in $(seq 1 30); do
-  if curl -sf -m 2 http://169.254.169.254/latest/meta-data/instance-id >/dev/null 2>&1; then
+  TOKEN=$(curl -sf -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 60" -m 2 2>/dev/null) && \
+  curl -sf -m 2 -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id >/dev/null 2>&1 && {
     echo "✓ IMDS ready"
     break
-  fi
+  }
   [ "$i" -eq 30 ] && { echo "ERROR: IMDS not reachable after 30s"; exit 1; }
   sleep 1
 done
