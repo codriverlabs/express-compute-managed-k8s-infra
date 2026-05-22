@@ -36,6 +36,11 @@ echo "✓ ec2-net-utils policy-routes disabled"
 
 echo "Installing AWS VPC CNI v1.20.4..."
 
+# AWS_VPC_K8S_CNI_EXTERNALSNAT=false is set in the manifest (default).
+# SNAT pod traffic to node's primary IP for external destinations — required because
+# secondary ENI IPs (pod IPs) have no public IP. Without SNAT, internet-bound
+# packets from pods are dropped.
+
 # Use pre-downloaded manifest if available
 if [ -f /opt/eks-d/manifests/aws-vpc-cni.yaml ]; then
   kubectl apply -f /opt/eks-d/manifests/aws-vpc-cni.yaml
@@ -44,20 +49,6 @@ else
 fi
 
 echo "Waiting for CNI pods to be ready..."
-# Wait for pod to be created first (apply is async, pod may not exist yet)
-for i in $(seq 1 30); do
-  kubectl get pod -l k8s-app=aws-node -n kube-system 2>/dev/null | grep -q aws-node && break
-  sleep 2
-done
-kubectl wait --for=condition=ready pod -l k8s-app=aws-node -n kube-system --timeout=120s || true
-
-# EXTERNALSNAT=false (default): SNAT pod traffic to the node's primary IP for
-# external destinations. Required because secondary ENI IPs (pod IPs) have no
-# public IP — without SNAT, internet-bound packets are dropped.
-# The CoreDNS loop issue is handled separately via dnsPolicy:Default on
-# components that make external API calls (ebs-csi-controller).
-echo "Configuring VPC CNI: disabling EXTERNALSNAT (use node IP for external traffic)..."
-kubectl set env daemonset aws-node -n kube-system AWS_VPC_K8S_CNI_EXTERNALSNAT=false
 kubectl rollout status daemonset aws-node -n kube-system --timeout=120s || true
 
 echo "✓ AWS VPC CNI installed"
