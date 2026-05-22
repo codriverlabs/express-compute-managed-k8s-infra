@@ -2,14 +2,25 @@
 # workstation-boot.sh - EKS-DX Workstation Boot Script
 # 
 # This script is the entry point for AMI-based EKS-DX workstation deployment.
-# It runs automatically via cloud-init user data and performs idempotent
-# installation of EKS-D and all required components.
+# It runs automatically via systemd (eks-dx-boot.service) after network-online.target
+# and performs idempotent installation of EKS-D and all required components.
 
 set -eo pipefail
 
 # Logging setup
 BOOT_LOG="/var/log/eks-dx-boot.log"
 exec > >(tee -a "$BOOT_LOG") 2>&1
+
+# Wait for IMDS to be reachable (ENI must be fully attached)
+echo "Waiting for IMDS..."
+for i in $(seq 1 30); do
+  if curl -sf -m 2 http://169.254.169.254/latest/meta-data/instance-id >/dev/null 2>&1; then
+    echo "✓ IMDS ready"
+    break
+  fi
+  [ "$i" -eq 30 ] && { echo "ERROR: IMDS not reachable after 30s"; exit 1; }
+  sleep 1
+done
 
 echo "=========================================="
 echo "EKS-DX Workstation Boot Started"

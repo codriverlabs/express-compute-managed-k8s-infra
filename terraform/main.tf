@@ -500,8 +500,8 @@ resource "aws_instance" "workstation" {
     cat > /etc/systemd/system/eks-dx-boot.service <<'UNIT'
     [Unit]
     Description=EKS-DX Cluster Bootstrap
-    After=cloud-final.service
-    Wants=cloud-final.service
+    After=network-online.target
+    Wants=network-online.target
     ConditionPathExists=!/opt/eks-d/.installation_complete
 
     [Service]
