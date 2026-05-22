@@ -18,51 +18,58 @@ Total time: **180s (killed by systemd timeout)** — should be ~90s.
 | +131s | **30s** | **Metrics server wait timeout** |
 | +161s | 19s | Karpenter + CloudWatch (killed at 180s) |
 
-## Issues
+## Issues & Fixes
 
-### 1. EBS CSI node pod wait uses wrong label selector (instant failure)
+### 1. ✅ FIXED — EBS CSI node pod wait uses wrong label selector
 
-**File:** `eks-d-setup/10-install-ebs-csi.sh`
+**File:** `eks-d-setup/10-install-ebs-csi.sh`  
+**Commit:** `6de0235`
 
-**Current:** `app.kubernetes.io/component=node`  
-**Actual pod label:** `app.kubernetes.io/component=csi-driver`
+**Problem:** Wait used `app.kubernetes.io/component=node` but chart v2.60.1 labels all pods `component=csi-driver`. Instant failure with "no matching resources found".
 
-The EBS CSI Helm chart (v2.60.1) labels both controller and node pods with `component=csi-driver`. The wait command finds zero matching pods and fails immediately with "no matching resources found".
+**Fix:** Changed selector to `app.kubernetes.io/component=csi-driver`.
 
-**Fix:** Change selector to `app=ebs-csi-node` (stable label set by the chart on the DaemonSet pods).
+### 2. ✅ FIXED — EKS-D binaries downloaded at boot (10s wasted)
 
-### 2. EKS-D binaries downloaded at boot instead of pre-baked (10s wasted)
+**Files:** `ami-builder/scripts/install.sh`, `eks-d-setup/06-install-eks-d.sh`  
+**Commit:** `81ed425`
 
-**File:** `eks-d-setup/06-install-eks-d.sh` (lines 46-55)
+**Problem:** kubeadm, kubelet, kubectl (~178MB) downloaded from `distro.eks.amazonaws.com` on every boot.
 
-kubeadm, kubelet, and kubectl are downloaded from `distro.eks.amazonaws.com` on every boot. These are ~130MB total and take 10s even on fast network.
+**Fix:** Pre-install binaries during AMI build. Boot script skips download if already present at `/usr/local/bin/`.
 
-**Fix:** Pre-install binaries during AMI build (in `ami-builder/scripts/install.sh`), skip download if already present at `/usr/local/bin/`.
+### 3. ✅ FIXED — VPC CNI double rollout (40-50s wasted)
 
-### 3. VPC CNI aws-node pod takes 60s on cold boot
+**File:** `eks-d-setup/07-install-cni.sh`  
+**Commit:** `c66fa60`
 
-**Duration:** 65s (15:32:37 → 15:33:41)
+**Problem:** Script applied the CNI manifest, waited for the pod to be ready, then ran `kubectl set env AWS_VPC_K8S_CNI_EXTERNALSNAT=false` — which triggered a full DaemonSet rollout (kill pod, create new pod, wait again). The env var was already set to `false` in the manifest.
 
-On warm reset this is instant. On cold boot, containerd needs to set up overlayfs snapshots from cold page cache. The `aws-node` init container also needs IMDS/ENI to be fully configured.
+**Root cause from events:**
+1. First pod starts, readiness probes fail on port 50051 for ~15s
+2. `kubectl set env` patches DaemonSet → kills first pod
+3. Second pod goes through full startup cycle again
 
-**Mitigation:** This is largely unavoidable on cold boot. Could reduce by pre-unpacking the aws-node image layers during AMI build (`ctr images unpack`), but gains are marginal.
+**Fix:** Removed redundant `kubectl set env` — value is already in the pre-cached manifest.
 
 ### 4. Metrics server wait times out (30s wasted)
 
 The metrics-server deployment takes >30s to become ready on cold boot because it depends on the API server aggregation layer being fully initialized. The 30s timeout is too short.
 
-**Fix:** Increase timeout to 60s, or remove the wait entirely (metrics-server is non-critical for cluster readiness).
+**Status:** Not yet fixed. Non-critical — metrics-server comes up eventually.
 
-### 5. SystemD timeout too short (180s)
+### 5. SystemD timeout (180s)
 
-Even without the above issues, cold boot legitimately takes ~160-180s due to sequential helm installs and pod scheduling. The 180s `TimeoutStartSec` leaves no margin.
+With fixes #1-3 applied, cold boot should complete in ~100-120s, well within the 180s limit.
 
-**Fix:** Increase to 300s (5 min) to accommodate cold boot variance.
+**Status:** No change needed if other fixes land.
 
-## Priority
+## Expected Boot Time After Fixes
 
-1. **EBS CSI label fix** — trivial, eliminates false failure
-2. **Pre-bake binaries** — saves 10s, eliminates network dependency at boot
-3. **Increase systemd timeout** — prevents premature kill
-4. **Metrics server timeout** — saves 30s of unnecessary waiting
-5. **CNI cold start** — investigate but likely unavoidable
+| Step | Before | After |
+|------|--------|-------|
+| EKS-D binaries | 10s | 0s (pre-baked) |
+| VPC CNI | 65s | ~20s (single rollout) |
+| EBS CSI wait | 0s (failed) | ~10s (correct selector) |
+| **Total estimated** | **>180s** | **~100-120s** |
+
