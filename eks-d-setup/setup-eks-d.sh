@@ -130,6 +130,8 @@ if [ -n "${EKS_DX_ENDPOINT:-}" ]; then
   echo "Step 11: Registering with EKS-DX control plane..."
   update_progress "registering" "Registering cluster with EKS-DX" 97
   bash "${SCRIPT_DIR}/14-install-eks-dx-pod-identity.sh"
+else
+  echo "Step 11: Skipping EKS-DX Pod Identity (EKS_DX_ENDPOINT not set — manual/dev mode)"
 fi
 
 echo ""
