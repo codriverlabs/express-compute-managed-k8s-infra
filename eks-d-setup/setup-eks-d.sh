@@ -87,6 +87,10 @@ bash "${SCRIPT_DIR}/08-install-cloud-provider.sh"
 echo "Step 6/10: Configuring control plane node..."
 bash "${SCRIPT_DIR}/09-configure-node.sh"
 
+# Step 6b: cert-manager (required by webhooks and observability)
+echo "Step 6b: Installing cert-manager..."
+bash "${SCRIPT_DIR}/09b-install-cert-manager.sh"
+
 # Step 7: EBS CSI Driver
 echo "Step 7/10: Installing EBS CSI Driver..."
 bash "${SCRIPT_DIR}/10-install-ebs-csi.sh"

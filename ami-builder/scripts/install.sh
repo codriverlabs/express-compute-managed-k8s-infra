@@ -110,6 +110,10 @@ sudo cp -r "${EKS_D_SETUP_DIR}"/* /opt/eks-d-setup/
 sudo chmod +x /opt/eks-d-setup/*.sh
 
 # Pre-download Helm charts and manifests FIRST (needed for image discovery)
+echo "==> Pre-pulling cert-manager chart..."
+helm repo add jetstack https://charts.jetstack.io --force-update
+helm pull jetstack/cert-manager --version "v1.17.1" --destination /tmp || true
+
 echo "==> Pre-pulling Karpenter chart from OCI registry..."
 helm registry logout public.ecr.aws 2>/dev/null || true
 helm pull oci://public.ecr.aws/karpenter/karpenter --version "1.10.0" --destination /tmp || true
