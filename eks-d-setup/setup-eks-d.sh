@@ -124,6 +124,14 @@ echo "Step 10/10: Installing CloudWatch agent..."
 CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh"
 update_progress "provisioning" "CloudWatch installed" 95
 
+# Step 11 (optional): EKS-DX Pod Identity integration
+# Only runs if EKS_DX_ENDPOINT is set (provisioned by Lambda, not manual dev setup)
+if [ -n "${EKS_DX_ENDPOINT:-}" ]; then
+  echo "Step 11: Registering with EKS-DX control plane..."
+  update_progress "registering" "Registering cluster with EKS-DX" 97
+  bash "${SCRIPT_DIR}/14-install-eks-dx-pod-identity.sh"
+fi
+
 echo ""
 echo "=========================================="
 echo "✓ EKS-D cluster setup complete!"

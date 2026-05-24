@@ -114,6 +114,10 @@ echo "==> Pre-pulling cert-manager chart..."
 helm repo add jetstack https://charts.jetstack.io --force-update
 helm pull jetstack/cert-manager --version "v1.17.1" --destination /tmp || true
 
+echo "==> Pre-pulling EKS-DX Pod Identity charts..."
+helm pull oci://ghcr.io/plasticity-of-cloud/helm/eks-dx-pod-identity-webhook --version "0.2.0-design" --destination /tmp || true
+helm pull oci://ghcr.io/plasticity-of-cloud/helm/eks-dx-auth-proxy --version "0.2.0-design" --destination /tmp || true
+
 echo "==> Pre-pulling Karpenter chart from OCI registry..."
 helm registry logout public.ecr.aws 2>/dev/null || true
 helm pull oci://public.ecr.aws/karpenter/karpenter --version "1.10.0" --destination /tmp || true
@@ -266,6 +270,11 @@ PYEOF
       sudo ctr -n k8s.io images pull --user "${ECR_CTR_USER}" "$cache_img" || true
     done
 fi
+
+# Pre-pull EKS-DX Pod Identity images
+echo "==> Pulling EKS-DX Pod Identity images..."
+sudo ctr -n k8s.io images pull ghcr.io/plasticity-of-cloud/eks-dx-auth-proxy:0.2.0-design || true
+sudo ctr -n k8s.io images pull ghcr.io/plasticity-of-cloud/eks-dx-pod-identity-webhook:0.2.0-design || true
 
 # Install eks-dx-boot systemd service (starts cluster bootstrap at multi-user.target)
 echo "==> Installing eks-dx-boot.service..."
