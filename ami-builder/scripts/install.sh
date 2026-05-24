@@ -27,6 +27,8 @@ echo "==> Using EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
 # Persist full version info for use by 06-install-eks-d.sh at boot time
 EKSD_DOTTED="${EKS_VERSION}.${EKSD_RELEASE}"
 echo "EKSD_VERSION=${EKSD_DOTTED}" | sudo tee -a /opt/eks-d/version.env
+echo "EKS_DX_CONTROL_PLANE_VERSION=1.0.0-pre-cdk-migration" | sudo tee -a /opt/eks-d/version.env
+export EKS_DX_CONTROL_PLANE_VERSION="1.0.0-pre-cdk-migration"
 
 # Pre-install EKS-D binaries (kubeadm, kubelet, kubectl) to avoid downloading at boot
 echo "==> Pre-installing EKS-D binaries..."
@@ -115,8 +117,8 @@ helm repo add jetstack https://charts.jetstack.io --force-update
 helm pull jetstack/cert-manager --version "v1.17.1" --destination /tmp || true
 
 echo "==> Pre-pulling EKS-DX Pod Identity charts..."
-helm pull oci://ghcr.io/plasticity-of-cloud/helm/eks-dx-pod-identity-webhook --version "0.2.0-design" --destination /tmp || true
-helm pull oci://ghcr.io/plasticity-of-cloud/helm/eks-dx-auth-proxy --version "0.2.0-design" --destination /tmp || true
+helm pull oci://ghcr.io/plasticity-of-cloud/helm/eks-dx-pod-identity-webhook --version "${EKS_DX_CONTROL_PLANE_VERSION}" --destination /tmp || true
+helm pull oci://ghcr.io/plasticity-of-cloud/helm/eks-dx-auth-proxy --version "${EKS_DX_CONTROL_PLANE_VERSION}" --destination /tmp || true
 
 echo "==> Pre-pulling Karpenter chart from OCI registry..."
 helm registry logout public.ecr.aws 2>/dev/null || true
@@ -273,8 +275,8 @@ fi
 
 # Pre-pull EKS-DX Pod Identity images
 echo "==> Pulling EKS-DX Pod Identity images..."
-sudo ctr -n k8s.io images pull ghcr.io/plasticity-of-cloud/eks-dx-auth-proxy:0.2.0-design || true
-sudo ctr -n k8s.io images pull ghcr.io/plasticity-of-cloud/eks-dx-pod-identity-webhook:0.2.0-design || true
+sudo ctr -n k8s.io images pull ghcr.io/plasticity-of-cloud/eks-dx-auth-proxy:${EKS_DX_CONTROL_PLANE_VERSION} || true
+sudo ctr -n k8s.io images pull ghcr.io/plasticity-of-cloud/eks-dx-pod-identity-webhook:${EKS_DX_CONTROL_PLANE_VERSION} || true
 
 # Install eks-dx-boot systemd service (starts cluster bootstrap at multi-user.target)
 echo "==> Installing eks-dx-boot.service..."
