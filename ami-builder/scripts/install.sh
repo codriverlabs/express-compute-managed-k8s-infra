@@ -48,6 +48,13 @@ sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
 rm -f /tmp/kubeadm /tmp/kubelet /tmp/kubectl
 echo "✓ EKS-D binaries installed (kubeadm, kubelet, kubectl)"
 
+echo "==> Installing eks-dx CLI..."
+EKS_DX_CLI_URL="https://github.com/plasticity-of-cloud/eks-dx-control-plane/releases/download/v${EKS_DX_CONTROL_PLANE_VERSION}/eks-dx-cli-${EKS_DX_CONTROL_PLANE_VERSION}-linux-${ARCH}"
+curl -sL "$EKS_DX_CLI_URL" -o /tmp/eks-dx
+sudo install -o root -g root -m 0755 /tmp/eks-dx /usr/local/bin/eks-dx
+rm -f /tmp/eks-dx
+echo "✓ eks-dx CLI installed"
+
 export AMI_BUILD=true
 
 # Set up ECR pull-through cache — resolve account/region early but auth after containerd is installed
