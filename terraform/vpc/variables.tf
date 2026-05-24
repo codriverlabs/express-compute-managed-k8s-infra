@@ -36,5 +36,5 @@ variable "instance_type_x86_64" {
 variable "disk_size_gb" {
   description = "Root disk size in GB"
   type        = number
-  default     = 50
+  default     = 20
 }

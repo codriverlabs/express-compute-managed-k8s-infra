@@ -39,7 +39,7 @@ variable "key_pair_name" {
 variable "disk_size_gb" {
   description = "Root disk size in GB"
   type        = number
-  default     = 50
+  default     = 20
 }
 
 variable "allowed_cidr_blocks" {
