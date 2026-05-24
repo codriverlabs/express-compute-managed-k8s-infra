@@ -20,6 +20,10 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# ── Load progress reporting ───────────────────────────────────────────────────
+source "${SCRIPT_DIR}/progress.sh"
+trap 'fail "Unexpected error at line ${LINENO}: ${BASH_COMMAND}"' ERR
+
 # ── Persist cluster identity and AWS environment ──────────────────────────────
 sudo mkdir -p /opt/eks-d
 
@@ -62,50 +66,63 @@ echo "=========================================="
 echo "EKS-D Cluster Setup"
 echo "Developer: ${TENANT_ID}  Cluster: ${CLUSTER_NAME}"
 echo "=========================================="
+update_progress "booting" "Starting cluster setup" 5
 
 # Step 1: etcd volume (EBS attached at instance launch)
 echo "Step 1/10: Preparing etcd volume..."
 bash "${SCRIPT_DIR}/05-prepare-etcd.sh"
+update_progress "provisioning" "Preparing etcd volume" 10
 
 # Step 2: aws-iam-authenticator config (must precede kubeadm init)
 echo "Step 2/10: Configuring aws-iam-authenticator..."
 bash "${SCRIPT_DIR}/05b-install-aws-iam-authenticator.sh"
+update_progress "provisioning" "Configuring IAM authenticator" 15
 
 # Step 3: kubeadm init
 echo "Step 3/10: Initialising EKS-D cluster..."
+update_progress "kubeadm-init" "Initialising control plane" 20
 bash "${SCRIPT_DIR}/06-install-eks-d.sh"
+update_progress "kubeadm-done" "Control plane ready" 40
 
 # Step 4: AWS VPC CNI
 echo "Step 4/10: Installing AWS VPC CNI..."
+update_progress "provisioning" "Installing VPC CNI" 50
 bash "${SCRIPT_DIR}/07-install-cni.sh"
 
 # Step 5: AWS Cloud Controller Manager
 echo "Step 5/10: Installing AWS Cloud Provider..."
+update_progress "provisioning" "Installing cloud provider" 60
 bash "${SCRIPT_DIR}/08-install-cloud-provider.sh"
 
 # Step 6: Untaint control plane
 echo "Step 6/10: Configuring control plane node..."
 bash "${SCRIPT_DIR}/09-configure-node.sh"
+update_progress "provisioning" "Node ready" 65
 
 # Step 6b: cert-manager (required by webhooks and observability)
 echo "Step 6b: Installing cert-manager..."
 bash "${SCRIPT_DIR}/09b-install-cert-manager.sh"
+update_progress "provisioning" "cert-manager installed" 70
 
 # Step 7: EBS CSI Driver
 echo "Step 7/10: Installing EBS CSI Driver..."
 bash "${SCRIPT_DIR}/10-install-ebs-csi.sh"
+update_progress "provisioning" "EBS CSI installed" 75
 
 # Step 8: Metrics Server
 echo "Step 8/10: Installing Metrics Server..."
 bash "${SCRIPT_DIR}/12-install-metrics-server.sh"
+update_progress "provisioning" "Metrics server installed" 80
 
 # Step 9: Karpenter
 echo "Step 9/10: Installing Karpenter..."
 bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${TENANT_ID}" "${CLUSTER_NAME}"
+update_progress "provisioning" "Karpenter installed" 90
 
 # Step 10: CloudWatch
 echo "Step 10/10: Installing CloudWatch agent..."
 CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh"
+update_progress "provisioning" "CloudWatch installed" 95
 
 echo ""
 echo "=========================================="
@@ -114,3 +131,5 @@ echo "=========================================="
 echo "  kubectl get nodes"
 echo "  kubectl get pods -A"
 echo "  cd ../node-pools && ./configure-nodepools.sh ${TENANT_ID}"
+
+report_ready
