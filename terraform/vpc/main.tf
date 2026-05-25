@@ -309,3 +309,17 @@ resource "aws_launch_template" "control_plane" {
     }
   }
 }
+
+# ── SSM Parameters for Launch Template IDs ────────────────────────────────────
+resource "aws_ssm_parameter" "launch_template" {
+  for_each = local.lt_configs
+
+  name  = "/eks-dx/launch-template/${each.value.arch}/${each.value.spot ? "spot" : "ondemand"}"
+  type  = "String"
+  value = aws_launch_template.control_plane[each.key].id
+
+  tags = {
+    Platform  = "eks-d-xpress"
+    ManagedBy = "Terraform"
+  }
+}

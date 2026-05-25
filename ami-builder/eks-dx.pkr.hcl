@@ -186,7 +186,7 @@ build {
 
   post-processor "shell-local" {
     inline = [
-      "python3 -c \"import json; [print(b['name']+' '+b['artifact_id'].split(':')[-1]) for b in json.load(open('/tmp/packer-manifest.json'))['builds']]\" | while read arch ami_id; do aws ssm put-parameter --name /eks-dx/ami/${var.aws_region}/${var.kubernetes_version}/$arch --value $ami_id --type String --overwrite --region ${var.aws_region} && echo \"Stored /eks-dx/ami/${var.aws_region}/${var.kubernetes_version}/$arch -> $ami_id\"; done"
+      "python3 -c \"import json; [print(b['name']+' '+b['artifact_id'].split(':')[-1]) for b in json.load(open('/tmp/packer-manifest.json'))['builds']]\" | while read arch ami_id; do aws ssm put-parameter --name /eks-dx/ami/$arch/${var.kubernetes_version} --value $ami_id --type String --overwrite --region ${var.aws_region} && echo \"Stored /eks-dx/ami/$arch/${var.kubernetes_version} -> $ami_id\"; done"
     ]
   }
 }

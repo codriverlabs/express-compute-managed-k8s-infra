@@ -124,7 +124,7 @@ data "aws_availability_zones" "available" {
 }
 
 data "aws_ssm_parameter" "control_plane_ami" {
-  name = "/eks-dx/ami/${var.aws_region}/${var.kubernetes_version}/${local.ami_arch}"
+  name = "/eks-dx/ami/${local.ami_arch}/${var.kubernetes_version}"
 }
 
 resource "aws_iam_role" "workstation" {
