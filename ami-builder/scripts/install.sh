@@ -27,8 +27,8 @@ echo "==> Using EKS-D ${EKSD_VERSION}-eks-${EKSD_RELEASE}"
 # Persist full version info for use by 06-install-eks-d.sh at boot time
 EKSD_DOTTED="${EKS_VERSION}.${EKSD_RELEASE}"
 echo "EKSD_VERSION=${EKSD_DOTTED}" | sudo tee -a /opt/eks-d/version.env
-echo "EKS_DX_CONTROL_PLANE_VERSION=1.0.0-pre-cdk-migration" | sudo tee -a /opt/eks-d/version.env
-export EKS_DX_CONTROL_PLANE_VERSION="1.0.0-pre-cdk-migration"
+echo "EKS_DX_CONTROL_PLANE_VERSION=1.0.0-rc1" | sudo tee -a /opt/eks-d/version.env
+export EKS_DX_CONTROL_PLANE_VERSION="1.0.0-rc1"
 
 # Pre-install EKS-D binaries (kubeadm, kubelet, kubectl) to avoid downloading at boot
 echo "==> Pre-installing EKS-D binaries..."
@@ -49,7 +49,7 @@ rm -f /tmp/kubeadm /tmp/kubelet /tmp/kubectl
 echo "✓ EKS-D binaries installed (kubeadm, kubelet, kubectl)"
 
 echo "==> Installing eks-dx CLI..."
-EKS_DX_CLI_URL="https://github.com/plasticity-of-cloud/eks-dx-control-plane/releases/download/v${EKS_DX_CONTROL_PLANE_VERSION}/eks-dx-cli-${EKS_DX_CONTROL_PLANE_VERSION}-linux-${ARCH}"
+EKS_DX_CLI_URL="https://github.com/plasticity-of-cloud/eks-dx-control-plane/releases/download/v${EKS_DX_CONTROL_PLANE_VERSION}/eks-dx-${EKS_DX_CONTROL_PLANE_VERSION}-linux-${ARCH}"
 curl -sL "$EKS_DX_CLI_URL" -o /tmp/eks-dx
 sudo install -o root -g root -m 0755 /tmp/eks-dx /usr/local/bin/eks-dx
 rm -f /tmp/eks-dx
