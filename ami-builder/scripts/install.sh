@@ -48,6 +48,20 @@ sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
 rm -f /tmp/kubeadm /tmp/kubelet /tmp/kubectl
 echo "✓ EKS-D binaries installed (kubeadm, kubelet, kubectl)"
 
+echo "==> Building ecr-credential-provider from source (cloud-provider-aws)..."
+# cloud-provider-aws tags follow vX.Y.Z matching the Kubernetes minor version
+CPA_VERSION="v${EKS_VERSION}.0"
+sudo dnf install -y golang git --quiet
+git clone --depth 1 --branch "${CPA_VERSION}" \
+  https://github.com/kubernetes/cloud-provider-aws.git /tmp/cloud-provider-aws
+cd /tmp/cloud-provider-aws
+go build -o /tmp/ecr-credential-provider ./cmd/ecr-credential-provider
+sudo install -o root -g root -m 0755 /tmp/ecr-credential-provider /usr/bin/ecr-credential-provider
+cd /
+rm -rf /tmp/cloud-provider-aws /tmp/ecr-credential-provider
+sudo dnf remove -y golang git --quiet
+echo "✓ ecr-credential-provider built and installed ($(uname -m))"
+
 echo "==> Installing eks-dx CLI..."
 EKS_DX_CLI_URL="https://github.com/plasticity-of-cloud/eks-dx-control-plane/releases/download/v${EKS_DX_CONTROL_PLANE_VERSION}/eks-dx-${EKS_DX_CONTROL_PLANE_VERSION}-linux-${ARCH}"
 curl -sL "$EKS_DX_CLI_URL" -o /tmp/eks-dx

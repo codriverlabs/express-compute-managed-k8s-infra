@@ -108,12 +108,8 @@ echo "Starting containerd..."
 sudo systemctl enable containerd
 sudo systemctl start containerd
 
-# Install ECR credential provider (needed before kubeadm init so it can be in the config)
-echo "Installing ECR credential provider..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-sudo cp "${SCRIPT_DIR}/${ARCH}/ecr-credential-provider" /usr/bin/ecr-credential-provider
-sudo chmod +x /usr/bin/ecr-credential-provider
-
+# Install ECR credential provider (pre-built into AMI at /usr/bin/ecr-credential-provider)
+echo "Configuring ECR credential provider..."
 sudo mkdir -p /etc/kubernetes/credential-provider
 sudo tee /etc/kubernetes/credential-provider/config.yaml <<EOFCRED
 apiVersion: kubelet.config.k8s.io/v1
