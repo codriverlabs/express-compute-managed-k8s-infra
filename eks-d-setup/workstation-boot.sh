@@ -88,8 +88,6 @@ if [ -n "${LOGIN_HOME}" ] && [ -f /etc/kubernetes/admin.conf ]; then
   echo "✓ kubeconfig copied for ${LOGIN_USER}"
 fi
 
-bash /opt/eks-d-setup/14-install-eks-dx-pod-identity.sh
-
 # Mark installation as complete
 touch /opt/eks-d/.installation_complete
 echo "$(date): Installation completed successfully" >> /opt/eks-d/.installation_complete

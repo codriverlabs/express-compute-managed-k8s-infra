@@ -104,6 +104,16 @@ echo "Step 6b: Installing cert-manager..."
 bash "${SCRIPT_DIR}/09b-install-cert-manager.sh"
 update_progress "provisioning" "cert-manager installed" 70
 
+# Step 6c: EKS-DX Pod Identity integration (requires cert-manager for webhook TLS)
+# Only runs if EKS_DX_ENDPOINT is set (provisioned by Lambda, not manual dev setup)
+if [ -n "${EKS_DX_ENDPOINT:-}" ]; then
+  echo "Step 6c: Registering with EKS-DX control plane..."
+  update_progress "registering" "Registering cluster with EKS-DX" 72
+  bash "${SCRIPT_DIR}/14-install-eks-dx-pod-identity.sh"
+else
+  echo "Step 6c: Skipping EKS-DX Pod Identity (EKS_DX_ENDPOINT not set — manual/dev mode)"
+fi
+
 # Step 7: EBS CSI Driver
 echo "Step 7/10: Installing EBS CSI Driver..."
 bash "${SCRIPT_DIR}/10-install-ebs-csi.sh"
@@ -123,16 +133,6 @@ update_progress "provisioning" "Karpenter installed" 90
 echo "Step 10/10: Installing CloudWatch agent..."
 CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh"
 update_progress "provisioning" "CloudWatch installed" 95
-
-# Step 11 (optional): EKS-DX Pod Identity integration
-# Only runs if EKS_DX_ENDPOINT is set (provisioned by Lambda, not manual dev setup)
-if [ -n "${EKS_DX_ENDPOINT:-}" ]; then
-  echo "Step 11: Registering with EKS-DX control plane..."
-  update_progress "registering" "Registering cluster with EKS-DX" 97
-  bash "${SCRIPT_DIR}/14-install-eks-dx-pod-identity.sh"
-else
-  echo "Step 11: Skipping EKS-DX Pod Identity (EKS_DX_ENDPOINT not set — manual/dev mode)"
-fi
 
 echo ""
 echo "=========================================="
