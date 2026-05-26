@@ -22,3 +22,6 @@ test_workspace/
 .idea/
 *.iml
 packer-build-*.log
+
+# CDK / Maven
+cdk/target/
