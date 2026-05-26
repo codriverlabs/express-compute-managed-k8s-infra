@@ -25,3 +25,6 @@ packer-build-*.log
 
 # CDK / Maven
 cdk/target/
+
+# AMI builder — compiled binaries (built locally before packer run)
+ami-builder/files/

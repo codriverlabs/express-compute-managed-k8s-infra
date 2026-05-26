@@ -50,6 +50,25 @@ case "${ARCH}" in
   *) echo "ERROR: ARCH must be arm64, x86_64, or both" >&2; exit 1 ;;
 esac
 
+echo "" && echo "==> Building ecr-credential-provider from source (cloud-provider-aws ${KUBERNETES_VERSION})..."
+if ! command -v go &>/dev/null; then
+  echo "ERROR: Go is required to build ecr-credential-provider. Install Go and retry." >&2
+  exit 1
+fi
+CPA_TAG="v${KUBERNETES_VERSION}.0"
+mkdir -p "${AMI_BUILDER_DIR}/files"
+git clone --depth 1 --branch "${CPA_TAG}" \
+  https://github.com/kubernetes/cloud-provider-aws.git /tmp/cloud-provider-aws-build
+for GOARCH in amd64 arm64; do
+  GOARCH="${GOARCH}" GOOS=linux go build \
+    -C /tmp/cloud-provider-aws-build \
+    -o "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}" \
+    ./cmd/ecr-credential-provider
+  echo "    ✓ ecr-credential-provider-${GOARCH}"
+done
+rm -rf /tmp/cloud-provider-aws-build
+echo "    ✓ ecr-credential-provider built for amd64 and arm64"
+
 echo "" && echo "==> Building ${ARCH} (~20-30 min)..."
 
 LOG_FILE="${SCRIPT_DIR}/packer-build-${AMI_VERSION}.log"

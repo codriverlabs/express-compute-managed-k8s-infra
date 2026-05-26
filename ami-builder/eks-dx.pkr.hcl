@@ -171,6 +171,11 @@ build {
     destination = "/tmp/scripts"
   }
 
+  provisioner "file" {
+    source      = "${path.root}/files/ecr-credential-provider-${source.name == "x86_64" ? "amd64" : "arm64"}"
+    destination = "/tmp/ecr-credential-provider"
+  }
+
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/scripts/*.sh",
