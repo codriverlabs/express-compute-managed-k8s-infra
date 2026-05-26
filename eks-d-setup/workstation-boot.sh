@@ -51,6 +51,13 @@ fi
 [ -n "${1:-}" ] && TENANT_ID="$1"
 [ -n "${2:-}" ] && CLUSTER_NAME="$2"
 
+# Optional: EKS-DX Pod Identity integration
+# Set both via EC2 user data to enable cluster self-registration and component install.
+# EKS_DX_ENDPOINT  — Lambda Function URL base (e.g. https://<id>.lambda-url.us-east-1.on.aws)
+# EKS_DX_API_URL   — API Gateway URL (e.g. https://<id>.execute-api.us-east-1.amazonaws.com/prod)
+EKS_DX_ENDPOINT="${EKS_DX_ENDPOINT:-}"
+EKS_DX_API_URL="${EKS_DX_API_URL:-}"
+
 if [ -z "${TENANT_ID}" ] || [ -z "${CLUSTER_NAME}" ]; then
   echo "Error: TENANT_ID and CLUSTER_NAME are required (pass as args or set in /opt/eks-d/cluster.env)"
   exit 1
@@ -80,6 +87,8 @@ if [ -n "${LOGIN_HOME}" ] && [ -f /etc/kubernetes/admin.conf ]; then
   chown -R "${LOGIN_USER}:${LOGIN_USER}" "${LOGIN_HOME}/.kube"
   echo "✓ kubeconfig copied for ${LOGIN_USER}"
 fi
+
+bash /opt/eks-d-setup/14-install-eks-dx-pod-identity.sh
 
 # Mark installation as complete
 touch /opt/eks-d/.installation_complete
