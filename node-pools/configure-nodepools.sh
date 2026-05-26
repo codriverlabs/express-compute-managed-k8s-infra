@@ -3,19 +3,17 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Load cluster identity
-[ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
-
-TENANT_ID="${1:-${TENANT_ID}}"
-REGION="${2:-${AWS_REGION:-us-east-1}}"
-
-if [ -z "$TENANT_ID" ]; then
-  echo "Usage: $0 <tenant-id> [region]"
+# All values sourced from cluster.env written at boot time by setup-eks-d.sh
+if [ ! -f /opt/eks-d/cluster.env ]; then
+  echo "ERROR: /opt/eks-d/cluster.env not found. Run this script on the control plane EC2." >&2
   exit 1
 fi
+source /opt/eks-d/cluster.env
 
+REGION="${AWS_REGION:-us-east-1}"
+ARCH="${ARCH:-arm64}"
 CLUSTER_NAME="${CLUSTER_NAME:-${TENANT_ID}-eks-dx-${ARCH}}"
-ARCH="${3:-arm64}"
+
 # NODE_VARIANT controls which EKS-optimized AMI family to use.
 # Supported values:
 #   al2023            - Amazon Linux 2023 standard (default)
@@ -24,7 +22,7 @@ ARCH="${3:-arm64}"
 #   bottlerocket      - Bottlerocket standard
 #   bottlerocket-gpu  - Bottlerocket + NVIDIA GPU
 #   bottlerocket-neuron - Bottlerocket + AWS Inferentia/Trainium
-NODE_VARIANT="${4:-al2023}"
+NODE_VARIANT="${1:-al2023}"
 OUTPUT_DIR="/opt/eks-d/karpenter_runtime_configuration"
 
 echo "Discovering Karpenter configuration for $TENANT_ID (cluster: $CLUSTER_NAME)..."

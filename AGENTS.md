@@ -55,7 +55,7 @@ ecp-eks-dx-infra/
 | Provision shared VPC | `./provision-shared-infra.sh [region]` |
 | Provision tenant | `./provision-tenant.sh` |
 | Deprovision tenant | `./deprovision-tenant.sh` |
-| Configure NodePool | `./node-pools/configure-nodepools.sh <tenant-id> [region]` (on EC2) |
+| Configure NodePool | `./node-pools/configure-nodepools.sh [node-variant]` (on EC2) |
 
 ## Deployment Sequence
 
