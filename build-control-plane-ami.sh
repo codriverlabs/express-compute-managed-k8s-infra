@@ -109,4 +109,4 @@ echo "╚═══════════════════════�
 echo "  AMI IDs stored at SSM:"
 echo "    /eks-d-xpress/infra/ami/${KUBERNETES_VERSION}/x86_64"
 echo "    /eks-d-xpress/infra/ami/${KUBERNETES_VERSION}/arm64"
-echo "  Run ./provision-tenant.sh to launch a workstation."
+echo "  Run ./provision-shared-infra.sh to deploy shared infrastructure."
