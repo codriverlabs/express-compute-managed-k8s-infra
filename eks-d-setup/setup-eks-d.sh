@@ -101,7 +101,7 @@ update_progress "provisioning" "Node ready" 65
 
 # Step 6b: cert-manager (required by webhooks and observability)
 echo "Step 6b: Installing cert-manager..."
-bash "${SCRIPT_DIR}/09b-install-cert-manager.sh"
+bash "${SCRIPT_DIR}/10-install-cert-manager.sh"
 update_progress "provisioning" "cert-manager installed" 70
 
 # Step 6c: EKS-DX Pod Identity integration (requires cert-manager for webhook TLS)
@@ -109,29 +109,29 @@ update_progress "provisioning" "cert-manager installed" 70
 if [ -n "${EKS_DX_ENDPOINT:-}" ]; then
   echo "Step 6c: Registering with EKS-DX control plane..."
   update_progress "registering" "Registering cluster with EKS-DX" 72
-  bash "${SCRIPT_DIR}/14-install-eks-dx-pod-identity.sh"
+  bash "${SCRIPT_DIR}/11-install-eks-dx-pod-identity.sh"
 else
   echo "Step 6c: Skipping EKS-DX Pod Identity (EKS_DX_ENDPOINT not set — manual/dev mode)"
 fi
 
 # Step 7: EBS CSI Driver
 echo "Step 7/10: Installing EBS CSI Driver..."
-bash "${SCRIPT_DIR}/10-install-ebs-csi.sh"
+bash "${SCRIPT_DIR}/12-install-ebs-csi.sh"
 update_progress "provisioning" "EBS CSI installed" 75
 
 # Step 8: Metrics Server
 echo "Step 8/10: Installing Metrics Server..."
-bash "${SCRIPT_DIR}/12-install-metrics-server.sh"
+bash "${SCRIPT_DIR}/13-install-metrics-server.sh"
 update_progress "provisioning" "Metrics server installed" 80
 
 # Step 9: Karpenter
 echo "Step 9/10: Installing Karpenter..."
-bash "${SCRIPT_DIR}/11-install-karpenter.sh" "${TENANT_ID}" "${CLUSTER_NAME}"
+bash "${SCRIPT_DIR}/14-install-karpenter.sh" "${TENANT_ID}" "${CLUSTER_NAME}"
 update_progress "provisioning" "Karpenter installed" 90
 
 # Step 10: CloudWatch
 echo "Step 10/10: Installing CloudWatch agent..."
-CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/13-install-cloudwatch.sh"
+CLUSTER_NAME="${CLUSTER_NAME}" bash "${SCRIPT_DIR}/15-install-cloudwatch.sh"
 update_progress "provisioning" "CloudWatch installed" 95
 
 echo ""

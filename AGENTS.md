@@ -37,10 +37,10 @@ ecp-eks-dx-infra/
 │   ├── 07-install-cni.sh
 │   ├── 08-install-cloud-provider.sh
 │   ├── 09-configure-node.sh
-│   ├── 10-install-ebs-csi.sh
-│   ├── 11-install-karpenter.sh
-│   ├── 12-install-metrics-server.sh
-│   └── 13-install-cloudwatch.sh
+│   ├── 12-install-ebs-csi.sh
+│   ├── 14-install-karpenter.sh
+│   ├── 13-install-metrics-server.sh
+│   └── 15-install-cloudwatch.sh
 └── node-pools/
     ├── configure-nodepools.sh  # Discovers runtime values, renders + applies Helm chart
     └── chart/                  # Helm chart: NodePool + EC2NodeClass (karpenter.sh/v1)
