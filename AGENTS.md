@@ -32,15 +32,15 @@ ecp-eks-dx-infra/
 │   ├── workstation-boot.sh   # EC2 first-boot entry point (idempotent, calls setup-eks-d.sh)
 │   ├── setup-eks-d.sh        # Boot-time cluster setup entry point
 │   ├── 05-prepare-etcd.sh
-│   ├── 05b-install-aws-iam-authenticator.sh  # Must run before 06
-│   ├── 06-install-eks-d.sh   # kubeadm init
-│   ├── 07-install-cni.sh
-│   ├── 08-install-cloud-provider.sh
-│   ├── 09-configure-node.sh
-│   ├── 12-install-ebs-csi.sh
-│   ├── 14-install-karpenter.sh
-│   ├── 13-install-metrics-server.sh
-│   └── 15-install-cloudwatch.sh
+│   ├── 06-install-aws-iam-authenticator.sh  # Must run before 06
+│   ├── 07-install-eks-d.sh   # kubeadm init
+│   ├── 08-install-cni.sh
+│   ├── 09-install-cloud-provider.sh
+│   ├── 10-configure-node.sh
+│   ├── 13-install-ebs-csi.sh
+│   ├── 15-install-karpenter.sh
+│   ├── 14-install-metrics-server.sh
+│   └── 16-install-cloudwatch.sh
 └── node-pools/
     ├── configure-nodepools.sh  # Discovers runtime values, renders + applies Helm chart
     └── chart/                  # Helm chart: NodePool + EC2NodeClass (karpenter.sh/v1)
@@ -95,10 +95,10 @@ Scripts source `/opt/eks-d/cluster.env` for `TENANT_ID` and `CLUSTER_NAME` rathe
 - Use `karpenter.sh/v1` and `karpenter.k8s.aws/v1` APIs (not v1beta1)
 
 ### Script Ordering Constraint
-`05b-install-aws-iam-authenticator.sh` **must** run before `06-install-eks-d.sh`. The API server is configured at `kubeadm init` time to use the authenticator webhook; if the webhook config file is absent, the API server crashes and `kubeadm init` never completes.
+`06-install-aws-iam-authenticator.sh` **must** run before `07-install-eks-d.sh`. The API server is configured at `kubeadm init` time to use the authenticator webhook; if the webhook config file is absent, the API server crashes and `kubeadm init` never completes.
 
 ### ec2-net-utils Must Be Disabled
-`07-install-cni.sh` disables `ec2-net-utils` policy-routes before installing AWS VPC CNI. On AL2023, `ec2-net-utils` adds secondary ENI IPs to the local routing table and creates per-ENI ip rules that conflict with VPC CNI pod routing (symptom: CoreDNS timeouts, cross-node pod connectivity failures).
+`08-install-cni.sh` disables `ec2-net-utils` policy-routes before installing AWS VPC CNI. On AL2023, `ec2-net-utils` adds secondary ENI IPs to the local routing table and creates per-ENI ip rules that conflict with VPC CNI pod routing (symptom: CoreDNS timeouts, cross-node pod connectivity failures).
 
 ### Worker Node Authentication
 Control plane and worker nodes share the same IAM role (`<username>-eks-dx-<arch>`). `aws-iam-authenticator` (static pod) maps that role to `system:node:{{EC2PrivateDNSName}}` in `system:nodes` — no separate worker node role or `aws-auth` ConfigMap needed.

@@ -75,15 +75,15 @@ ecp-eks-dx-infra/
 │   ├── workstation-boot.sh         # cloud-init entry point (idempotent)
 │   ├── setup-eks-d.sh              # Boot-time cluster setup entry point
 │   ├── 05-prepare-etcd.sh
-│   ├── 05b-install-aws-iam-authenticator.sh
-│   ├── 06-install-eks-d.sh         # kubeadm init
-│   ├── 07-install-cni.sh
-│   ├── 08-install-cloud-provider.sh
-│   ├── 09-configure-node.sh
-│   ├── 12-install-ebs-csi.sh
-│   ├── 14-install-karpenter.sh
-│   ├── 13-install-metrics-server.sh
-│   └── 15-install-cloudwatch.sh
+│   ├── 06-install-aws-iam-authenticator.sh
+│   ├── 07-install-eks-d.sh         # kubeadm init
+│   ├── 08-install-cni.sh
+│   ├── 09-install-cloud-provider.sh
+│   ├── 10-configure-node.sh
+│   ├── 13-install-ebs-csi.sh
+│   ├── 15-install-karpenter.sh
+│   ├── 14-install-metrics-server.sh
+│   └── 16-install-cloudwatch.sh
 └── node-pools/
     ├── configure-nodepools.sh      # Renders + applies Karpenter NodePool/EC2NodeClass
     └── chart/                      # Helm chart: NodePool + EC2NodeClass
