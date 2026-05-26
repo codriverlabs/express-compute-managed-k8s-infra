@@ -52,23 +52,28 @@ esac
 
 echo "" && echo "==> Downloading ecr-credential-provider from GitHub release..."
 mkdir -p "${AMI_BUILDER_DIR}/files"
-if command -v gh &>/dev/null && gh release list --repo plasticity-of-cloud/ecp-eks-dx-infra --limit 1 &>/dev/null; then
-  for GOARCH in amd64 arm64; do
-    ASSET="ecr-credential-provider-${KUBERNETES_VERSION}-linux-${GOARCH}"
-    gh release download --repo plasticity-of-cloud/ecp-eks-dx-infra \
-      --pattern "${ASSET}" \
-      --output "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}" \
-      --clobber
+RELEASE_BASE="https://github.com/plasticity-of-cloud/ecp-eks-dx-infra/releases/latest/download"
+DOWNLOAD_OK=true
+for GOARCH in amd64 arm64; do
+  ASSET="ecr-credential-provider-${KUBERNETES_VERSION}-linux-${GOARCH}"
+  HTTP_CODE=$(curl -fsSL --retry 3 -w "%{http_code}" \
+    "${RELEASE_BASE}/${ASSET}" \
+    -o "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}" 2>/dev/null)
+  if [ "${HTTP_CODE}" = "200" ]; then
     chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}"
-    echo "    ✓ ${ASSET} (from release)"
-  done
-else
-  echo "    ⚠ gh CLI unavailable or no release found — using fallback arm64 binary"
-  echo "    ⚠ x86_64 builds will fail without a valid amd64 binary"
+    echo "    ✓ ${ASSET}"
+  else
+    echo "    ✗ ${ASSET} not found in release (HTTP ${HTTP_CODE})"
+    DOWNLOAD_OK=false
+  fi
+done
+
+if [ "${DOWNLOAD_OK}" = "false" ]; then
+  echo "    ⚠ Release download incomplete — falling back to committed arm64 binary"
+  echo "    ⚠ x86_64 AMI build will fail without a valid amd64 binary"
   cp "${SCRIPT_DIR}/eks-d-setup/arm64/ecr-credential-provider" \
      "${AMI_BUILDER_DIR}/files/ecr-credential-provider-arm64"
   chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-arm64"
-  echo "    ✓ ecr-credential-provider-arm64 (fallback)"
 fi
 
 echo "" && echo "==> Building ${ARCH} (~20-30 min)..."
