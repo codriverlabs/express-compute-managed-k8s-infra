@@ -54,8 +54,8 @@ echo "" && echo "==> Staging ecr-credential-provider binaries..."
 mkdir -p "${AMI_BUILDER_DIR}/files"
 for GOARCH in amd64 arm64; do
   ARCH_DIR=$( [ "${GOARCH}" = "amd64" ] && echo "x86_64" || echo "arm64" )
+  # Prefer versioned binary, fall back to unversioned (legacy arm64 fallback)
   SRC="${SCRIPT_DIR}/eks-d-setup/${ARCH_DIR}/ecr-credential-provider-${KUBERNETES_VERSION}"
-  # Fall back to unversioned binary (legacy arm64 fallback)
   [ -f "${SRC}" ] || SRC="${SCRIPT_DIR}/eks-d-setup/${ARCH_DIR}/ecr-credential-provider"
   if [ ! -f "${SRC}" ]; then
     echo "ERROR: ecr-credential-provider not found for ${GOARCH} (k8s ${KUBERNETES_VERSION})." >&2
@@ -64,7 +64,7 @@ for GOARCH in amd64 arm64; do
   fi
   cp "${SRC}" "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}"
   chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}"
-  echo "    ✓ ecr-credential-provider-${GOARCH} (from ${SRC})"
+  echo "    ✓ ecr-credential-provider-${GOARCH} ($(basename ${SRC}))"
 done
 
 echo "" && echo "==> Building ${ARCH} (~20-30 min)..."
