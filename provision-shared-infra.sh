@@ -17,6 +17,11 @@ export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --outpu
 
 CDK_DIR="$(dirname "$0")/cdk"
 
+echo "==> Bootstrapping CDK environment (idempotent)..."
+cdk bootstrap "aws://${CDK_DEFAULT_ACCOUNT}/${REGION}" --quiet
+echo "    ✓ CDK bootstrap complete"
+
+echo ""
 echo "==> Building CDK bundle (mvn compile)..."
 mvn -e -q compile -f "${CDK_DIR}/pom.xml"
 echo "    ✓ CDK bundle built"
