@@ -158,7 +158,7 @@ public class SharedInfraStack extends Stack {
         LogGroup logGroup = LogGroup.Builder.create(this, "FlowLogGroup")
                 .logGroupName(logGroupName)
                 .retention(RetentionDays.ONE_WEEK)
-                .removalPolicy(RemovalPolicy.RETAIN)
+                .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
         Role role = Role.Builder.create(this, "FlowLogsRole")
