@@ -1,0 +1,804 @@
+{
+ "Resources": {
+  "Vpc": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "Tags": [
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "eks-dx-shared-vpc"
+     },
+     {
+      "Key": "Project",
+      "Value": "eks-dx"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/Vpc"
+   }
+  },
+  "Igw": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "eks-dx-igw"
+     },
+     {
+      "Key": "Project",
+      "Value": "eks-dx"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/Igw"
+   }
+  },
+  "IgwAttachment": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "Igw"
+    },
+    "VpcId": {
+     "Ref": "Vpc"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/IgwAttachment"
+   }
+  },
+  "NatSubnet": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": {
+     "Fn::Select": [
+      0,
+      {
+       "Fn::GetAZs": "us-east-1"
+      }
+     ]
+    },
+    "CidrBlock": "10.0.0.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "eks-dx-nat-subnet"
+     },
+     {
+      "Key": "Project",
+      "Value": "eks-dx"
+     },
+     {
+      "Key": "Type",
+      "Value": "NAT"
+     }
+    ],
+    "VpcId": {
+     "Ref": "Vpc"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/NatSubnet"
+   }
+  },
+  "PublicRt": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "eks-dx-public-rt"
+     },
+     {
+      "Key": "Project",
+      "Value": "eks-dx"
+     }
+    ],
+    "VpcId": {
+     "Ref": "Vpc"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/PublicRt"
+   }
+  },
+  "PublicDefaultRoute": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "Igw"
+    },
+    "RouteTableId": {
+     "Ref": "PublicRt"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/PublicDefaultRoute"
+   }
+  },
+  "NatSubnetRtAssoc": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "PublicRt"
+    },
+    "SubnetId": {
+     "Ref": "NatSubnet"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/NatSubnetRtAssoc"
+   }
+  },
+  "PrivateRt": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "eks-dx-private-rt"
+     },
+     {
+      "Key": "Project",
+      "Value": "eks-dx"
+     }
+    ],
+    "VpcId": {
+     "Ref": "Vpc"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/PrivateRt"
+   }
+  },
+  "FlowLogGroup3E25AA51": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/aws/vpc/us-east-1/eks-dx-flow-logs",
+    "RetentionInDays": 7
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/FlowLogGroup/Resource"
+   }
+  },
+  "FlowLogsRoleA00E6A39": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "vpc-flow-logs.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "RoleName": "eks-dx-vpc-flow-logs-role"
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/FlowLogsRole/Resource"
+   }
+  },
+  "FlowLogsRoleDefaultPolicy4A66171F": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "FlowLogsRoleDefaultPolicy4A66171F",
+    "Roles": [
+     {
+      "Ref": "FlowLogsRoleA00E6A39"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/FlowLogsRole/DefaultPolicy/Resource"
+   }
+  },
+  "FlowLog": {
+   "Type": "AWS::EC2::FlowLog",
+   "Properties": {
+    "DeliverLogsPermissionArn": {
+     "Fn::GetAtt": [
+      "FlowLogsRoleA00E6A39",
+      "Arn"
+     ]
+    },
+    "LogDestination": {
+     "Fn::GetAtt": [
+      "FlowLogGroup3E25AA51",
+      "Arn"
+     ]
+    },
+    "LogDestinationType": "cloud-watch-logs",
+    "ResourceId": {
+     "Ref": "Vpc"
+    },
+    "ResourceType": "VPC",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "eks-dx-vpc-flow-log"
+     },
+     {
+      "Key": "Project",
+      "Value": "eks-dx"
+     }
+    ],
+    "TrafficType": "ALL"
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/FlowLog"
+   }
+  },
+  "EcrPublicCache": {
+   "Type": "AWS::ECR::PullThroughCacheRule",
+   "Properties": {
+    "EcrRepositoryPrefix": "public-ecr",
+    "UpstreamRegistryUrl": "public.ecr.aws"
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/EcrPublicCache"
+   }
+  },
+  "RegistryK8sCache": {
+   "Type": "AWS::ECR::PullThroughCacheRule",
+   "Properties": {
+    "EcrRepositoryPrefix": "registry-k8s-io",
+    "UpstreamRegistryUrl": "registry.k8s.io"
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/RegistryK8sCache"
+   }
+  },
+  "S3Endpoint": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "RouteTableIds": [
+     {
+      "Ref": "PublicRt"
+     },
+     {
+      "Ref": "PrivateRt"
+     }
+    ],
+    "ServiceName": "com.amazonaws.us-east-1.s3",
+    "VpcEndpointType": "Gateway",
+    "VpcId": {
+     "Ref": "Vpc"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/S3Endpoint"
+   }
+  },
+  "Ltspotarm64": {
+   "Type": "AWS::EC2::LaunchTemplate",
+   "Properties": {
+    "LaunchTemplateData": {
+     "BlockDeviceMappings": [
+      {
+       "DeviceName": "/dev/xvda",
+       "Ebs": {
+        "DeleteOnTermination": true,
+        "Encrypted": true,
+        "VolumeSize": 20,
+        "VolumeType": "gp3"
+       }
+      },
+      {
+       "DeviceName": "/dev/sdf",
+       "Ebs": {
+        "DeleteOnTermination": true,
+        "Encrypted": true,
+        "VolumeSize": 20,
+        "VolumeType": "gp3"
+       }
+      }
+     ],
+     "HibernationOptions": {
+      "Configured": true
+     },
+     "InstanceMarketOptions": {
+      "MarketType": "spot",
+      "SpotOptions": {
+       "InstanceInterruptionBehavior": "hibernate"
+      }
+     },
+     "InstanceType": "m7g.large",
+     "MetadataOptions": {
+      "HttpPutResponseHopLimit": 2,
+      "HttpTokens": "required"
+     },
+     "TagSpecifications": [
+      {
+       "ResourceType": "instance",
+       "Tags": [
+        {
+         "Key": "Platform",
+         "Value": "eks-d-xpress"
+        },
+        {
+         "Key": "Arch",
+         "Value": "arm64"
+        },
+        {
+         "Key": "ManagedBy",
+         "Value": "Karpenter"
+        }
+       ]
+      },
+      {
+       "ResourceType": "volume",
+       "Tags": [
+        {
+         "Key": "Platform",
+         "Value": "eks-d-xpress"
+        },
+        {
+         "Key": "ManagedBy",
+         "Value": "CDK"
+        }
+       ]
+      }
+     ]
+    },
+    "LaunchTemplateName": "eks-dx-spot-arm64",
+    "TagSpecifications": [
+     {
+      "ResourceType": "launch-template",
+      "Tags": [
+       {
+        "Key": "Name",
+        "Value": "eks-dx-spot-arm64"
+       },
+       {
+        "Key": "Platform",
+        "Value": "eks-d-xpress"
+       },
+       {
+        "Key": "Arch",
+        "Value": "arm64"
+       },
+       {
+        "Key": "Mode",
+        "Value": "spot"
+       },
+       {
+        "Key": "ManagedBy",
+        "Value": "CDK"
+       }
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/Lt-spot-arm64"
+   }
+  },
+  "SsmLtspotarm64035B60FE": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Description": "EKS-DX shared launch template ID — spot-arm64",
+    "Name": "/eks-dx/launch-template/arm64/spot",
+    "Type": "String",
+    "Value": {
+     "Ref": "Ltspotarm64"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/SsmLt-spot-arm64/Resource"
+   }
+  },
+  "Ltondemandarm64": {
+   "Type": "AWS::EC2::LaunchTemplate",
+   "Properties": {
+    "LaunchTemplateData": {
+     "BlockDeviceMappings": [
+      {
+       "DeviceName": "/dev/xvda",
+       "Ebs": {
+        "DeleteOnTermination": true,
+        "Encrypted": true,
+        "VolumeSize": 20,
+        "VolumeType": "gp3"
+       }
+      },
+      {
+       "DeviceName": "/dev/sdf",
+       "Ebs": {
+        "DeleteOnTermination": true,
+        "Encrypted": true,
+        "VolumeSize": 20,
+        "VolumeType": "gp3"
+       }
+      }
+     ],
+     "InstanceType": "m7g.large",
+     "MetadataOptions": {
+      "HttpPutResponseHopLimit": 2,
+      "HttpTokens": "required"
+     },
+     "TagSpecifications": [
+      {
+       "ResourceType": "instance",
+       "Tags": [
+        {
+         "Key": "Platform",
+         "Value": "eks-d-xpress"
+        },
+        {
+         "Key": "Arch",
+         "Value": "arm64"
+        },
+        {
+         "Key": "ManagedBy",
+         "Value": "Karpenter"
+        }
+       ]
+      },
+      {
+       "ResourceType": "volume",
+       "Tags": [
+        {
+         "Key": "Platform",
+         "Value": "eks-d-xpress"
+        },
+        {
+         "Key": "ManagedBy",
+         "Value": "CDK"
+        }
+       ]
+      }
+     ]
+    },
+    "LaunchTemplateName": "eks-dx-ondemand-arm64",
+    "TagSpecifications": [
+     {
+      "ResourceType": "launch-template",
+      "Tags": [
+       {
+        "Key": "Name",
+        "Value": "eks-dx-ondemand-arm64"
+       },
+       {
+        "Key": "Platform",
+        "Value": "eks-d-xpress"
+       },
+       {
+        "Key": "Arch",
+        "Value": "arm64"
+       },
+       {
+        "Key": "Mode",
+        "Value": "on-demand"
+       },
+       {
+        "Key": "ManagedBy",
+        "Value": "CDK"
+       }
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/Lt-ondemand-arm64"
+   }
+  },
+  "SsmLtondemandarm64E2764BC0": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Description": "EKS-DX shared launch template ID — ondemand-arm64",
+    "Name": "/eks-dx/launch-template/arm64/ondemand",
+    "Type": "String",
+    "Value": {
+     "Ref": "Ltondemandarm64"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/SsmLt-ondemand-arm64/Resource"
+   }
+  },
+  "Ltspotx8664": {
+   "Type": "AWS::EC2::LaunchTemplate",
+   "Properties": {
+    "LaunchTemplateData": {
+     "BlockDeviceMappings": [
+      {
+       "DeviceName": "/dev/xvda",
+       "Ebs": {
+        "DeleteOnTermination": true,
+        "Encrypted": true,
+        "VolumeSize": 20,
+        "VolumeType": "gp3"
+       }
+      },
+      {
+       "DeviceName": "/dev/sdf",
+       "Ebs": {
+        "DeleteOnTermination": true,
+        "Encrypted": true,
+        "VolumeSize": 20,
+        "VolumeType": "gp3"
+       }
+      }
+     ],
+     "HibernationOptions": {
+      "Configured": true
+     },
+     "InstanceMarketOptions": {
+      "MarketType": "spot",
+      "SpotOptions": {
+       "InstanceInterruptionBehavior": "hibernate"
+      }
+     },
+     "InstanceType": "m7i.large",
+     "MetadataOptions": {
+      "HttpPutResponseHopLimit": 2,
+      "HttpTokens": "required"
+     },
+     "TagSpecifications": [
+      {
+       "ResourceType": "instance",
+       "Tags": [
+        {
+         "Key": "Platform",
+         "Value": "eks-d-xpress"
+        },
+        {
+         "Key": "Arch",
+         "Value": "x86_64"
+        },
+        {
+         "Key": "ManagedBy",
+         "Value": "Karpenter"
+        }
+       ]
+      },
+      {
+       "ResourceType": "volume",
+       "Tags": [
+        {
+         "Key": "Platform",
+         "Value": "eks-d-xpress"
+        },
+        {
+         "Key": "ManagedBy",
+         "Value": "CDK"
+        }
+       ]
+      }
+     ]
+    },
+    "LaunchTemplateName": "eks-dx-spot-x86_64",
+    "TagSpecifications": [
+     {
+      "ResourceType": "launch-template",
+      "Tags": [
+       {
+        "Key": "Name",
+        "Value": "eks-dx-spot-x86_64"
+       },
+       {
+        "Key": "Platform",
+        "Value": "eks-d-xpress"
+       },
+       {
+        "Key": "Arch",
+        "Value": "x86_64"
+       },
+       {
+        "Key": "Mode",
+        "Value": "spot"
+       },
+       {
+        "Key": "ManagedBy",
+        "Value": "CDK"
+       }
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/Lt-spot-x86_64"
+   }
+  },
+  "SsmLtspotx8664A35C79E3": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Description": "EKS-DX shared launch template ID — spot-x86_64",
+    "Name": "/eks-dx/launch-template/x86_64/spot",
+    "Type": "String",
+    "Value": {
+     "Ref": "Ltspotx8664"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/SsmLt-spot-x86_64/Resource"
+   }
+  },
+  "Ltondemandx8664": {
+   "Type": "AWS::EC2::LaunchTemplate",
+   "Properties": {
+    "LaunchTemplateData": {
+     "BlockDeviceMappings": [
+      {
+       "DeviceName": "/dev/xvda",
+       "Ebs": {
+        "DeleteOnTermination": true,
+        "Encrypted": true,
+        "VolumeSize": 20,
+        "VolumeType": "gp3"
+       }
+      },
+      {
+       "DeviceName": "/dev/sdf",
+       "Ebs": {
+        "DeleteOnTermination": true,
+        "Encrypted": true,
+        "VolumeSize": 20,
+        "VolumeType": "gp3"
+       }
+      }
+     ],
+     "InstanceType": "m7i.large",
+     "MetadataOptions": {
+      "HttpPutResponseHopLimit": 2,
+      "HttpTokens": "required"
+     },
+     "TagSpecifications": [
+      {
+       "ResourceType": "instance",
+       "Tags": [
+        {
+         "Key": "Platform",
+         "Value": "eks-d-xpress"
+        },
+        {
+         "Key": "Arch",
+         "Value": "x86_64"
+        },
+        {
+         "Key": "ManagedBy",
+         "Value": "Karpenter"
+        }
+       ]
+      },
+      {
+       "ResourceType": "volume",
+       "Tags": [
+        {
+         "Key": "Platform",
+         "Value": "eks-d-xpress"
+        },
+        {
+         "Key": "ManagedBy",
+         "Value": "CDK"
+        }
+       ]
+      }
+     ]
+    },
+    "LaunchTemplateName": "eks-dx-ondemand-x86_64",
+    "TagSpecifications": [
+     {
+      "ResourceType": "launch-template",
+      "Tags": [
+       {
+        "Key": "Name",
+        "Value": "eks-dx-ondemand-x86_64"
+       },
+       {
+        "Key": "Platform",
+        "Value": "eks-d-xpress"
+       },
+       {
+        "Key": "Arch",
+        "Value": "x86_64"
+       },
+       {
+        "Key": "Mode",
+        "Value": "on-demand"
+       },
+       {
+        "Key": "ManagedBy",
+        "Value": "CDK"
+       }
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/Lt-ondemand-x86_64"
+   }
+  },
+  "SsmLtondemandx86646DEBA26F": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Description": "EKS-DX shared launch template ID — ondemand-x86_64",
+    "Name": "/eks-dx/launch-template/x86_64/ondemand",
+    "Type": "String",
+    "Value": {
+     "Ref": "Ltondemandx8664"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/SsmLt-ondemand-x86_64/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/0VQTWvDMAz9Lb073hbo7iVspSOHkIZdh+KqiVfbCra8MIL/+8hH15Pe03vSE8plvn+VLzsYQ6Yut8zoVk5nBnUTMIavCVUup+LqPqtCFFd3cozeIR+BcYRfsSobOzCD6i06nvvn2DpcUE2RsYHW4D97GB7iIQRSGliTm+V3Q2NJ3Rbx5i4D6XVzCdGpvkE7GGBMwlAX5FRSd/QUh8Wx4SQ0WDnVdI82KCoyWi2XrygJVF7ONBrT9J5i1xegeqyjQRGCnf/htesq8GCR0S+zd5JSEh/wA0/5Xj7LfPcdtM58dKwtynqtf0GMY0plAQAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "EksDxSharedInfraStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

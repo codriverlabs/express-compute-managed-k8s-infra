@@ -43,7 +43,9 @@ public class SharedInfraStack extends Stack {
         this.instanceTypeX86_64 = (String) this.getNode().tryGetContext("instanceTypeX86_64");
         this.diskSizeGb = (int) this.getNode().tryGetContext("diskSizeGb");
 
-        var networking = createNetworking();
+        boolean enableNatGateway = Boolean.TRUE.equals(this.getNode().tryGetContext("enableNatGateway"));
+
+        var networking = createNetworking(enableNatGateway);
         createFlowLogs(networking.vpcId());
         createEcrPullThroughCache();
         createS3Endpoint(networking.vpcId(), networking.publicRtId(), networking.privateRtId());
@@ -54,7 +56,7 @@ public class SharedInfraStack extends Stack {
 
     private record Networking(String vpcId, String publicRtId, String privateRtId) {}
 
-    private Networking createNetworking() {
+    private Networking createNetworking(boolean enableNatGateway) {
         CfnVPC vpc = CfnVPC.Builder.create(this, "Vpc")
                 .cidrBlock("10.0.0.0/16")
                 .enableDnsHostnames(true)
@@ -89,21 +91,26 @@ public class SharedInfraStack extends Stack {
                         tag("Type", "NAT")))
                 .build();
 
-        CfnEIP natEip = CfnEIP.Builder.create(this, "NatEip")
-                .domain("vpc")
-                .tags(List.of(
-                        tag("Name", projectName + "-nat-eip"),
-                        tag("Project", projectName)))
-                .build();
-        natEip.addDependency(igw);
+        CfnEIP natEip = null;
+        CfnNatGateway natGw = null;
 
-        CfnNatGateway natGw = CfnNatGateway.Builder.create(this, "NatGateway")
-                .allocationId(natEip.getAttrAllocationId())
-                .subnetId(natSubnet.getRef())
-                .tags(List.of(
-                        tag("Name", projectName + "-nat-gw"),
-                        tag("Project", projectName)))
-                .build();
+        if (enableNatGateway) {
+            natEip = CfnEIP.Builder.create(this, "NatEip")
+                    .domain("vpc")
+                    .tags(List.of(
+                            tag("Name", projectName + "-nat-eip"),
+                            tag("Project", projectName)))
+                    .build();
+            natEip.addDependency(igw);
+
+            natGw = CfnNatGateway.Builder.create(this, "NatGateway")
+                    .allocationId(natEip.getAttrAllocationId())
+                    .subnetId(natSubnet.getRef())
+                    .tags(List.of(
+                            tag("Name", projectName + "-nat-gw"),
+                            tag("Project", projectName)))
+                    .build();
+        }
 
         // Public route table
         CfnRouteTable publicRt = CfnRouteTable.Builder.create(this, "PublicRt")
@@ -124,7 +131,7 @@ public class SharedInfraStack extends Stack {
                 .routeTableId(publicRt.getRef())
                 .build();
 
-        // Private route table
+        // Private route table — NAT route only if NAT GW exists
         CfnRouteTable privateRt = CfnRouteTable.Builder.create(this, "PrivateRt")
                 .vpcId(vpc.getRef())
                 .tags(List.of(
@@ -132,11 +139,13 @@ public class SharedInfraStack extends Stack {
                         tag("Project", projectName)))
                 .build();
 
-        CfnRoute.Builder.create(this, "PrivateNatRoute")
-                .routeTableId(privateRt.getRef())
-                .destinationCidrBlock("0.0.0.0/0")
-                .natGatewayId(natGw.getRef())
-                .build();
+        if (enableNatGateway && natGw != null) {
+            CfnRoute.Builder.create(this, "PrivateNatRoute")
+                    .routeTableId(privateRt.getRef())
+                    .destinationCidrBlock("0.0.0.0/0")
+                    .natGatewayId(natGw.getRef())
+                    .build();
+        }
 
         return new Networking(vpc.getRef(), publicRt.getRef(), privateRt.getRef());
     }

@@ -1,0 +1,451 @@
+{
+  "/EksDxSharedInfraStack": [
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/Vpc": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Vpc"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/Igw": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Igw"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/IgwAttachment": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IgwAttachment"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/NatSubnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "NatSubnet"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/PublicRt": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PublicRt"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/PublicDefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PublicDefaultRoute"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/NatSubnetRtAssoc": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "NatSubnetRtAssoc"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/PrivateRt": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PrivateRt"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/FlowLog": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FlowLog"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/EcrPublicCache": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EcrPublicCache"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/RegistryK8sCache": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "RegistryK8sCache"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/S3Endpoint": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "S3Endpoint"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/Lt-spot-arm64": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Ltspotarm64"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/Lt-ondemand-arm64": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Ltondemandarm64"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/Lt-spot-x86_64": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Ltspotx8664"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/Lt-ondemand-x86_64": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Ltondemandx8664"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...App.synth in aws-cdk-lib...",
+        "/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:543 (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:5434)"
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...App.synth in aws-cdk-lib...",
+        "/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:543 (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:5434)"
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/FlowLogGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FlowLogGroup3E25AA51"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new LogGroup2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/FlowLogsRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FlowLogsRoleA00E6A39"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new Role2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/SsmLt-spot-arm64/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SsmLtspotarm64035B60FE"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new StringParameter2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/SsmLt-ondemand-arm64/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SsmLtondemandarm64E2764BC0"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new StringParameter2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/SsmLt-spot-x86_64/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SsmLtspotx8664A35C79E3"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new StringParameter2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/SsmLt-ondemand-x86_64/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SsmLtondemandx86646DEBA26F"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...new StringParameter2 in aws-cdk-lib...",
+        "Kernel._Kernel_create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:61273)",
+        "Kernel.create (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:52004)",
+        "KernelHost.processRequest (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:212888)",
+        "KernelHost.run (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211943)",
+        "Immediate._onImmediate (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:211987)",
+        "...node internals..."
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...App.synth in aws-cdk-lib...",
+        "/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:543 (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:5434)",
+        "Kernel._Kernel_ensureSync (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:69992)",
+        "Kernel.invoke (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:54294)"
+      ]
+    }
+  ],
+  "/EksDxSharedInfraStack/FlowLogsRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "FlowLogsRoleDefaultPolicy4A66171F"
+    },
+    {
+      "type": "aws:cdk:creationStack",
+      "data": [
+        "...WrappedClass.<anonymous> in aws-cdk-lib...",
+        "/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:543 (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:5434)",
+        "Kernel._Kernel_ensureSync (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:69992)",
+        "Kernel.invoke (/tmp/jsii-java-runtime2918654894852002489/lib/program.js:1:54294)"
+      ]
+    }
+  ]
+}

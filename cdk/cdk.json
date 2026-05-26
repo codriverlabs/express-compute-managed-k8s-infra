@@ -4,6 +4,7 @@
     "projectName": "eks-dx",
     "instanceTypeArm64": "m7g.large",
     "instanceTypeX86_64": "m7i.large",
-    "diskSizeGb": 20
+    "diskSizeGb": 20,
+    "enableNatGateway": false
   }
 }
