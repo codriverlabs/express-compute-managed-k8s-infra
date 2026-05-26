@@ -12,7 +12,6 @@ import software.amazon.awscdk.services.ec2.CfnLaunchTemplate;
 import software.amazon.awscdk.services.ec2.CfnNatGateway;
 import software.amazon.awscdk.services.ec2.CfnRoute;
 import software.amazon.awscdk.services.ec2.CfnRouteTable;
-import software.amazon.awscdk.services.ec2.CfnSecurityGroup;
 import software.amazon.awscdk.services.ec2.CfnSubnet;
 import software.amazon.awscdk.services.ec2.CfnSubnetRouteTableAssociation;
 import software.amazon.awscdk.services.ec2.CfnVPC;
@@ -56,8 +55,7 @@ public class SharedInfraStack extends Stack {
 
     // ── Networking ────────────────────────────────────────────────────────────
 
-    private record Networking(String vpcId, String publicRtId, String privateRtId,
-                               String tenantSubnetId, String securityGroupId) {}
+    private record Networking(String vpcId, String publicRtId, String privateRtId) {}
 
     private Networking createNetworking(boolean enableNatGateway) {
         CfnVPC vpc = CfnVPC.Builder.create(this, "Vpc")
@@ -150,51 +148,7 @@ public class SharedInfraStack extends Stack {
                     .build();
         }
 
-        // Tenant subnet — public (direct IGW) when NAT disabled, private when NAT enabled
-        boolean tenantPublic = !enableNatGateway;
-        CfnSubnet tenantSubnet = CfnSubnet.Builder.create(this, "TenantSubnet")
-                .vpcId(vpc.getRef())
-                .cidrBlock("10.0.1.0/24")
-                .availabilityZone(az)
-                .mapPublicIpOnLaunch(tenantPublic)
-                .tags(List.of(
-                        tag("Name", projectName + "-tenant-subnet"),
-                        tag("Project", projectName),
-                        tag("Type", "Tenant")))
-                .build();
-
-        CfnSubnetRouteTableAssociation.Builder.create(this, "TenantSubnetRtAssoc")
-                .subnetId(tenantSubnet.getRef())
-                .routeTableId(tenantPublic ? publicRt.getRef() : privateRt.getRef())
-                .build();
-
-        // Security group for tenant control plane instances
-        CfnSecurityGroup sg = CfnSecurityGroup.Builder.create(this, "TenantSg")
-                .vpcId(vpc.getRef())
-                .groupDescription("EKS-DX tenant control plane instances")
-                .groupName(projectName + "-tenant-sg")
-                .securityGroupIngress(List.of(
-                        CfnSecurityGroup.IngressProperty.builder()
-                                .ipProtocol("tcp").fromPort(22).toPort(22)
-                                .cidrIp("0.0.0.0/0").description("SSH").build(),
-                        CfnSecurityGroup.IngressProperty.builder()
-                                .ipProtocol("tcp").fromPort(6443).toPort(6443)
-                                .cidrIp("0.0.0.0/0").description("Kubernetes API").build(),
-                        CfnSecurityGroup.IngressProperty.builder()
-                                .ipProtocol("-1").fromPort(-1).toPort(-1)
-                                .cidrIp("10.0.0.0/16").description("VPC internal").build()))
-                .securityGroupEgress(List.of(
-                        CfnSecurityGroup.EgressProperty.builder()
-                                .ipProtocol("-1").fromPort(-1).toPort(-1)
-                                .cidrIp("0.0.0.0/0").description("All egress").build()))
-                .tags(List.of(
-                        tag("Name", projectName + "-tenant-sg"),
-                        tag("Project", projectName),
-                        tag("ManagedBy", "CDK")))
-                .build();
-
-        return new Networking(vpc.getRef(), publicRt.getRef(), privateRt.getRef(),
-                tenantSubnet.getRef(), sg.getAttrGroupId());
+        return new Networking(vpc.getRef(), publicRt.getRef(), privateRt.getRef());
     }
 
     // ── VPC Flow Logs ─────────────────────────────────────────────────────────
@@ -371,18 +325,6 @@ public class SharedInfraStack extends Stack {
                 .parameterName("/eks-d-xpress/infra/network/vpc-id")
                 .stringValue(networking.vpcId())
                 .description("EKS-DX shared VPC ID")
-                .build();
-
-        StringParameter.Builder.create(this, "SsmSubnetIds")
-                .parameterName("/eks-d-xpress/infra/network/private-subnet-ids")
-                .stringValue(networking.tenantSubnetId())
-                .description("EKS-DX tenant subnet ID(s), comma-separated")
-                .build();
-
-        StringParameter.Builder.create(this, "SsmSgId")
-                .parameterName("/eks-d-xpress/infra/network/security-group-id")
-                .stringValue(networking.securityGroupId())
-                .description("EKS-DX tenant control plane security group ID")
                 .build();
     }
 
