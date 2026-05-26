@@ -51,20 +51,25 @@ case "${ARCH}" in
 esac
 
 echo "" && echo "==> Downloading ecr-credential-provider from GitHub release..."
-if ! command -v gh &>/dev/null; then
-  echo "ERROR: gh CLI is required. Install it from https://cli.github.com" >&2
-  exit 1
-fi
 mkdir -p "${AMI_BUILDER_DIR}/files"
-for GOARCH in amd64 arm64; do
-  ASSET="ecr-credential-provider-${KUBERNETES_VERSION}-linux-${GOARCH}"
-  gh release download --repo plasticity-of-cloud/ecp-eks-dx-infra \
-    --pattern "${ASSET}" \
-    --output "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}" \
-    --clobber
-  chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}"
-  echo "    ✓ ${ASSET}"
-done
+if command -v gh &>/dev/null && gh release list --repo plasticity-of-cloud/ecp-eks-dx-infra --limit 1 &>/dev/null; then
+  for GOARCH in amd64 arm64; do
+    ASSET="ecr-credential-provider-${KUBERNETES_VERSION}-linux-${GOARCH}"
+    gh release download --repo plasticity-of-cloud/ecp-eks-dx-infra \
+      --pattern "${ASSET}" \
+      --output "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}" \
+      --clobber
+    chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}"
+    echo "    ✓ ${ASSET} (from release)"
+  done
+else
+  echo "    ⚠ gh CLI unavailable or no release found — using fallback arm64 binary"
+  echo "    ⚠ x86_64 builds will fail without a valid amd64 binary"
+  cp "${SCRIPT_DIR}/eks-d-setup/arm64/ecr-credential-provider" \
+     "${AMI_BUILDER_DIR}/files/ecr-credential-provider-arm64"
+  chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-arm64"
+  echo "    ✓ ecr-credential-provider-arm64 (fallback)"
+fi
 
 echo "" && echo "==> Building ${ARCH} (~20-30 min)..."
 
