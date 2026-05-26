@@ -15,20 +15,13 @@ variable "kubernetes_version" {
 variable "ami_version"        { type = string }
 variable "project_name" {
   type    = string
-  default = "eks-dx"
+  default = "eks-dx-infra"
 }
 
 source "amazon-ebs" "x86_64" {
   region        = var.aws_region
   instance_type = "c6a.large"
 
-  vpc_filter {
-    filters = { "tag:Name" = "${var.project_name}-shared-vpc" }
-  }
-  subnet_filter {
-    filters   = { "tag:Type" = "NAT" }
-    most_free = true
-  }
   associate_public_ip_address = true
 
   source_ami_filter {
@@ -67,6 +60,7 @@ source "amazon-ebs" "x86_64" {
   tags = {
     Name              = "eks-dx-x86_64-${var.ami_version}"
     Platform          = "eks-d-xpress"
+    Project           = var.project_name
     KubernetesVersion = var.kubernetes_version
     ManagedBy         = "Packer"
   }
@@ -92,13 +86,6 @@ source "amazon-ebs" "arm64" {
   region        = var.aws_region
   instance_type = "c6g.large"
 
-  vpc_filter {
-    filters = { "tag:Name" = "${var.project_name}-shared-vpc" }
-  }
-  subnet_filter {
-    filters   = { "tag:Type" = "NAT" }
-    most_free = true
-  }
   associate_public_ip_address = true
 
   source_ami_filter {
@@ -137,6 +124,7 @@ source "amazon-ebs" "arm64" {
   tags = {
     Name              = "eks-dx-arm64-${var.ami_version}"
     Platform          = "eks-d-xpress"
+    Project           = var.project_name
     KubernetesVersion = var.kubernetes_version
     ManagedBy         = "Packer"
   }

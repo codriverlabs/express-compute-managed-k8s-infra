@@ -52,7 +52,15 @@ esac
 
 echo "" && echo "==> Staging ecr-credential-provider binaries..."
 mkdir -p "${AMI_BUILDER_DIR}/files"
-for GOARCH in amd64 arm64; do
+
+# Determine which GOARCHes are needed for the selected ARCH
+case "${ARCH}" in
+  arm64)  GOARCHES="arm64" ;;
+  x86_64) GOARCHES="amd64" ;;
+  both)   GOARCHES="amd64 arm64" ;;
+esac
+
+for GOARCH in ${GOARCHES}; do
   ARCH_DIR=$( [ "${GOARCH}" = "amd64" ] && echo "x86_64" || echo "arm64" )
   # Prefer versioned binary, fall back to unversioned (legacy arm64 fallback)
   SRC="${SCRIPT_DIR}/eks-d-setup/${ARCH_DIR}/ecr-credential-provider-${KUBERNETES_VERSION}"
