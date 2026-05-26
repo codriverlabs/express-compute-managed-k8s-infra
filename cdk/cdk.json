@@ -1,7 +1,7 @@
 {
   "app": "mvn -e -q compile exec:java",
   "context": {
-    "projectName": "eks-dx",
+    "projectName": "eks-dx-infra",
     "instanceTypeArm64": "m7g.large",
     "instanceTypeX86_64": "m7i.large",
     "diskSizeGb": 20,

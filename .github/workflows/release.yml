@@ -55,7 +55,34 @@ jobs:
           path: ecr-credential-provider-*
           retention-days: 1
 
-  # ── Step 2: Build AMIs (Packer) ───────────────────────────────────────────
+  # ── Step 2: Build CDK bundle and synthesize CloudFormation template ───────
+  build-cdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '21'
+
+      - name: Install CDK
+        run: npm install -g aws-cdk
+
+      - name: Synthesize CloudFormation template
+        run: |
+          cd cdk
+          mvn -e -q compile
+          cdk synth EksDxSharedInfraStack --quiet
+          cp cdk.out/EksDxSharedInfraStack.template.json ../EksDxSharedInfraStack.template.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cdk-template
+          path: EksDxSharedInfraStack.template.json
+          retention-days: 1
+
+  # ── Step 3: Build AMIs (Packer) ───────────────────────────────────────────
   build-ami:
     needs: build-ecr-credential-provider
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_ami }}
@@ -102,10 +129,18 @@ jobs:
             -var "kubernetes_version=${{ matrix.k8s_version }}" \
             -var "ami_version=$(date +%Y%m%d-%H%M)" \
             ami-builder/eks-dx.pkr.hcl
+          cp ami-builder/ami-manifest-entries.json \
+             ami-manifest-${{ matrix.k8s_version }}-${{ matrix.arch }}.json
 
-  # ── Create GitHub release with binaries ───────────────────────────────────
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ami-manifest-${{ matrix.k8s_version }}-${{ matrix.arch }}
+          path: ami-manifest-${{ matrix.k8s_version }}-${{ matrix.arch }}.json
+          retention-days: 1
+
+  # ── Step 4: Create GitHub release with all artifacts ─────────────────────
   release:
-    needs: build-ami
+    needs: [build-ami, build-cdk]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
@@ -113,7 +148,32 @@ jobs:
         with:
           merge-multiple: true
 
+      - name: Merge AMI manifest entries
+        run: |
+          python3 - <<'EOF'
+          import json, glob, collections
+
+          entries = []
+          for f in glob.glob("ami-manifest-*.json"):
+              entries.extend(json.load(open(f)))
+
+          # Build nested structure: {k8s_version: {arch: {region: ami_id}}}
+          manifest = collections.defaultdict(lambda: collections.defaultdict(dict))
+          for e in entries:
+              manifest[e["kubernetes_version"]][e["arch"]][e["region"]] = e["ami_id"]
+
+          json.dump(manifest, open("ami-manifest.json", "w"), indent=2)
+          print(json.dumps(manifest, indent=2))
+          EOF
+
+      - name: Generate checksums
+        run: sha256sum ecr-credential-provider-* EksDxSharedInfraStack.template.json ami-manifest.json > checksums.txt
+
       - uses: softprops/action-gh-release@v2
         with:
-          files: ecr-credential-provider-*
+          files: |
+            ecr-credential-provider-*
+            EksDxSharedInfraStack.template.json
+            ami-manifest.json
+            checksums.txt
           generate_release_notes: true

@@ -185,13 +185,14 @@ build {
   }
 
   post-processor "manifest" {
-    output     = "/tmp/packer-manifest.json"
+    output     = "packer-manifest.json"
     strip_path = true
   }
 
   post-processor "shell-local" {
     inline = [
-      "python3 -c \"import json; [print(b['name']+' '+b['artifact_id'].split(':')[-1]) for b in json.load(open('/tmp/packer-manifest.json'))['builds']]\" | while read arch ami_id; do aws ssm put-parameter --name /eks-dx/ami/$arch/${var.kubernetes_version} --value $ami_id --type String --overwrite --region ${var.aws_region} && echo \"Stored /eks-dx/ami/$arch/${var.kubernetes_version} -> $ami_id\"; done"
+      # Push AMI IDs to SSM and write a clean manifest entry per build
+      "python3 -c \"\nimport json, sys\nbuilds = json.load(open('packer-manifest.json'))['builds']\nentries = []\nfor b in builds:\n    region, ami_id = b['artifact_id'].split(':')\n    arch = b['name']\n    entries.append({'kubernetes_version': '${var.kubernetes_version}', 'arch': arch, 'region': region, 'ami_id': ami_id})\n    import subprocess\n    subprocess.run(['aws','ssm','put-parameter','--name',f'/eks-dx/ami/{arch}/${var.kubernetes_version}','--value',ami_id,'--type','String','--overwrite','--region',region], check=True)\n    print(f'Stored /eks-dx/ami/{arch}/${var.kubernetes_version} -> {ami_id}')\njson.dump(entries, open('ami-manifest-entries.json','w'), indent=2)\n\""
     ]
   }
 }
