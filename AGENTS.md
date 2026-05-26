@@ -79,7 +79,7 @@ node-pools/configure-nodepools.sh  # on EC2, after cluster is ready
 - SQS queue: same as cluster name (Karpenter interruption)
 - Terraform state bucket: `eks-dx-tfstate-<account-id>-<region>` (auto-derived, no config needed)
 - Terraform state key: `eks-dx/<workstation-name>/terraform.tfstate`
-- SSM AMI parameter: `/eks-dx/ami/<region>/<kubernetes-version>/x86_64` and `/eks-dx/ami/<region>/<kubernetes-version>/arm64` (e.g. `/eks-dx/ami/us-east-1/1.35/x86_64`)
+- SSM AMI parameter: `/eks-d-xpress/infra/ami/<region>/<kubernetes-version>/x86_64` and `/eks-d-xpress/infra/ami/<region>/<kubernetes-version>/arm64` (e.g. `/eks-d-xpress/infra/ami/us-east-1/1.35/x86_64`)
 
 ### Cluster Identity Persistence
 Scripts source `/opt/eks-d/cluster.env` for `TENANT_ID` and `CLUSTER_NAME` rather than requiring arguments every time. Written by `setup-eks-d.sh` / `workstation-boot.sh`.

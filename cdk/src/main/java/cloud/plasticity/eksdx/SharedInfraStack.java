@@ -310,7 +310,7 @@ public class SharedInfraStack extends Stack {
 
             // Publish LT ID to SSM for Lambda consumption
             StringParameter.Builder.create(this, "SsmLt-" + cfg.key())
-                    .parameterName("/eks-dx/launch-template/" + cfg.arch() + "/" + cfg.mode())
+                    .parameterName("/eks-d-xpress/infra/launch-template/" + cfg.arch() + "/" + cfg.mode())
                     .stringValue(lt.getRef())
                     .description("EKS-DX shared launch template ID — " + cfg.key())
                     .build();

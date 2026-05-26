@@ -1,0 +1,8 @@
+[
+  {
+    "kubernetes_version": "1.35",
+    "arch": "arm64",
+    "region": "us-east-1",
+    "ami_id": "ami-0d50cb6686f9f56fa"
+  }
+]

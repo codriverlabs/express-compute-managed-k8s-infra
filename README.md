@@ -27,7 +27,7 @@ Creates Terraform state S3 bucket and provisions shared infrastructure (VPC, sub
 ```bash
 ./build-control-plane-ami.sh
 ```
-Packer builds a custom AMI with all binaries, container images, and Helm charts pre-baked. Stores AMI ID in SSM at `/eks-dx/ami/<region>/<k8s-version>/<arch>`. Takes ~15-20 min. Must be run before provisioning tenants.
+Packer builds a custom AMI with all binaries, container images, and Helm charts pre-baked. Stores AMI ID in SSM at `/eks-d-xpress/infra/ami/<region>/<k8s-version>/<arch>`. Takes ~15-20 min. Must be run before provisioning tenants.
 
 ### 3. Provision tenant
 ```bash
