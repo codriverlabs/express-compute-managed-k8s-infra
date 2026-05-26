@@ -1,0 +1,167 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      k8s_versions:
+        description: 'Kubernetes versions to build (comma-separated)'
+        required: true
+        default: '1.35,1.36'
+      build_ami:
+        description: 'Build AMIs after ecr-credential-provider'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  id-token: write  # OIDC for AWS
+
+jobs:
+  # ── Build ecr-credential-provider natively per arch ──────────────────────
+  build-ecr-credential-provider:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            goarch: amd64
+          - runner: ubuntu-24.04-arm
+            goarch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Resolve k8s versions
+        id: versions
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSIONS="${{ github.event.inputs.k8s_versions }}"
+          else
+            VERSIONS="1.35,1.36"
+          fi
+          echo "list=${VERSIONS}" >> "$GITHUB_OUTPUT"
+
+      - name: Build for each k8s version
+        run: |
+          IFS=',' read -ra VERSIONS <<< "${{ steps.versions.outputs.list }}"
+          for K8S_VERSION in "${VERSIONS[@]}"; do
+            K8S_VERSION="${K8S_VERSION// /}"
+            echo "==> Finding latest cloud-provider-aws tag for v${K8S_VERSION}.*"
+            TAG=$(curl -sf "https://api.github.com/repos/kubernetes/cloud-provider-aws/tags?per_page=100" \
+              | jq -r --arg v "v${K8S_VERSION}." '[.[] | select(.name | startswith($v))] | first | .name')
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "ERROR: no cloud-provider-aws tag found for v${K8S_VERSION}.*" >&2
+              exit 1
+            fi
+            echo "Using cloud-provider-aws ${TAG}"
+            git clone --depth 1 --branch "${TAG}" \
+              https://github.com/kubernetes/cloud-provider-aws.git /tmp/cpa-${K8S_VERSION}
+            cd /tmp/cpa-${K8S_VERSION}
+            go build -o "${{ github.workspace }}/ecr-credential-provider-${K8S_VERSION}-${{ matrix.goarch }}" \
+              ./cmd/ecr-credential-provider
+            echo "✓ ecr-credential-provider-${K8S_VERSION}-${{ matrix.goarch }}"
+            cd /
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecr-credential-provider-${{ matrix.goarch }}
+          path: ecr-credential-provider-*-${{ matrix.goarch }}
+          retention-days: 1
+
+  # ── Commit binaries into eks-d-setup/<arch>/ and create release ──────────
+  release:
+    needs: build-ecr-credential-provider
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: artifacts/
+
+      - name: Install binaries into eks-d-setup/<arch>/ and commit
+        run: |
+          for f in artifacts/ecr-credential-provider-*-amd64; do
+            K8S_VERSION=$(basename "$f" | sed 's/ecr-credential-provider-\(.*\)-amd64/\1/')
+            mkdir -p eks-d-setup/x86_64
+            cp "$f" "eks-d-setup/x86_64/ecr-credential-provider-${K8S_VERSION}"
+            chmod +x "eks-d-setup/x86_64/ecr-credential-provider-${K8S_VERSION}"
+          done
+          for f in artifacts/ecr-credential-provider-*-arm64; do
+            K8S_VERSION=$(basename "$f" | sed 's/ecr-credential-provider-\(.*\)-arm64/\1/')
+            mkdir -p eks-d-setup/arm64
+            cp "$f" "eks-d-setup/arm64/ecr-credential-provider-${K8S_VERSION}"
+            chmod +x "eks-d-setup/arm64/ecr-credential-provider-${K8S_VERSION}"
+          done
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add eks-d-setup/arm64/ecr-credential-provider-* \
+                  eks-d-setup/x86_64/ecr-credential-provider-*
+          git diff --cached --quiet || \
+            git commit -m "chore: update ecr-credential-provider binaries [skip ci]"
+          git push origin HEAD:main
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: artifacts/ecr-credential-provider-*
+          generate_release_notes: false
+          body: |
+            `ecr-credential-provider` binaries built natively from [kubernetes/cloud-provider-aws](https://github.com/kubernetes/cloud-provider-aws).
+
+  # ── Build AMIs (Packer) ───────────────────────────────────────────────────
+  build-ami:
+    needs: release
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_ami == 'true' }}
+    strategy:
+      matrix:
+        k8s_version: ['1.35', '1.36']
+        arch: ['arm64', 'x86_64']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: ami-builder/files/
+
+      - name: Rename artifacts to expected filenames
+        run: |
+          GOARCH=${{ matrix.arch == 'arm64' && 'arm64' || 'amd64' }}
+          cp "ami-builder/files/ecr-credential-provider-${{ matrix.k8s_version }}-${GOARCH}" \
+             "ami-builder/files/ecr-credential-provider-${GOARCH}"
+          chmod +x "ami-builder/files/ecr-credential-provider-${GOARCH}"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PACKER_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install Packer
+        run: |
+          VERSION=$(grep '^packer ' .tool-versions | awk '{print $2}')
+          curl -fsSL "https://releases.hashicorp.com/packer/${VERSION}/packer_${VERSION}_linux_amd64.zip" \
+            -o /tmp/packer.zip
+          unzip -o /tmp/packer.zip -d /tmp
+          sudo mv /tmp/packer /usr/local/bin/packer
+
+      - name: Build AMI
+        env:
+          KUBERNETES_VERSION: ${{ matrix.k8s_version }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          AMI_VERSION=$(date +%Y%m%d-%H%M)
+          packer init ami-builder/eks-dx.pkr.hcl
+          packer build \
+            -only="amazon-ebs.${{ matrix.arch }}" \
+            -var "aws_region=${AWS_REGION}" \
+            -var "kubernetes_version=${KUBERNETES_VERSION}" \
+            -var "ami_version=${AMI_VERSION}" \
+            ami-builder/eks-dx.pkr.hcl

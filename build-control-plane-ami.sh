@@ -50,31 +50,22 @@ case "${ARCH}" in
   *) echo "ERROR: ARCH must be arm64, x86_64, or both" >&2; exit 1 ;;
 esac
 
-echo "" && echo "==> Downloading ecr-credential-provider from GitHub release..."
+echo "" && echo "==> Staging ecr-credential-provider binaries..."
 mkdir -p "${AMI_BUILDER_DIR}/files"
-RELEASE_BASE="https://github.com/plasticity-of-cloud/ecp-eks-dx-infra/releases/latest/download"
-DOWNLOAD_OK=true
 for GOARCH in amd64 arm64; do
-  ASSET="ecr-credential-provider-${KUBERNETES_VERSION}-linux-${GOARCH}"
-  HTTP_CODE=$(curl -fsSL --retry 3 -w "%{http_code}" \
-    "${RELEASE_BASE}/${ASSET}" \
-    -o "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}" 2>/dev/null)
-  if [ "${HTTP_CODE}" = "200" ]; then
-    chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}"
-    echo "    ✓ ${ASSET}"
-  else
-    echo "    ✗ ${ASSET} not found in release (HTTP ${HTTP_CODE})"
-    DOWNLOAD_OK=false
+  ARCH_DIR=$( [ "${GOARCH}" = "amd64" ] && echo "x86_64" || echo "arm64" )
+  SRC="${SCRIPT_DIR}/eks-d-setup/${ARCH_DIR}/ecr-credential-provider-${KUBERNETES_VERSION}"
+  # Fall back to unversioned binary (legacy arm64 fallback)
+  [ -f "${SRC}" ] || SRC="${SCRIPT_DIR}/eks-d-setup/${ARCH_DIR}/ecr-credential-provider"
+  if [ ! -f "${SRC}" ]; then
+    echo "ERROR: ecr-credential-provider not found for ${GOARCH} (k8s ${KUBERNETES_VERSION})." >&2
+    echo "       Push a tag to trigger the release workflow first." >&2
+    exit 1
   fi
+  cp "${SRC}" "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}"
+  chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-${GOARCH}"
+  echo "    ✓ ecr-credential-provider-${GOARCH} (from ${SRC})"
 done
-
-if [ "${DOWNLOAD_OK}" = "false" ]; then
-  echo "    ⚠ Release download incomplete — falling back to committed arm64 binary"
-  echo "    ⚠ x86_64 AMI build will fail without a valid amd64 binary"
-  cp "${SCRIPT_DIR}/eks-d-setup/arm64/ecr-credential-provider" \
-     "${AMI_BUILDER_DIR}/files/ecr-credential-provider-arm64"
-  chmod +x "${AMI_BUILDER_DIR}/files/ecr-credential-provider-arm64"
-fi
 
 echo "" && echo "==> Building ${ARCH} (~20-30 min)..."
 
