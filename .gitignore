@@ -29,3 +29,7 @@ cdk/cdk.out/
 
 # AMI builder — compiled binaries (staged before packer run, not committed)
 ami-builder/files/
+
+# Packer build artifacts
+ami-manifest-entries.json
+packer-manifest.json
