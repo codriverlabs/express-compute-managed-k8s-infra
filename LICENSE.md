@@ -2,9 +2,9 @@
 
 Copyright (c) 2026 Plasticity.Cloud & Codriverlabs
 
-## Product: eks-dx
+## Product: eks-d-xpress
 
-This is the Open-Core license for the EKS-D ecosystem.
+This is the Open-Core license for the EKS-D-Xpress ecosystem.
 
 ## Grant of License
 
