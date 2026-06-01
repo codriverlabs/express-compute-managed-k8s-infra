@@ -12,7 +12,7 @@ fi
 # Get cluster name and AWS variables from persisted identity
 [ -f /opt/eks-d/cluster.env ] && source /opt/eks-d/cluster.env
 
-if [ -z "$CLUSTER_NAME" ] || [ -z "$INSTANCE_ID" ]; then
+if [ -z "$CLUSTER_NAME" ] || [ -z "$INSTANCE_ID" ] || [ -z "$AWS_REGION" ]; then
   echo "Error: Required variables not found in /opt/eks-d/cluster.env"
   echo "Run install-all.sh to calculate these variables first"
   exit 1
@@ -23,6 +23,8 @@ helm upgrade --install aws-ebs-csi-driver "$CHART" \
   --set controller.serviceAccount.create=true \
   --set controller.k8sTagClusterId="$CLUSTER_NAME" \
   --set controller.replicaCount=1 \
+  --set controller.extraEnv[0].name=AWS_REGION \
+  --set controller.extraEnv[0].value="$AWS_REGION" \
   --wait
 
 # Tag the current instance for EBS CSI cluster scoping

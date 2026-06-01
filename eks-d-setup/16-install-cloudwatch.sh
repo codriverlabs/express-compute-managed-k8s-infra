@@ -38,6 +38,7 @@ helm upgrade --install amazon-cloudwatch-observability "$CHART" \
   --create-namespace \
   --set clusterName="${CLUSTER_NAME}" \
   --set region="${AWS_REGION}" \
+  --set k8sMode=K8S \
   --set manager.applicationSignals.autoMonitor.monitorAllServices=false \
   --set-json 'agent.config={"logs":{"metrics_collected":{"kubernetes":{"enhanced_container_insights":true,"kubelet_https_verify":false}}},"traces":{"traces_collected":{"application_signals":{}}}}' \
   --wait
