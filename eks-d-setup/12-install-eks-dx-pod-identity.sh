@@ -33,6 +33,13 @@ eks-dx create cluster "${TENANT_ID}" \
 echo "✓ Cluster registered with EKS-DX"
 
 # Install Pod Identity compatibility components
+for chart in eks-dx-auth-proxy eks-dx-pod-identity-webhook; do
+  if [ ! -d "/opt/eks-dx/charts/${chart}" ]; then
+    logger -t eks-dx-setup "Chart ${chart} not found in AMI at /opt/eks-dx/charts/${chart} — skipping Pod Identity integration"
+    exit 0
+  fi
+done
+
 helm install eks-dx-auth-proxy /opt/eks-dx/charts/eks-dx-auth-proxy \
   --namespace kube-system \
   --set app.envs.EKS_DX_ENDPOINT="${EKS_DX_API_URL}" \
