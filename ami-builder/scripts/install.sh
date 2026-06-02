@@ -132,6 +132,13 @@ echo "==> Pre-pulling EKS-DX Pod Identity charts..."
 helm pull oci://ghcr.io/plasticity-of-cloud/helm/eks-dx-pod-identity-webhook --version "${EKS_DX_CONTROL_PLANE_VERSION}" --destination /tmp || true
 helm pull oci://ghcr.io/plasticity-of-cloud/helm/eks-dx-auth-proxy --version "${EKS_DX_CONTROL_PLANE_VERSION}" --destination /tmp || true
 
+echo "==> Pre-pulling eks-pod-identity-agent chart..."
+git clone --depth=1 https://github.com/aws/eks-pod-identity-agent.git /tmp/eks-pod-identity-agent-repo || true
+if [ -d /tmp/eks-pod-identity-agent-repo/charts/eks-pod-identity-agent ]; then
+  helm package /tmp/eks-pod-identity-agent-repo/charts/eks-pod-identity-agent --destination /tmp || true
+fi
+rm -rf /tmp/eks-pod-identity-agent-repo
+
 echo "==> Pre-pulling Karpenter chart from OCI registry..."
 helm registry logout public.ecr.aws 2>/dev/null || true
 helm pull oci://public.ecr.aws/karpenter/karpenter --version "1.10.0" --destination /tmp || true
@@ -144,6 +151,9 @@ sudo mkdir -p /opt/eks-d/charts
 sudo mv /tmp/karpenter-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 sudo mv /tmp/aws-cloud-controller-manager-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 sudo mv /tmp/aws-ebs-csi-driver-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
+sudo mv /tmp/eks-dx-auth-proxy-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
+sudo mv /tmp/eks-dx-pod-identity-webhook-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
+sudo mv /tmp/eks-pod-identity-agent-*.tgz /opt/eks-d/charts/ 2>/dev/null || true
 
 echo "==> Pre-pulling CloudWatch Observability Helm chart..."
 helm repo add aws-observability https://aws-observability.github.io/helm-charts 2>/dev/null || true
@@ -289,6 +299,7 @@ fi
 echo "==> Pulling EKS-DX Pod Identity images..."
 sudo ctr -n k8s.io images pull ghcr.io/plasticity-of-cloud/eks-dx-auth-proxy:${EKS_DX_CONTROL_PLANE_VERSION} || true
 sudo ctr -n k8s.io images pull ghcr.io/plasticity-of-cloud/eks-dx-pod-identity-webhook:${EKS_DX_CONTROL_PLANE_VERSION} || true
+sudo ctr -n k8s.io images pull 602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/eks-pod-identity-agent:latest || true
 
 # Install eks-dx-boot systemd service (starts cluster bootstrap at multi-user.target)
 echo "==> Installing eks-dx-boot.service..."
