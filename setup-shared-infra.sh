@@ -15,7 +15,7 @@ echo ""
 export CDK_DEFAULT_REGION="${REGION}"
 export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
-CDK_DIR="$(dirname "$0")/cdk"
+CDK_DIR="$(dirname "$0")/infra"
 
 echo "==> Bootstrapping CDK environment (idempotent)..."
 cdk bootstrap "aws://${CDK_DEFAULT_ACCOUNT}/${REGION}" --quiet

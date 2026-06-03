@@ -15,7 +15,7 @@ echo ""
 export CDK_DEFAULT_REGION="${REGION}"
 export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
-cd "$(dirname "$0")/cdk"
+cd "$(dirname "$0")/infra"
 
 cdk destroy EksDxSharedInfraStack \
   --context projectName="${PROJECT_NAME}" \
