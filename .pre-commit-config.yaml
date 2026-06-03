@@ -1,11 +1,4 @@
 repos:
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.96.3
-    hooks:
-      - id: terraform_fmt
-      - id: terraform_validate
-        args: ['--hook-config=--retry-once-with-cleanup=true']
-      - id: tflint
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
