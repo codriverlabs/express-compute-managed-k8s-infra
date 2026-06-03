@@ -1,96 +1,65 @@
-# EKS-D-Xpress — Express Compute
+# EKS-D-Xpress Infra — Shared Infrastructure
 
-## Architecture Overview
+Shared AWS infrastructure for the EKS-DX platform, deployed as a single AWS CDK stack. Provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all EKS-DX tenants.
 
-Each tenant gets a dedicated EC2 instance running EKS-D as the control plane, with Karpenter managing Spot worker nodes on demand.
+> Tenant control plane provisioning (EC2, IAM, SQS, cluster bootstrap) lives in a separate project.
 
-```
-Tenant Control Plane EC2
-├── EKS-D Control Plane (kubeadm, EKS-D images)
-│   ├── API Server + aws-iam-authenticator webhook
-│   ├── etcd (dedicated EBS volume)
-│   ├── Controller Manager / Scheduler
-│   └── AWS VPC CNI + Cloud Controller Manager
-└── Karpenter Controller
-    └── Provisions Spot Worker Nodes via NodePools
-```
+## What This Deploys
 
-## Script Execution Sequence
+- **VPC** `10.0.0.0/16` — IGW, NAT subnet, public + private route tables
+- **S3 Gateway Endpoint** — keeps ECR pulls and Karpenter pricing data off NAT
+- **ECR Pull-Through Cache** — `public.ecr.aws` and `registry.k8s.io` mirrored into your account ECR
+- **4 EC2 Launch Templates** — (spot + on-demand) × (arm64 + x86_64), IMDS v2, encrypted EBS, no AMI ID
+- **VPC Flow Logs** — CloudWatch, 1-week retention
+- **SSM Parameters** — VPC ID + all 4 LT IDs published for consumers
 
-### 1. One-time account setup
+## Usage
+
 ```bash
-./bootstrap.sh [region]
-```
-Creates Terraform state S3 bucket and provisions shared infrastructure (VPC, subnets, route tables, NAT gateway).
+# Deploy
+./setup-shared-infra.sh [region] [projectName]
 
-### 2. Build control plane AMI
-```bash
-./build-control-plane-ami.sh
+# Destroy
+./delete-shared-infra.sh [region] [projectName]
 ```
-Packer builds a custom AMI with all binaries, container images, and Helm charts pre-baked. Stores AMI ID in SSM at `/eks-d-xpress/infra/ami/<region>/<k8s-version>/<arch>`. Takes ~15-20 min. Must be run before provisioning tenants.
 
-### 3. Provision tenant
-```bash
-./provision-tenant.sh
-```
-Terraform creates per-tenant resources: IAM role + instance profile, security group, subnets, SQS queue (Karpenter interruption), EventBridge rules, and launches the control plane EC2 instance. EC2 boots and automatically runs `workstation-boot.sh` → `setup-eks-d.sh`. Cluster ready in ~3 min.
+Defaults: `region=us-east-1`, `projectName=eks-dx-infra`.
 
-### 4. Configure NodePool (on the control plane EC2)
-```bash
-./node-pools/configure-nodepools.sh <tenant-id> [region]
-```
-Discovers runtime values (AMI ID, subnet, SG, CA bundle) and applies Karpenter NodePool + EC2NodeClass.
+## Prerequisites
 
-### Teardown
-```bash
-./deprovision-tenant.sh        # Destroy single tenant
-./deprovision-shared-infra.sh  # Destroy shared VPC (only after all tenants removed)
-./deprovision-all.sh           # Full teardown
-```
+- AWS CLI configured
+- CDK CLI (`npm i -g aws-cdk`)
+- Java 21 + Maven 3
+
+## Configuration
+
+Edit `infra/cdk.json` to change defaults:
+
+| Key | Default | Notes |
+|-----|---------|-------|
+| `instanceTypeArm64` | `m7g.large` | |
+| `instanceTypeX86_64` | `m7i.large` | |
+| `diskSizeGb` | `20` | Root EBS only |
+| `enableNatGateway` | `false` | Enable if workers need general internet egress |
+
+## SSM Outputs
+
+| Path | Value |
+|------|-------|
+| `/eks-d-xpress/infra/network/vpc-id` | VPC ID |
+| `/eks-d-xpress/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
 
 ## Directory Structure
 
 ```
-ecp-eks-dx-infra/
-├── bootstrap.sh                    # One-time account setup
-├── build-control-plane-ami.sh      # Packer AMI build (~15-20 min)
-├── provision-tenant.sh             # Provision tenant control plane
-├── deprovision-tenant.sh           # Destroy tenant
-├── provision-shared-infra.sh       # Provision shared VPC
-├── deprovision-shared-infra.sh     # Destroy shared VPC
-├── deprovision-all.sh              # Full teardown
-├── tag-vpc-amis.sh                 # Tag AL2023 AMIs with EKS version metadata
-├── terraform/                      # Tenant Terraform (IAM, SG, subnets, EC2, SQS)
-├── terraform/vpc/                  # Shared VPC Terraform module
-├── ami-builder/
-│   ├── main.tf                     # Builder EC2 Terraform
-│   └── scripts/
-│       ├── install.sh              # AMI build entry point
-│       ├── discover-eks-d.sh       # Discovers EKS-D component versions
-│       ├── 00-configure-containerd.sh
-│       ├── 01-install-base.sh
-│       ├── 02-install-docker.sh
-│       └── 04-install-helm.sh
-├── eks-d-setup/                    # Boot-time cluster setup scripts
-│   ├── workstation-boot.sh         # cloud-init entry point (idempotent)
-│   ├── setup-eks-d.sh              # Boot-time cluster setup entry point
-│   ├── 05-prepare-etcd.sh
-│   ├── 06-install-aws-iam-authenticator.sh
-│   ├── 07-install-eks-d.sh         # kubeadm init
-│   ├── 08-install-cni.sh
-│   ├── 09-install-cloud-provider.sh
-│   ├── 10-configure-node.sh
-│   ├── 13-install-ebs-csi.sh
-│   ├── 15-install-karpenter.sh
-│   ├── 14-install-metrics-server.sh
-│   └── 16-install-cloudwatch.sh
-└── node-pools/
-    ├── configure-nodepools.sh      # Renders + applies Karpenter NodePool/EC2NodeClass
-    └── chart/                      # Helm chart: NodePool + EC2NodeClass
+eks-d-xpress-infra/
+├── setup-shared-infra.sh
+├── delete-shared-infra.sh
+├── infra/
+│   ├── cdk.json
+│   ├── pom.xml
+│   └── src/main/java/cloud/plasticity/eksdx/
+│       ├── EksDxApp.java
+│       └── SharedInfraStack.java
+└── archived/           # Legacy Terraform + eks-d-setup scripts
 ```
-
-## Cost Estimation
-
-- **Control Plane**: ~$50-100/month per tenant (with Compute Savings Plan)
-- **Worker Nodes**: Pay only when running, ~60-90% savings with Spot
-- **Storage**: EBS volumes for etcd and container images
