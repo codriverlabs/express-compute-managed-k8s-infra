@@ -24,8 +24,19 @@ test_workspace/
 packer-build-*.log
 
 # CDK / Maven
-cdk/target/
-cdk/cdk.out/
+infra/target/
+infra/cdk.out/
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
 
 # AMI builder — compiled binaries (staged before packer run, not committed)
 ami-builder/files/
