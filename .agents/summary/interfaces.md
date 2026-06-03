@@ -1,106 +1,40 @@
 # Interfaces
 
-## External AWS APIs Used
+## SSM Parameter Store (output interface)
 
-| Service | Usage |
-|---------|-------|
-| EC2 | Instance provisioning, subnet/SG discovery, AMI tagging |
-| IAM | Role/instance profile creation, policy attachment |
-| S3 | Terraform remote state storage |
-| SSM Parameter Store | AMI ID storage (`/eks-dx/ami/<arch>`), EKS-Optimized AMI discovery |
-| STS | Account ID resolution (`get-caller-identity`) |
-| SQS | Karpenter interruption queue |
-| CloudWatch | Metrics and logs via CloudWatch agent |
-| ELB | Load balancer management via AWS CCM |
-| Pricing API | Karpenter instance type pricing |
+Resources published to SSM after deployment. These are the contract between this repo and consuming services (Lambda provisioner, Karpenter, etc.).
 
-## Kubernetes API Endpoints
+| SSM Path | Value | Consumer |
+|----------|-------|---------|
+| `/eks-d-xpress/infra/network/vpc-id` | VPC ID | Tenant provisioner |
+| `/eks-d-xpress/infra/launch-template/arm64/spot` | LT ID | Karpenter / Lambda |
+| `/eks-d-xpress/infra/launch-template/arm64/ondemand` | LT ID | Karpenter / Lambda |
+| `/eks-d-xpress/infra/launch-template/x86_64/spot` | LT ID | Karpenter / Lambda |
+| `/eks-d-xpress/infra/launch-template/x86_64/ondemand` | LT ID | Karpenter / Lambda |
 
-| Endpoint | Port | Consumer |
-|----------|------|----------|
-| kube-apiserver | 6443 | kubectl, worker nodes, Karpenter |
-| kubelet API | 10250 | kubectl logs/exec, liveness probes |
-| aws-iam-authenticator | 21362 | kube-apiserver (webhook auth) |
+## CDK Context (input interface)
 
-## Helm Chart Registries
+All tunable parameters are CDK context keys, passed via `--context` or defined in `infra/cdk.json`:
 
-| Chart | Source |
-|-------|--------|
-| Karpenter | `oci://public.ecr.aws/karpenter/karpenter` (OCI, not HTTP) |
-| AWS Cloud Controller Manager | `https://kubernetes.github.io/cloud-provider-aws` |
-| AWS EBS CSI Driver | `https://kubernetes-sigs.github.io/aws-ebs-csi-driver` |
-| CloudWatch Observability | `https://aws-observability.github.io/helm-charts` |
+| Key | Type | Default |
+|-----|------|---------|
+| `projectName` | String | `eks-dx-infra` |
+| `instanceTypeArm64` | String | `m7g.large` |
+| `instanceTypeX86_64` | String | `m7i.large` |
+| `diskSizeGb` | int | `20` |
+| `enableNatGateway` | boolean | `false` |
 
-## Container Image Registries
+## Shell Script Interface
 
-| Registry | Images |
-|----------|--------|
-| `public.ecr.aws/eks-distro/` | EKS-D control plane (kube-apiserver, etcd, coredns, kubelet) |
-| `public.ecr.aws/ebs-csi-driver/` | EBS CSI driver |
-| `public.ecr.aws/karpenter/` | Karpenter controller |
-| `public.ecr.aws/eks-distro/kubernetes/` | ECR credential provider |
-
-## Script Interfaces
-
-### `deploy.sh` — Environment Variables
+Both scripts accept positional args:
 ```
-DEVELOPER_USERNAME   IAM username (required)
-AWS_REGION           Target region (default: us-east-1)
-ARCH                 x86_64 or arm64
-DISK_SIZE_GB         Root disk size (default: 50)
-SSH_CIDR             Allowed SSH CIDR (auto-detected from checkip.amazonaws.com)
-TFSTATE_BUCKET       S3 state bucket (auto-derived: eks-dx-tfstate-<account-id>)
+setup-shared-infra.sh [region] [projectName]   # defaults: us-east-1, eks-dx-infra
+delete-shared-infra.sh [region] [projectName]
 ```
 
-### `install-all.sh` / `workstation-boot.sh` — Arguments
-```
-$1  developer-signum  (required)
-$2  cluster-name      (optional, default: <signum>-eks-dx)
-```
+## ECR Pull-Through Cache (upstream registries)
 
-### `configure-nodepools.sh` — Arguments
-```
-$1  developer-signum  (required)
-$2  region            (optional, default: us-east-1)
-$3  arch              (optional, default: arm64)
-```
-
-## Persistent State Files (on EC2)
-
-| Path | Purpose |
-|------|---------|
-| `/opt/eks-d/cluster.env` | Cluster identity (`DEVELOPER_SIGNUM`, `CLUSTER_NAME`) — sourced by scripts |
-| `/opt/eks-d/version.env` | EKS/EKS-D versions (`EKS_VERSION`, `EKSD_VERSION`) |
-| `/opt/eks-d/manifests/` | Pre-downloaded EKS-D release manifest and VPC CNI manifest |
-| `/opt/eks-d/charts/` | Pre-pulled Helm chart tarballs |
-| `/opt/eks-d/.installation_complete` | Marker file — prevents re-run on reboot |
-| `/opt/eks-d-setup/` | Copy of `eks-d-setup/` scripts (AMI path) |
-| `/opt/eks-d/karpenter_runtime_configuration/karpenter-manifests.yaml` | Rendered NodePool + EC2NodeClass |
-| `/etc/kubernetes/aws-iam-authenticator/` | Authenticator config + webhook kubeconfig |
-| `/etc/kubernetes/credential-provider/config.yaml` | ECR credential provider config |
-
-## Karpenter NodePool / EC2NodeClass Interface
-
-The Helm chart (`node-pools/chart/`) accepts these values:
-
-```yaml
-clusterName: ""
-developerSignum: ""
-awsRegion: "us-east-1"
-amiId: ""                    # EKS-Optimized AL2023 AMI ID
-instanceProfile: ""          # eks-dx-workstation-<signum>
-subnetId: ""                 # Private subnet ID
-securityGroupId: ""          # Workstation security group ID
-nodeConfig:
-  apiServerEndpoint: ""      # https://<private-ip>:6443
-  certificateAuthority: ""   # base64-encoded CA cert
-  serviceCidr: "10.96.0.0/12"
-nodePool:
-  capacityType: "spot"
-  arch: "arm64"
-  instanceCategories: ["m", "c", "r"]
-  instanceGenerationGt: "5"
-  cpuLimit: "100"
-  memoryLimit: "100Gi"
-  consolidateAfter: "1m"
-```
+| ECR prefix | Upstream |
+|-----------|----------|
+| `public-ecr/` | `public.ecr.aws` |
+| `registry-k8s-io/` | `registry.k8s.io` |

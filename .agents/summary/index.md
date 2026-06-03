@@ -1,38 +1,30 @@
-# Documentation Index
+# Knowledge Base Index
 
-## How to Use This Documentation
+## How to Use This Index
 
-This index is the primary entry point for AI assistants. Each section below describes what a file contains and when to consult it. In most cases, reading this index plus one or two targeted files is sufficient to answer questions about the codebase.
+This is the primary context file for AI assistants. Read this file first — it contains enough metadata to determine which file to open for any specific question.
 
-## File Summary
+## Files
 
-| File | Purpose | Consult When |
-|------|---------|--------------|
-| `codebase_info.md` | Project overview, tech stack, directory structure, naming conventions | Getting oriented; understanding what files exist and what they're called |
-| `architecture.md` | System design, deployment paths, networking, IAM design, Karpenter-on-EKS-D specifics | Architecture questions; understanding how components relate; Karpenter configuration |
-| `components.md` | Detailed description of every script, Terraform module, and Helm chart | Understanding what a specific script does; script execution order; entry points |
-| `interfaces.md` | AWS APIs, Kubernetes endpoints, script arguments, env vars, persistent state file paths, Helm chart values | Finding script parameters; understanding what AWS permissions are needed; state file locations |
-| `data_models.md` | Terraform variables, Kubernetes resource schemas, IAM policy structure, security group rules | Terraform variable reference; NodePool/EC2NodeClass schema; IAM policy details |
-| `workflows.md` | Step-by-step sequence diagrams for all major operations | Understanding end-to-end flows; troubleshooting a specific phase |
-| `dependencies.md` | All external dependencies: AWS services, Helm charts, container images, Terraform providers | Dependency versions; image registries; external URLs |
-| `review_notes.md` | Consistency issues and documentation gaps | Understanding known limitations |
+| File | What's inside | Use when you need to... |
+|------|--------------|------------------------|
+| `codebase_info.md` | Repo identity, active directory structure, tech stack | Understand what this repo does and how it's organized |
+| `architecture.md` | CDK stack diagram, design decisions (NAT, IMDS, LT strategy), context defaults | Understand why things are built the way they are |
+| `components.md` | `SharedInfraStack` method breakdown, `EksDxApp`, shell script responsibilities | Find which Java method or script creates a specific resource |
+| `interfaces.md` | SSM params published, CDK context inputs, shell script args, ECR prefixes | Understand what this stack outputs for consumers |
+| `data_models.md` | Java records (`Networking`, `LtConfig`), VPC CIDR layout, EBS volumes, resource tags | Understand data structures and resource configuration |
+| `workflows.md` | Deploy/destroy sequence diagrams, CDK resource creation order | Understand deployment steps or debug a failed deploy |
+| `dependencies.md` | Maven deps (CDK 2.256.1, Java 21), AWS services used, pre-commit hooks | Check versions or understand AWS service footprint |
+| `review_notes.md` | Known bugs (wrong CDK dir path in shell scripts), completeness gaps | Find known issues before making changes |
 
 ## Quick Reference
 
-**"How do I deploy a new workstation?"** → `workflows.md` §3, `components.md` §deploy.sh
+**"How do I deploy?"** → `workflows.md`
 
-**"What IAM permissions does Karpenter need?"** → `data_models.md` §IAM Role Policy Structure
+**"What SSM params does this create?"** → `interfaces.md`
 
-**"Why does the NodePool use `amiFamily: Custom`?"** → `architecture.md` §Karpenter on EKS-D
+**"What does `createLaunchTemplates()` do?"** → `components.md` + `data_models.md`
 
-**"What scripts run at EC2 boot?"** → `components.md` §workstation-boot.sh, `workflows.md` §3
+**"Why is NAT Gateway disabled?"** → `architecture.md`
 
-**"What env vars does deploy.sh accept?"** → `interfaces.md` §deploy.sh Environment Variables
-
-**"Where is cluster state stored on the EC2?"** → `interfaces.md` §Persistent State Files
-
-**"What's the script execution order?"** → `components.md` §Script Execution Order
-
-**"How does worker node authentication work?"** → `architecture.md` §IAM Design, `components.md` §05b-install-aws-iam-authenticator.sh
-
-**"What Helm charts are pre-pulled into the AMI?"** → `dependencies.md` §Helm Charts, `components.md` §install.sh
+**"Are there any bugs?"** → `review_notes.md` (yes — shell scripts reference old `cdk/` path, should be `infra/`)

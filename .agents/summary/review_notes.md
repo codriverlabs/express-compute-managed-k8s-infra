@@ -2,41 +2,20 @@
 
 ## Consistency Issues
 
-### 1. NodePool YAML files use deprecated API version
-~~`node-pools/spot-nodepool.yaml` and `node-pools/ondemand-nodepool.yaml` use `karpenter.sh/v1beta1` and `karpenter.k8s.aws/v1beta1`.~~
+### 1. `setup-shared-infra.sh` references wrong CDK directory
+`setup-shared-infra.sh` line 14 sets `CDK_DIR="$(dirname "$0")/cdk"` but the CDK project was renamed from `cdk/` to `infra/`. Maven is invoked with `-f "${CDK_DIR}/pom.xml"` (wrong path). The `cd "${CDK_DIR}"` for `cdk synth`/`cdk deploy` also targets the old path.
 
-**Resolved**: Both files updated to `karpenter.sh/v1` / `karpenter.k8s.aws/v1`, `amiFamily: Custom` with nodeadm userData, and `WhenEmptyOrUnderutilized` consolidation policy. Header comment added to both files warning not to apply them directly.
+**Fix needed**: Change `CDK_DIR="$(dirname "$0")/cdk"` → `CDK_DIR="$(dirname "$0")/infra"`.
 
-### 2. AGENTS.md references outdated script names
-The existing `AGENTS.md` references `deploy-developer.sh` (does not exist) and `infrastructure/` directory (does not exist). The actual scripts are `deploy.sh`, `bootstrap.sh`, etc. in the root directory.
-
-**Recommendation**: Update AGENTS.md (done as part of this consolidation run).
-
-### 3. Karpenter version mismatch
-The existing `AGENTS.md` states "Karpenter v1.8.2" but the actual installed version is 1.10.0 (per `11-install-karpenter.sh`).
-
-**Recommendation**: Updated in consolidated AGENTS.md.
+### 2. `delete-shared-infra.sh` same path issue
+Line 21: `cd "$(dirname "$0")/cdk"` → should be `"$(dirname "$0")/infra"`.
 
 ## Completeness Gaps
 
-### 1. `reset-cluster.sh` not documented
-`eks-d-setup/reset-cluster.sh` exists but was not analyzed. It likely runs `kubeadm reset` to wipe the cluster for re-initialization.
+- No subnet IDs for private/worker subnets — the stack creates only the NAT subnet. Worker subnets are presumably created by the tenant provisioner in the sibling project. This inter-repo dependency is undocumented.
+- No security group for the shared infra — SGs are presumably created per-tenant in the sibling project.
+- `diskSizeGb` context applies only to the root EBS volume in launch templates; the `/dev/sdf` data volume is hardcoded at 20 GiB.
 
-### 2. `tag-vpc-amis.sh` behavior not fully analyzed
-The script tags AL2023 AMIs for EKS version compatibility but the exact tagging logic was not read in detail.
+## Language Support Notes
 
-### 3. No documentation for `terraform/vpc/main.tf`
-The shared VPC Terraform module was not read. It provisions the VPC, IGW, NAT Gateway, and route tables but the exact CIDR ranges and subnet structure are not documented.
-
-### 4. `eks-d-setup/install.sh` vs `install-all.sh`
-There are two files: `install.sh` (103 LOC) and `install-all.sh` (99 LOC). Their relationship is unclear — `install.sh` may be an older version or a different entry point.
-
-### 5. Metrics Server installation details
-`12-install-metrics-server.sh` (226 LOC) is the largest setup script but was not analyzed in detail. It may include custom configuration for EKS-D compatibility.
-
-### 6. `ami-builder/scripts/build-with-version.sh`
-This script allows building an AMI with a specific EKS-D version but was not analyzed in detail.
-
-## Language Support Limitations
-
-All code is Bash and HCL — both fully supported. No gaps from language support limitations.
+All active code is Java (CDK) and Bash. No limitations from language support.
