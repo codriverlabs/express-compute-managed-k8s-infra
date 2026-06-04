@@ -203,6 +203,12 @@ public class SharedInfraStack extends Stack {
                 .ecrRepositoryPrefix("registry-k8s-io")
                 .upstreamRegistryUrl("registry.k8s.io")
                 .build();
+
+        // Quay is a public registry — no credentials required.
+        CfnPullThroughCacheRule.Builder.create(this, "QuayCache")
+                .ecrRepositoryPrefix("quay")
+                .upstreamRegistryUrl("quay.io")
+                .build();
     }
 
     // ── S3 Gateway Endpoint ───────────────────────────────────────────────────
