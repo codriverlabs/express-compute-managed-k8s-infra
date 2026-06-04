@@ -1,36 +1,41 @@
 # Components
 
-## SharedInfraStack (`infra/src/main/java/.../SharedInfraStack.java`)
+## SharedInfraStack (`SharedInfraStack.java`)
 
-Single CDK stack that owns all shared resources. Broken into private methods by concern:
+The single CDK stack. All infrastructure is created in the constructor, sequenced as:
 
-| Method | Resources created |
-|--------|------------------|
-| `createNetworking()` | VPC, IGW, NAT subnet, public RT, private RT, optional NAT GW + EIP |
-| `createFlowLogs()` | CloudWatch log group (`/aws/vpc/<region>/<project>-flow-logs`), IAM role, CfnFlowLog |
-| `createEcrPullThroughCache()` | Two `CfnPullThroughCacheRule`: `public-ecr` → `public.ecr.aws`, `registry-k8s-io` → `registry.k8s.io` |
-| `createS3Endpoint()` | S3 gateway `CfnVPCEndpoint` attached to both route tables |
-| `createLaunchTemplates()` | 4 `CfnLaunchTemplate` + 4 SSM params (one per arch/mode combo) |
-| `createNetworkSsmParams()` | SSM param: `/eks-d-xpress/infra/network/vpc-id` |
+```
+createNetworking() → createFlowLogs() → createEcrPullThroughCache()
+→ createS3Endpoint() → createLaunchTemplates() → createNetworkSsmParams()
+```
 
-### LtConfig record
-Internal `record LtConfig(String arch, boolean spot)` drives the 4-LT matrix. Each config produces:
-- Launch template name: `<projectName>-<spot|ondemand>-<arch>`
-- Two EBS volumes: root (`/dev/xvda`, configurable size) + data (`/dev/sdf`, 20 GiB fixed)
-- SSM param at `/eks-d-xpress/infra/launch-template/<arch>/<spot|ondemand>`
+### Private methods
+
+| Method | Responsibility |
+|--------|---------------|
+| `createNetworking(boolean)` | VPC, IGW, NAT subnet, public + private route tables, optional NAT gateway + EIP |
+| `createFlowLogs(String vpcId)` | CloudWatch log group, IAM role, `CfnFlowLog` for ALL traffic |
+| `createEcrPullThroughCache()` | Two `CfnPullThroughCacheRule`: `public-ecr` and `registry-k8s-io` |
+| `createS3Endpoint(...)` | S3 gateway `CfnVPCEndpoint` associated with both route tables |
+| `createLaunchTemplates()` | Iterates 4 `LtConfig` records; creates `CfnLaunchTemplate` + SSM param per config |
+| `createNetworkSsmParams(Networking)` | SSM param for VPC ID |
+
+### Internal records
+
+- **`Networking(vpcId, publicRtId, privateRtId)`** — carries IDs between `createNetworking` and its callers
+- **`LtConfig(arch, spot)`** — encapsulates per-launch-template variation; derives name, mode, instance type
+
+## Launch Template Matrix
+
+| CDK construct ID | LT name suffix | Instance type (default) |
+|-----------------|---------------|------------------------|
+| `Lt-spot-arm64` | `spot-arm64` | m7g.large |
+| `Lt-ondemand-arm64` | `ondemand-arm64` | m7g.large |
+| `Lt-spot-x86_64` | `spot-x86_64` | m7i.large |
+| `Lt-ondemand-x86_64` | `ondemand-x86_64` | m7i.large |
+
+All templates share: IMDS v2 required (`httpTokens=required`, hop limit 2), two encrypted gp3 EBS volumes (`/dev/xvda` configurable size, `/dev/sdf` fixed 20 GiB), instance + volume tags. Spot templates additionally set `marketType=spot`, `instanceInterruptionBehavior=hibernate`, `hibernationOptions.configured=true`.
 
 ## EksDxApp (`EksDxApp.java`)
-Minimal CDK App entry point. Reads `CDK_DEFAULT_ACCOUNT` / `CDK_DEFAULT_REGION` from environment (set by `setup-shared-infra.sh` before `cdk deploy`).
 
-## setup-shared-infra.sh
-Orchestration wrapper:
-1. Calls `aws sts get-caller-identity` to resolve account ID
-2. Runs `cdk bootstrap` (idempotent)
-3. Runs `mvn -e -q compile` inside `infra/`
-4. `cdk synth EksDxSharedInfraStack`
-5. `cdk deploy EksDxSharedInfraStack --require-approval never`
-
-The script references `cdk/` path but the actual CDK directory is now `infra/` — see review_notes.md.
-
-## delete-shared-infra.sh
-Thin wrapper: sets env vars, runs `cdk destroy EksDxSharedInfraStack --force`.
+CDK `App` entry point. Instantiates `SharedInfraStack` with account/region from `CDK_DEFAULT_ACCOUNT` / `CDK_DEFAULT_REGION` environment variables. No multi-environment branching.

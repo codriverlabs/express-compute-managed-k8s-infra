@@ -1,20 +1,29 @@
-# Interfaces
+# Interfaces & Integration Points
 
-## SSM Parameter Store (output interface)
+## SSM Parameters (primary consumer interface)
 
-Resources published to SSM after deployment. These are the contract between this repo and consuming services (Lambda provisioner, Karpenter, etc.).
+All outputs are published to SSM; consumers never reference CloudFormation exports.
 
-| SSM Path | Value | Consumer |
-|----------|-------|---------|
-| `/eks-d-xpress/infra/network/vpc-id` | VPC ID | Tenant provisioner |
-| `/eks-d-xpress/infra/launch-template/arm64/spot` | LT ID | Karpenter / Lambda |
-| `/eks-d-xpress/infra/launch-template/arm64/ondemand` | LT ID | Karpenter / Lambda |
-| `/eks-d-xpress/infra/launch-template/x86_64/spot` | LT ID | Karpenter / Lambda |
-| `/eks-d-xpress/infra/launch-template/x86_64/ondemand` | LT ID | Karpenter / Lambda |
+| SSM Path | Value | Published by |
+|----------|-------|-------------|
+| `/eks-d-xpress/infra/network/vpc-id` | VPC ID | `createNetworkSsmParams` |
+| `/eks-d-xpress/infra/launch-template/arm64/spot` | LT ID | `createLaunchTemplates` |
+| `/eks-d-xpress/infra/launch-template/arm64/ondemand` | LT ID | `createLaunchTemplates` |
+| `/eks-d-xpress/infra/launch-template/x86_64/spot` | LT ID | `createLaunchTemplates` |
+| `/eks-d-xpress/infra/launch-template/x86_64/ondemand` | LT ID | `createLaunchTemplates` |
 
-## CDK Context (input interface)
+## ECR Pull-Through Cache endpoints
 
-All tunable parameters are CDK context keys, passed via `--context` or defined in `infra/cdk.json`:
+| ECR prefix | Upstream registry | Used by |
+|------------|-------------------|---------|
+| `public-ecr/` | `public.ecr.aws` | Kubernetes system images |
+| `registry-k8s-io/` | `registry.k8s.io` | Kubernetes system images |
+
+Consumers pull from `<account>.dkr.ecr.<region>.amazonaws.com/public-ecr/...` and `registry-k8s-io/...`.
+
+## CDK Context API
+
+Consumers of the CDK app pass context via `--context` flags or `cdk.json`. All keys are read with `getNode().tryGetContext()`.
 
 | Key | Type | Default |
 |-----|------|---------|
@@ -24,17 +33,15 @@ All tunable parameters are CDK context keys, passed via `--context` or defined i
 | `diskSizeGb` | int | `20` |
 | `enableNatGateway` | boolean | `false` |
 
-## Shell Script Interface
+## Deploy/Destroy Scripts
 
-Both scripts accept positional args:
 ```
-setup-shared-infra.sh [region] [projectName]   # defaults: us-east-1, eks-dx-infra
+setup-shared-infra.sh  [region] [projectName]
 delete-shared-infra.sh [region] [projectName]
 ```
 
-## ECR Pull-Through Cache (upstream registries)
+Both scripts set `CDK_DEFAULT_REGION` and resolve `CDK_DEFAULT_ACCOUNT` via `aws sts get-caller-identity`. `setup-shared-infra.sh` also runs `cdk bootstrap` (idempotent) before deploy.
 
-| ECR prefix | Upstream |
-|-----------|----------|
-| `public-ecr/` | `public.ecr.aws` |
-| `registry-k8s-io/` | `registry.k8s.io` |
+## CloudWatch Log Group
+
+`/aws/vpc/<region>/<projectName>-flow-logs` — 1-week retention, destroyed on stack deletion.

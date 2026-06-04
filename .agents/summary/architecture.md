@@ -2,46 +2,58 @@
 
 ## Overview
 
-The repo manages **shared AWS infrastructure** for EKS-DX. All resources are deployed via a single CDK stack. Tenant control plane provisioning (EC2, IAM, SQS) and cluster bootstrap scripts now live in a separate project.
+A single CDK stack (`EksDxSharedInfraStack`) that provisions all shared AWS resources consumed by EKS-DX tenant control planes. Tenants read VPC and launch template IDs from SSM; they do not interact with this repo directly.
 
 ```mermaid
-graph TD
-    A[setup-shared-infra.sh] -->|cdk deploy| B[EksDxSharedInfraStack]
-    B --> C[VPC 10.0.0.0/16]
-    B --> D[EC2 Launch Templates x4]
-    B --> E[ECR Pull-Through Cache]
-    B --> F[S3 Gateway Endpoint]
-    B --> G[VPC Flow Logs]
-    B --> H[SSM Parameters]
-    C --> C1[NAT Subnet 10.0.0.0/24]
-    C --> C2[Public Route Table]
-    C --> C3[Private Route Table]
-    C --> C4[Internet Gateway]
-    C --> C5[NAT Gateway optional]
-    D --> D1[spot-arm64]
-    D --> D2[ondemand-arm64]
-    D --> D3[spot-x86_64]
-    D --> D4[ondemand-x86_64]
-    E --> E1[public.ecr.aws → public-ecr/]
-    E --> E2[registry.k8s.io → registry-k8s-io/]
+graph TB
+    subgraph CDK["EksDxSharedInfraStack"]
+        VPC["VPC 10.0.0.0/16\n+ IGW + subnets + route tables"]
+        S3EP["S3 Gateway Endpoint"]
+        ECR["ECR Pull-Through Cache\npublic-ecr / registry-k8s-io"]
+        FL["VPC Flow Logs → CloudWatch"]
+        LT["4 Launch Templates\n(spot+ondemand) × (arm64+x86_64)"]
+        SSM["SSM Parameters\nvpc-id + 4 LT IDs"]
+    end
+
+    VPC --> S3EP
+    VPC --> FL
+    VPC --> SSM
+    LT --> SSM
+
+    subgraph Consumers
+        Karpenter["Karpenter\n(tenant)"]
+        Lambda["Tenant provisioner\n(separate project)"]
+    end
+
+    SSM --> Karpenter
+    SSM --> Lambda
+    ECR --> Karpenter
 ```
 
-## Design Decisions
+## Design Principles
 
-**NAT Gateway off by default** (`enableNatGateway: false` in `cdk.json`). The S3 gateway endpoint covers the main egress cost driver (ECR image pulls, Karpenter pricing data). NAT can be enabled via context override when outbound internet is needed.
+- **L1 constructs only where no L2 exists** — ECR pull-through cache rules use `CfnPullThroughCacheRule` directly; all other resources use CDK L2/L3 where available.
+- **No AMI in launch templates** — AMI is passed as a `RunInstances` override by the tenant provisioner, decoupling AMI updates from shared infra deployments.
+- **NAT optional** — S3 gateway endpoint covers the primary egress cost driver (ECR image pulls). NAT Gateway is disabled by default and opt-in via `enableNatGateway` context.
+- **SSM as contract** — all consumer-facing outputs are SSM parameters, not CloudFormation exports, so tenants can read them without cross-stack dependencies.
+- **All resources tagged** with `Project`, `Platform: eks-d-xpress`, and `ManagedBy: CDK|Karpenter`.
 
-**Launch templates without AMI ID** — `imageId` is intentionally absent. The consuming Lambda/provisioner passes the AMI as a `RunInstances` override. This decouples AMI updates from shared infra changes.
+## Network Layout
 
-**Spot uses hibernation** — spot LTs set `instanceInterruptionBehavior: hibernate` + `hibernationOptions.configured: true`, requiring EBS root volume encryption (enforced via `encrypted: true`).
+```mermaid
+graph LR
+    subgraph VPC["VPC 10.0.0.0/16"]
+        NATSubnet["NAT subnet 10.0.0.0/24\n(mapPublicIpOnLaunch=true)"]
+        PublicRT["Public RT\n0.0.0.0/0 → IGW"]
+        PrivateRT["Private RT\n0.0.0.0/0 → NAT GW (if enabled)"]
+    end
+    IGW["Internet Gateway"]
+    NAT["NAT Gateway\n(optional)"]
 
-**IMDS v2 enforced** — all LTs set `httpTokens: required` and `httpPutResponseHopLimit: 2` (hop limit 2 is needed for containers to reach IMDS).
+    IGW --> NATSubnet
+    NATSubnet --> PublicRT
+    PrivateRT -.->|"enableNatGateway=true"| NAT
+    NAT --> IGW
+```
 
-## CDK Context Defaults (`infra/cdk.json`)
-
-| Key | Default | Notes |
-|-----|---------|-------|
-| `projectName` | `eks-dx-infra` | Prefix for all resource names |
-| `instanceTypeArm64` | `m7g.large` | Used in arm64 launch templates |
-| `instanceTypeX86_64` | `m7i.large` | Used in x86_64 launch templates |
-| `diskSizeGb` | `20` | Root EBS volume size |
-| `enableNatGateway` | `false` | Set to `true` to add NAT GW + EIP |
+No private subnets are created by the stack — tenant subnets are provisioned by the tenant provisioner using this VPC ID.

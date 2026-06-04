@@ -1,31 +1,27 @@
 # Codebase Info
 
-## Identity
-- **Repo**: eks-d-xpress-infra
-- **Purpose**: Shared AWS infrastructure for the EKS-DX platform — VPC, EC2 launch templates, ECR pull-through cache
-- **Language**: Java 21 (CDK), Bash
-- **CDK version**: 2.256.1
-- **Stack**: `EksDxSharedInfraStack`
+- **Project**: eks-d-xpress-infra
+- **Purpose**: Shared AWS infrastructure for the EKS-DX platform (single CDK stack)
+- **Language**: Java 21
+- **Build**: Maven 3 + AWS CDK CLI
+- **CDK version**: aws-cdk-lib 2.256.1
+- **constructs**: 10.4.2
+- **CDK app entry**: `cloud.plasticity.eksdx.EksDxApp`
+- **Stack name**: `EksDxSharedInfraStack`
 
-## Active Directory Structure
+## Active Source Files
 
 ```
-eks-d-xpress-infra/
-├── setup-shared-infra.sh         # CDK deploy: bootstrap → mvn compile → cdk deploy
-├── delete-shared-infra.sh        # CDK destroy
-├── infra/
-│   ├── cdk.json                  # CDK app command + default context values
-│   ├── pom.xml                   # Maven build (Java 21, aws-cdk-lib 2.256.1)
-│   └── src/main/java/cloud/plasticity/eksdx/
-│       ├── EksDxApp.java         # CDK App entry point
-│       └── SharedInfraStack.java # All shared infra resources
-└── archived/                     # Legacy scripts (Terraform, eks-d-setup, ami-builder) — do not use
+infra/
+├── cdk.json                                          # CDK app command + context defaults
+├── pom.xml                                           # Maven build descriptor
+└── src/main/java/cloud/plasticity/eksdx/
+    ├── EksDxApp.java                                 # CDK App entry point
+    └── SharedInfraStack.java                         # All infra: VPC, LTs, ECR, S3 endpoint, flow logs
+setup-shared-infra.sh                                 # Deploy wrapper
+delete-shared-infra.sh                                # Destroy wrapper
 ```
 
-## Technology Stack
-| Layer | Technology |
-|-------|-----------|
-| IaC | AWS CDK v2 (Java) |
-| Build | Maven 3, Java 21 |
-| AWS services | EC2 (VPC, subnets, IGW, NAT, LTs), ECR, SSM, CloudWatch Logs |
-| Shell wrapper | Bash (`set -euo pipefail`) |
+## Excluded
+
+`archived/` — legacy Terraform and bash provisioning scripts; not part of the active system.

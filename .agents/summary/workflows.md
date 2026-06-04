@@ -1,71 +1,71 @@
 # Workflows
 
-## Deploy Shared Infrastructure
+## Deploy
 
 ```mermaid
 sequenceDiagram
-    participant Dev
+    actor Dev
     participant Script as setup-shared-infra.sh
-    participant CDK as cdk CLI
-    participant Maven as mvn
+    participant CDK as CDK CLI
+    participant Maven as Maven
     participant AWS
 
-    Dev->>Script: ./setup-shared-infra.sh [region] [projectName]
-    Script->>AWS: sts get-caller-identity (resolve account)
+    Dev->>Script: ./setup-shared-infra.sh [region] [project]
+    Script->>AWS: aws sts get-caller-identity (resolve account)
     Script->>CDK: cdk bootstrap aws://<account>/<region>
-    CDK-->>Script: bootstrap complete (idempotent)
+    CDK-->>Script: bootstrap complete
     Script->>Maven: mvn compile -f infra/pom.xml
-    Maven-->>Script: classes compiled
-    Script->>CDK: cdk synth EksDxSharedInfraStack
-    CDK-->>Script: template written to infra/cdk.out/
+    Maven-->>Script: compiled
+    Script->>CDK: cdk synth EksDxSharedInfraStack --context projectName=...
+    CDK->>Maven: mvn compile exec:java (via cdk.json app command)
+    CDK-->>Script: template synthesized
     Script->>CDK: cdk deploy EksDxSharedInfraStack --require-approval never
-    CDK->>AWS: CreateChangeSet + ExecuteChangeSet
+    CDK->>AWS: CloudFormation CreateChangeSet / ExecuteChangeSet
     AWS-->>CDK: stack outputs
     CDK-->>Dev: deploy complete
 ```
 
-## Destroy Shared Infrastructure
+Note: `mvn compile` runs twice — once explicitly in the script for early error visibility, and again implicitly when CDK invokes the app command from `cdk.json`.
+
+## Destroy
 
 ```mermaid
 sequenceDiagram
-    participant Dev
+    actor Dev
     participant Script as delete-shared-infra.sh
-    participant CDK as cdk CLI
+    participant CDK as CDK CLI
     participant AWS
 
-    Dev->>Script: ./delete-shared-infra.sh [region] [projectName]
+    Dev->>Script: ./delete-shared-infra.sh [region] [project]
+    Script->>AWS: aws sts get-caller-identity
     Script->>CDK: cdk destroy EksDxSharedInfraStack --force
-    CDK->>AWS: DeleteStack
-    AWS-->>Dev: stack deleted
+    CDK->>AWS: CloudFormation DeleteStack
+    AWS-->>Dev: stack deleted (incl. CloudWatch log group)
 ```
 
-## CDK Synth / Resource Creation Order
+## Stack Construction Sequence
 
 ```mermaid
-graph TD
-    A[createNetworking] --> B[createFlowLogs]
-    A --> C[createS3Endpoint]
-    A --> D[createNetworkSsmParams]
-    E[createEcrPullThroughCache] -->|independent| F[done]
-    G[createLaunchTemplates] -->|independent| H[SSM LT params]
-    A --> I[VPC ready]
-    I --> E
-    I --> G
+flowchart LR
+    A[Read context] --> B[createNetworking]
+    B --> C[createFlowLogs]
+    B --> D[createEcrPullThroughCache]
+    B --> E[createS3Endpoint]
+    B --> F[createLaunchTemplates]
+    B --> G[createNetworkSsmParams]
+    F --> G
 ```
 
-Resources with no VPC dependency (`createEcrPullThroughCache`, `createLaunchTemplates`) are synthesized independently. CDK handles CloudFormation dependency ordering automatically.
+## Consumer Read Flow (tenant provisioner)
 
-## Updating Context Values
+```mermaid
+sequenceDiagram
+    participant Tenant as Tenant provisioner
+    participant SSM
+    participant EC2
 
-To change instance types or disk size without modifying `cdk.json`:
-```bash
-./setup-shared-infra.sh us-east-1 eks-dx-infra \
-  # CDK --context flags can be appended by editing setup-shared-infra.sh
-  # or by modifying infra/cdk.json defaults
-```
-
-To enable NAT Gateway:
-```bash
-# Edit infra/cdk.json: "enableNatGateway": true
-# Then re-run setup-shared-infra.sh
+    Tenant->>SSM: GetParameter /eks-d-xpress/infra/network/vpc-id
+    Tenant->>SSM: GetParameter /eks-d-xpress/infra/launch-template/{arch}/{mode}
+    SSM-->>Tenant: VPC ID + LT ID
+    Tenant->>EC2: RunInstances (LaunchTemplate override + AMI ID)
 ```

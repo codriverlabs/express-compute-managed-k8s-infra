@@ -1,36 +1,37 @@
 # Dependencies
 
-## Runtime (Maven — `infra/pom.xml`)
+## Runtime (CDK app)
 
-| Dependency | Version | Purpose |
-|-----------|---------|---------|
-| `software.amazon.awscdk:aws-cdk-lib` | 2.256.1 | All CDK constructs (EC2, ECR, SSM, IAM, Logs) |
-| `software.constructs:constructs` | 10.4.2 | CDK construct base classes |
+| Artifact | Version | Purpose |
+|----------|---------|---------|
+| `software.amazon.awscdk:aws-cdk-lib` | 2.256.1 | CDK constructs (EC2, ECR, SSM, IAM, Logs) |
+| `software.constructs:constructs` | 10.4.2 | CDK construct base |
 
-Java compiler target: **21**.
+## Build toolchain
 
-## Build Tools
+| Tool | Version | Role |
+|------|---------|------|
+| Java | 21 | Compiler target (`maven.compiler.release=21`) |
+| Maven | 3.x | Build, dependency management, exec plugin |
+| `org.codehaus.mojo:exec-maven-plugin` | 3.1.0 | Runs `EksDxApp.main()` during CDK synth |
+| AWS CDK CLI | any compatible | `cdk bootstrap / synth / deploy / destroy` |
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Maven | 3.x | `exec-maven-plugin` 3.1.0 runs `EksDxApp.main()` for CDK synth |
-| CDK CLI | Any v2 | Must be installed separately (`npm i -g aws-cdk`) |
-
-## AWS Services Used
+## AWS Services provisioned
 
 | Service | Usage |
 |---------|-------|
-| EC2 | VPC, subnets, IGW, NAT GW, route tables, launch templates, VPC endpoints |
-| ECR | Pull-through cache rules |
-| SSM Parameter Store | Publishes VPC ID and LT IDs for consumers |
-| CloudWatch Logs | VPC flow logs |
+| EC2 (VPC, subnets, route tables, IGW, NAT GW, EIP, endpoints) | Networking |
+| EC2 (Launch Templates) | Node template for tenant provisioner / Karpenter |
+| ECR (Pull-Through Cache Rules) | Mirror public registries into account ECR |
+| CloudWatch Logs | VPC flow log destination |
 | IAM | Flow logs delivery role |
-| STS | Account ID resolution in `setup-shared-infra.sh` |
+| SSM Parameter Store | Output contract for consumers |
+| CloudFormation | Stack management (via CDK) |
 
-## Pre-commit Hooks (`.pre-commit-config.yaml`)
+## AWS Service interactions at deploy time
 
-| Hook | Purpose |
+| Step | AWS API |
 |------|---------|
-| `trailing-whitespace` | Remove trailing whitespace |
-| `end-of-file-fixer` | Ensure files end with newline |
-| `check-merge-conflict` | Block committing merge conflict markers |
+| Bootstrap | `sts:GetCallerIdentity`, various CloudFormation/S3/IAM bootstrap calls |
+| Deploy | `cloudformation:CreateChangeSet`, `cloudformation:ExecuteChangeSet` |
+| Destroy | `cloudformation:DeleteStack` |

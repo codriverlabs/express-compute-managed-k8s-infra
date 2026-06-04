@@ -1,7 +1,7 @@
 # AGENTS.md - AI Assistant Guide
 
 ## Project Overview
-**EKS-D-Xpress Infra** — Shared AWS infrastructure for the EKS-DX platform. This repo deploys a single CDK stack (`EksDxSharedInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all EKS-DX tenants. Tenant control plane provisioning (EC2, IAM, SQS, cluster bootstrap) now lives in a separate project.
+**EKS-D-Xpress Infra** — Shared AWS infrastructure for the EKS-DX platform. Deploys a single CDK stack (`EksDxSharedInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all EKS-DX tenants. Tenant control plane provisioning lives in a separate project.
 
 ## Directory Overview
 
@@ -50,13 +50,13 @@ Both default to `region=us-east-1`, `projectName=eks-dx-infra`.
 | `projectName` | `eks-dx-infra` | `--context` or `cdk.json` |
 | `instanceTypeArm64` | `m7g.large` | same |
 | `instanceTypeX86_64` | `m7i.large` | same |
-| `diskSizeGb` | `20` | same (root volume only; `/dev/sdf` is fixed at 20 GiB) |
+| `diskSizeGb` | `20` | same (root volume `/dev/xvda`; `/dev/sdf` is fixed at 20 GiB) |
 | `enableNatGateway` | `false` | same |
 
 ## Repo-Specific Patterns
 
 ### CDK project is in `infra/`, not `cdk/`
-`setup-shared-infra.sh` and `delete-shared-infra.sh` still reference `"$(dirname "$0")/cdk"` — this is a bug. The correct path is `infra/`. Fix before running if the scripts fail with "directory not found".
+`setup-shared-infra.sh` and `delete-shared-infra.sh` set `CDK_DIR` to `"$(dirname "$0")/infra"`. Both scripts are correct as of the last analysis; the AGENTS.md bug note was stale.
 
 ### NAT Gateway disabled by default
 `enableNatGateway: false` in `cdk.json`. The S3 gateway endpoint handles the primary egress cost driver. Set to `true` and redeploy if worker nodes need outbound internet beyond S3/ECR.
@@ -69,6 +69,12 @@ Spot LTs configure `instanceInterruptionBehavior: hibernate`. Not all instance t
 
 ### Maven compiles before CDK synth
 The CDK app command in `cdk.json` is `mvn -e -q compile exec:java`. `cdk synth` and `cdk deploy` both trigger a Maven compile. The shell script also runs `mvn compile` explicitly for error visibility.
+
+### ECR pull-through cache credentials
+`registry.k8s.io` pull-through cache may require an upstream registry credential in AWS Secrets Manager depending on account configuration. Verify before first deploy to a new account.
+
+### No test suite
+There are no CDK assertion tests (`src/test/` does not exist). Changes to `SharedInfraStack.java` should be validated with `cdk synth` and diff review before deploy.
 
 ## Custom Instructions
 <!-- This section is for human and agent-maintained operational knowledge.

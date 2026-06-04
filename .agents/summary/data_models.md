@@ -1,49 +1,59 @@
 # Data Models
 
-## Networking record
-```java
-private record Networking(String vpcId, String publicRtId, String privateRtId) {}
+## CDK Context (runtime configuration)
+
+Read at stack construction time from `cdk.json` or `--context` overrides.
+
+```mermaid
+classDiagram
+    class CdkContext {
+        +String projectName
+        +String instanceTypeArm64
+        +String instanceTypeX86_64
+        +int diskSizeGb
+        +boolean enableNatGateway
+    }
 ```
-Internal transfer object passed between `createNetworking()`, `createFlowLogs()`, `createS3Endpoint()`, and `createNetworkSsmParams()`.
 
-## LtConfig record
+## Internal Records
+
+### `Networking`
+
+Carries CloudFormation token references between `createNetworking()` and downstream methods.
+
 ```java
-private record LtConfig(String arch, boolean spot) {
-    String key()   // → "spot-arm64" | "ondemand-arm64" | "spot-x86_64" | "ondemand-x86_64"
-    String mode()  // → "spot" | "ondemand"
-    String instanceType(String arm64Type, String x86Type)
-}
+record Networking(String vpcId, String publicRtId, String privateRtId)
 ```
-Drives the 4-combination launch template matrix.
 
-## VPC Layout
+### `LtConfig`
 
-| Resource | CIDR / AZ |
-|----------|-----------|
-| VPC | `10.0.0.0/16` |
-| NAT subnet (public) | `10.0.0.0/24`, AZ[0] |
+Encodes the two-axis variation for launch templates.
 
-Private subnets are created by the tenant provisioner in the consuming project; this stack only creates the shared NAT/public subnet and route tables.
+```java
+record LtConfig(String arch, boolean spot)
+// arch ∈ {"arm64", "x86_64"}
+// key()  → "{spot|ondemand}-{arch}"
+// mode() → "spot" | "ondemand"
+// instanceType(arm64Type, x86Type) → selects by arch
+```
 
-## Launch Template EBS Volumes
+## EBS Volume Layout (per launch template)
 
-| Device | Type | Size | Encrypted | Delete on term |
-|--------|------|------|-----------|----------------|
-| `/dev/xvda` (root) | gp3 | `diskSizeGb` (default 20 GiB) | yes | yes |
-| `/dev/sdf` (data) | gp3 | 20 GiB (fixed) | yes | yes |
+| Device | Type | Size | Encrypted | Purpose |
+|--------|------|------|-----------|---------|
+| `/dev/xvda` | gp3 | `diskSizeGb` (configurable) | true | Root OS volume |
+| `/dev/sdf` | gp3 | 20 GiB (fixed) | true | Secondary data volume |
 
-## Resource Tags (applied to all resources)
+## SSM Parameter Values
 
-| Key | Value |
-|-----|-------|
-| `Name` | `<projectName>-<resource>` |
-| `Project` | `<projectName>` |
-| `ManagedBy` | `CDK` |
+All parameters are `StringParameter` type (not SecureString). Values are CloudFormation token references resolved at deploy time.
 
-Instance/volume tags additionally include:
-| Key | Value |
-|-----|-------|
-| `Platform` | `eks-d-xpress` |
-| `Arch` | `arm64` or `x86_64` |
-| `ManagedBy` | `Karpenter` (instance), `CDK` (volume) |
-| `Mode` | `spot` or `on-demand` |
+## EC2 Instance Tags (applied via launch template `tagSpecifications`)
+
+| Tag key | Value | Resource |
+|---------|-------|---------|
+| `Platform` | `eks-d-xpress` | instance + volume |
+| `Arch` | `arm64` or `x86_64` | instance |
+| `ManagedBy` | `Karpenter` | instance |
+| `ManagedBy` | `CDK` | volume, launch-template |
+| `Mode` | `spot` or `on-demand` | launch-template resource |
