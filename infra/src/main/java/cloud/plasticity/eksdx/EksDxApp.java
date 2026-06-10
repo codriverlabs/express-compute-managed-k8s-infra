@@ -8,12 +8,13 @@ public class EksDxApp {
     public static void main(String[] args) {
         App app = new App();
 
+        var env = Environment.builder()
+                .account(System.getenv("CDK_DEFAULT_ACCOUNT"))
+                .region(System.getenv("CDK_DEFAULT_REGION"))
+                .build();
+
         new SharedInfraStack(app, "EksDxSharedInfraStack", StackProps.builder()
-                .env(Environment.builder()
-                        .account(System.getenv("CDK_DEFAULT_ACCOUNT"))
-                        .region(System.getenv("CDK_DEFAULT_REGION"))
-                        .build())
-                .build());
+                .env(env).build());
 
         app.synth();
     }
