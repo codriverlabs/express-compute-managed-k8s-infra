@@ -23,7 +23,7 @@ echo "    ✓ CDK bootstrap complete"
 
 echo ""
 echo "==> Building CDK bundle (mvn compile)..."
-mvn -e -q compile -f "${CDK_DIR}/pom.xml"
+mvn -e -q clean compile -f "${CDK_DIR}/pom.xml"
 echo "    ✓ CDK bundle built"
 
 echo ""
