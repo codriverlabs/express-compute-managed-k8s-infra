@@ -303,6 +303,7 @@ public class SharedInfraStack extends Stack {
             CfnLaunchTemplate lt = CfnLaunchTemplate.Builder.create(this, "Lt-" + cfg.key())
                     .launchTemplateName(ltName)
                     .launchTemplateData(ltDataBuilder.build())
+                    .defaultVersionNumber("$Latest")
                     .tagSpecifications(List.of(
                             CfnLaunchTemplate.LaunchTemplateTagSpecificationProperty.builder()
                                     .resourceType("launch-template")
