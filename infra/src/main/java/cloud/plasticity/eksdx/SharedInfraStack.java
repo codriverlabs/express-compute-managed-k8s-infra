@@ -206,7 +206,7 @@ public class SharedInfraStack extends Stack {
 
         // Quay is a public registry — no credentials required.
         CfnPullThroughCacheRule.Builder.create(this, "QuayCache")
-                .ecrRepositoryPrefix("quay")
+                .ecrRepositoryPrefix("quay-io")
                 .upstreamRegistryUrl("quay.io")
                 .build();
     }
@@ -303,7 +303,6 @@ public class SharedInfraStack extends Stack {
             CfnLaunchTemplate lt = CfnLaunchTemplate.Builder.create(this, "Lt-" + cfg.key())
                     .launchTemplateName(ltName)
                     .launchTemplateData(ltDataBuilder.build())
-                    .defaultVersionNumber("$Latest")
                     .tagSpecifications(List.of(
                             CfnLaunchTemplate.LaunchTemplateTagSpecificationProperty.builder()
                                     .resourceType("launch-template")
