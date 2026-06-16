@@ -50,7 +50,7 @@ public class SharedInfraStack extends Stack {
         createEcrPullThroughCache();
         createS3Endpoint(networking.vpcId(), networking.publicRtId(), networking.privateRtId());
         createLaunchTemplates();
-        createNetworkSsmParams(networking);
+        createNetworkSsmParams(networking, enableNatGateway);
     }
 
     // ── Networking ────────────────────────────────────────────────────────────
@@ -326,11 +326,17 @@ public class SharedInfraStack extends Stack {
 
     // ── Network SSM Parameters ────────────────────────────────────────────────
 
-    private void createNetworkSsmParams(Networking networking) {
+    private void createNetworkSsmParams(Networking networking, boolean enableNatGateway) {
         StringParameter.Builder.create(this, "SsmVpcId")
                 .parameterName("/eks-d-xpress/infra/network/vpc-id")
                 .stringValue(networking.vpcId())
                 .description("EKS-DX shared VPC ID")
+                .build();
+
+        StringParameter.Builder.create(this, "SsmNatGatewayEnabled")
+                .parameterName("/eks-d-xpress/infra/network/nat-gateway-enabled")
+                .stringValue(String.valueOf(enableNatGateway))
+                .description("EKS-DX shared VPC — NAT gateway enabled flag")
                 .build();
     }
 

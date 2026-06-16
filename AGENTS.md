@@ -41,6 +41,7 @@ Both default to `region=us-east-1`, `projectName=eks-dx-infra`.
 | Path | Value |
 |------|-------|
 | `/eks-d-xpress/infra/network/vpc-id` | VPC ID |
+| `/eks-d-xpress/infra/network/nat-gateway-enabled` | `true` or `false` |
 | `/eks-d-xpress/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
 
 ## CDK Context Defaults (`infra/cdk.json`)

@@ -47,6 +47,7 @@ Edit `infra/cdk.json` to change defaults:
 | Path | Value |
 |------|-------|
 | `/eks-d-xpress/infra/network/vpc-id` | VPC ID |
+| `/eks-d-xpress/infra/network/nat-gateway-enabled` | `true` or `false` |
 | `/eks-d-xpress/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
 
 ## Directory Structure
