@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: '21'
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: corretto
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Install CDK CLI
+        run: npm install -g aws-cdk --quiet
+
+      - name: Synth CDK template
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cd infra && cdk synth --quiet
+          cd ..
+          tar czf eks-dx-infra-cdk-${VERSION}.tar.gz -C infra cdk.out
+
+      - name: Generate checksums
+        run: sha256sum eks-dx-infra-cdk-*.tar.gz > checksums.sha256
+
+      - name: Create release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          files: |
+            eks-dx-infra-cdk-*.tar.gz
+            checksums.sha256
