@@ -1,27 +1,50 @@
-# Codebase Info
+# Codebase Information
 
-- **Project**: eks-d-xpress-infra
-- **Purpose**: Shared AWS infrastructure for the EKS-DX platform (single CDK stack)
-- **Language**: Java 21
-- **Build**: Maven 3 + AWS CDK CLI
-- **CDK version**: aws-cdk-lib 2.256.1
-- **constructs**: 10.4.2
-- **CDK app entry**: `cloud.plasticity.eksdx.EksDxApp`
-- **Stack name**: `EksDxSharedInfraStack`
+## Project Identity
 
-## Active Source Files
+- **Name**: EKS-D-Xpress Infra
+- **Group**: `cloud.plasticity`
+- **Artifact**: `eks-dx-shared-infra-cdk`
+- **Repository**: `plasticity-of-cloud/eks-d-xpress-infra`
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| IaC | AWS CDK (Java) |
+| Language | Java 21 |
+| Build | Maven 3 |
+| CDK Lib | 2.256.1 |
+| Constructs | 10.4.2 |
+| CI/CD | GitHub Actions |
+| Pre-commit | trailing-whitespace, end-of-file-fixer, check-merge-conflict |
+
+## Languages
+
+| Language | Files | Purpose |
+|----------|-------|---------|
+| Java | 2 | CDK stack definition |
+| Bash | 2 | Deploy/destroy scripts |
+| YAML | 2 | GitHub Actions, pre-commit config |
+| JSON | 1 | CDK context (`cdk.json`) |
+
+## Source Layout
 
 ```
-infra/
-├── cdk.json                                          # CDK app command + context defaults
-├── pom.xml                                           # Maven build descriptor
-└── src/main/java/cloud/plasticity/eksdx/
-    ├── EksDxApp.java                                 # CDK App entry point
-    └── SharedInfraStack.java                         # All infra: VPC, LTs, ECR, S3 endpoint, flow logs
-setup-shared-infra.sh                                 # Deploy wrapper
-delete-shared-infra.sh                                # Destroy wrapper
+infra/src/main/java/cloud/plasticity/eksdx/
+├── EksDxApp.java          (21 LOC) — CDK App entry point
+└── SharedInfraStack.java  (348 LOC) — All infrastructure resources
 ```
 
-## Excluded
+## CDK Stack: `EksDxSharedInfraStack`
 
-`archived/` — legacy Terraform and bash provisioning scripts; not part of the active system.
+Single stack deploying shared VPC infrastructure for the EKS-DX platform. Uses L1 (Cfn*) constructs for most resources due to needing fine-grained control over VPC layout and launch template options.
+
+## Key Design Decisions
+
+1. **Single stack** — all shared infra in one deployable unit
+2. **L1 constructs** — direct CloudFormation mappings for VPC, LTs, ECR cache rules
+3. **No AMI in launch templates** — decouples AMI updates from infra deployments
+4. **NAT gateway optional** — S3 gateway endpoint handles primary egress cost
+5. **SSM parameter store** — output discovery mechanism for consuming services
+6. **Spot + hibernation** — cost optimization with graceful interruption handling

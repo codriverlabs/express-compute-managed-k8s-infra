@@ -1,47 +1,68 @@
-# Interfaces & Integration Points
+# Interfaces
 
-## SSM Parameters (primary consumer interface)
+## SSM Parameter Store (Output Interface)
 
-All outputs are published to SSM; consumers never reference CloudFormation exports.
+The stack publishes outputs to SSM Parameter Store for decoupled consumption by other services (tenant provisioner, Karpenter).
 
-| SSM Path | Value | Published by |
-|----------|-------|-------------|
-| `/eks-d-xpress/infra/network/vpc-id` | VPC ID | `createNetworkSsmParams` |
-| `/eks-d-xpress/infra/launch-template/arm64/spot` | LT ID | `createLaunchTemplates` |
-| `/eks-d-xpress/infra/launch-template/arm64/ondemand` | LT ID | `createLaunchTemplates` |
-| `/eks-d-xpress/infra/launch-template/x86_64/spot` | LT ID | `createLaunchTemplates` |
-| `/eks-d-xpress/infra/launch-template/x86_64/ondemand` | LT ID | `createLaunchTemplates` |
-
-## ECR Pull-Through Cache endpoints
-
-| ECR prefix | Upstream registry | Used by |
-|------------|-------------------|---------|
-| `public-ecr/` | `public.ecr.aws` | Kubernetes system images |
-| `registry-k8s-io/` | `registry.k8s.io` | Kubernetes system images |
-
-Consumers pull from `<account>.dkr.ecr.<region>.amazonaws.com/public-ecr/...` and `registry-k8s-io/...`.
-
-## CDK Context API
-
-Consumers of the CDK app pass context via `--context` flags or `cdk.json`. All keys are read with `getNode().tryGetContext()`.
-
-| Key | Type | Default |
-|-----|------|---------|
-| `projectName` | String | `eks-dx-infra` |
-| `instanceTypeArm64` | String | `m7g.large` |
-| `instanceTypeX86_64` | String | `m7i.large` |
-| `diskSizeGb` | int | `20` |
-| `enableNatGateway` | boolean | `false` |
-
-## Deploy/Destroy Scripts
-
-```
-setup-shared-infra.sh  [region] [projectName]
-delete-shared-infra.sh [region] [projectName]
+```mermaid
+graph LR
+    STACK["SharedInfraStack"] -->|writes| SSM["SSM Parameter Store"]
+    SSM -->|reads| TENANT["Tenant Provisioner"]
+    SSM -->|reads| OTHER["Other Consumers"]
 ```
 
-Both scripts set `CDK_DEFAULT_REGION` and resolve `CDK_DEFAULT_ACCOUNT` via `aws sts get-caller-identity`. `setup-shared-infra.sh` also runs `cdk bootstrap` (idempotent) before deploy.
+### Parameters Published
 
-## CloudWatch Log Group
+| Path | Type | Description |
+|------|------|-------------|
+| `/eks-d-xpress/infra/network/vpc-id` | String | VPC ID |
+| `/eks-d-xpress/infra/network/nat-gateway-enabled` | String | `true` or `false` |
+| `/eks-d-xpress/infra/launch-template/arm64/spot` | String | LT ID |
+| `/eks-d-xpress/infra/launch-template/arm64/ondemand` | String | LT ID |
+| `/eks-d-xpress/infra/launch-template/x86_64/spot` | String | LT ID |
+| `/eks-d-xpress/infra/launch-template/x86_64/ondemand` | String | LT ID |
 
-`/aws/vpc/<region>/<projectName>-flow-logs` — 1-week retention, destroyed on stack deletion.
+## CDK Context (Input Interface)
+
+Configuration is injected via CDK context values (from `cdk.json` or `--context` flags).
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `projectName` | String | `eks-dx-infra` | Resource naming prefix |
+| `instanceTypeArm64` | String | `c6g.xlarge` | ARM instance type |
+| `instanceTypeX86_64` | String | `m7i.large` | x86 instance type |
+| `diskSizeGb` | int | `20` | Root EBS volume size (GiB) |
+| `enableNatGateway` | boolean | `false` | Create NAT Gateway |
+
+## ECR Pull-Through Cache (Registry Interface)
+
+Downstream consumers reference cached images using account ECR prefixes:
+
+| Pull pattern | Resolves to |
+|-------------|-------------|
+| `{account}.dkr.ecr.{region}.amazonaws.com/public-ecr/{image}` | `public.ecr.aws/{image}` |
+| `{account}.dkr.ecr.{region}.amazonaws.com/registry-k8s-io/{image}` | `registry.k8s.io/{image}` |
+| `{account}.dkr.ecr.{region}.amazonaws.com/quay-io/{image}` | `quay.io/{image}` |
+
+## Shell Script Interface
+
+```
+./setup-shared-infra.sh [region] [projectName]
+./delete-shared-infra.sh [region] [projectName]
+```
+
+| Arg | Position | Default |
+|-----|----------|---------|
+| `region` | 1 | `us-east-1` |
+| `projectName` | 2 | `eks-dx-infra` |
+
+Environment variables set by scripts: `CDK_DEFAULT_REGION`, `CDK_DEFAULT_ACCOUNT`.
+
+## GitHub Release Artifacts
+
+On `v*` tag push, the release workflow produces:
+
+| Artifact | Contents |
+|----------|----------|
+| `eks-d-xpress-infra-{VERSION}.tar.gz` | README, scripts, full `infra/` directory (incl. `cdk.out`) |
+| `checksums.sha256` | SHA-256 of the tarball |

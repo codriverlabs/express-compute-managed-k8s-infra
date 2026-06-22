@@ -31,7 +31,7 @@ Both default to `region=us-east-1`, `projectName=eks-dx-infra`.
 
 - **VPC** `10.0.0.0/16` with IGW, NAT subnet `10.0.0.0/24`, public + private route tables
 - **S3 Gateway Endpoint** — free, attached to both route tables; keeps ECR pulls off NAT
-- **ECR Pull-Through Cache** — `public-ecr/` → `public.ecr.aws`, `registry-k8s-io/` → `registry.k8s.io`
+- **ECR Pull-Through Cache** — `public-ecr/` → `public.ecr.aws`, `registry-k8s-io/` → `registry.k8s.io`, `quay-io/` → `quay.io`
 - **VPC Flow Logs** → CloudWatch `/aws/vpc/<region>/<project>-flow-logs` (1-week retention)
 - **4 Launch Templates** (spot + ondemand) × (arm64 + x86_64): no AMI ID, IMDS v2, encrypted EBS, spot uses hibernation
 - **SSM Parameters**: VPC ID + 4 LT IDs published for consuming services
@@ -49,7 +49,7 @@ Both default to `region=us-east-1`, `projectName=eks-dx-infra`.
 | Key | Default | Override via |
 |-----|---------|-------------|
 | `projectName` | `eks-dx-infra` | `--context` or `cdk.json` |
-| `instanceTypeArm64` | `m7g.large` | same |
+| `instanceTypeArm64` | `c6g.xlarge` | same |
 | `instanceTypeX86_64` | `m7i.large` | same |
 | `diskSizeGb` | `20` | same (root volume `/dev/xvda`; `/dev/sdf` is fixed at 20 GiB) |
 | `enableNatGateway` | `false` | same |
@@ -57,7 +57,7 @@ Both default to `region=us-east-1`, `projectName=eks-dx-infra`.
 ## Repo-Specific Patterns
 
 ### CDK project is in `infra/`, not `cdk/`
-`setup-shared-infra.sh` and `delete-shared-infra.sh` set `CDK_DIR` to `"$(dirname "$0")/infra"`. Both scripts are correct as of the last analysis; the AGENTS.md bug note was stale.
+`setup-shared-infra.sh` and `delete-shared-infra.sh` both `cd` into `"$(dirname "$0")/infra"`.
 
 ### NAT Gateway disabled by default
 `enableNatGateway: false` in `cdk.json`. The S3 gateway endpoint handles the primary egress cost driver. Set to `true` and redeploy if worker nodes need outbound internet beyond S3/ECR.

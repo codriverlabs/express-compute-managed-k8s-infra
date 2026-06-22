@@ -1,59 +1,58 @@
 # Data Models
 
-## CDK Context (runtime configuration)
-
-Read at stack construction time from `cdk.json` or `--context` overrides.
-
-```mermaid
-classDiagram
-    class CdkContext {
-        +String projectName
-        +String instanceTypeArm64
-        +String instanceTypeX86_64
-        +int diskSizeGb
-        +boolean enableNatGateway
-    }
-```
-
 ## Internal Records
 
 ### `Networking`
 
-Carries CloudFormation token references between `createNetworking()` and downstream methods.
+Lightweight carrier for VPC resource IDs returned by `createNetworking()`.
 
 ```java
-record Networking(String vpcId, String publicRtId, String privateRtId)
+private record Networking(String vpcId, String publicRtId, String privateRtId) {}
 ```
 
 ### `LtConfig`
 
-Encodes the two-axis variation for launch templates.
+Configuration tuple for launch template generation. Drives the 4-template cross-product.
 
 ```java
-record LtConfig(String arch, boolean spot)
-// arch ∈ {"arm64", "x86_64"}
-// key()  → "{spot|ondemand}-{arch}"
-// mode() → "spot" | "ondemand"
-// instanceType(arm64Type, x86Type) → selects by arch
+private record LtConfig(String arch, boolean spot) {
+    String key()          // e.g., "spot-arm64"
+    String mode()         // "spot" or "ondemand"
+    String instanceType(String arm64Type, String x86Type)
+}
 ```
 
-## EBS Volume Layout (per launch template)
+## CDK Context Model
+
+Values read from CDK context at stack construction time:
+
+```java
+this.projectName       = (String) getNode().tryGetContext("projectName");
+this.instanceTypeArm64 = (String) getNode().tryGetContext("instanceTypeArm64");
+this.instanceTypeX86_64= (String) getNode().tryGetContext("instanceTypeX86_64");
+this.diskSizeGb        = (int)    getNode().tryGetContext("diskSizeGb");
+boolean enableNatGateway = Boolean.TRUE.equals(getNode().tryGetContext("enableNatGateway"));
+```
+
+## Tagging Model
+
+All resources are tagged consistently:
+
+| Tag | Applied To | Value |
+|-----|-----------|-------|
+| `Name` | All named resources | `{projectName}-{resource}` |
+| `Project` | VPC, subnets, route tables, NAT | `{projectName}` |
+| `ManagedBy` | All | `CDK` or `Karpenter` |
+| `Platform` | LT instances/volumes | `eks-d-xpress` |
+| `Arch` | LT instances | `arm64` or `x86_64` |
+| `Mode` | Launch templates | `spot` or `on-demand` |
+| `Type` | NAT subnet | `NAT` |
+
+## EBS Volume Layout
+
+Each launch template defines two block devices:
 
 | Device | Type | Size | Encrypted | Purpose |
 |--------|------|------|-----------|---------|
-| `/dev/xvda` | gp3 | `diskSizeGb` (configurable) | true | Root OS volume |
-| `/dev/sdf` | gp3 | 20 GiB (fixed) | true | Secondary data volume |
-
-## SSM Parameter Values
-
-All parameters are `StringParameter` type (not SecureString). Values are CloudFormation token references resolved at deploy time.
-
-## EC2 Instance Tags (applied via launch template `tagSpecifications`)
-
-| Tag key | Value | Resource |
-|---------|-------|---------|
-| `Platform` | `eks-d-xpress` | instance + volume |
-| `Arch` | `arm64` or `x86_64` | instance |
-| `ManagedBy` | `Karpenter` | instance |
-| `ManagedBy` | `CDK` | volume, launch-template |
-| `Mode` | `spot` or `on-demand` | launch-template resource |
+| `/dev/xvda` | gp3 | `diskSizeGb` (configurable) | Yes | Root volume |
+| `/dev/sdf` | gp3 | 20 GiB (fixed) | Yes | Data volume |

@@ -1,71 +1,80 @@
 # Workflows
 
-## Deploy
+## Deploy Workflow
 
 ```mermaid
 sequenceDiagram
-    actor Dev
+    participant User
     participant Script as setup-shared-infra.sh
     participant CDK as CDK CLI
-    participant Maven as Maven
-    participant AWS
+    participant Maven
+    participant AWS as AWS CloudFormation
 
-    Dev->>Script: ./setup-shared-infra.sh [region] [project]
-    Script->>AWS: aws sts get-caller-identity (resolve account)
-    Script->>CDK: cdk bootstrap aws://<account>/<region>
-    CDK-->>Script: bootstrap complete
-    Script->>Maven: mvn compile -f infra/pom.xml
-    Maven-->>Script: compiled
-    Script->>CDK: cdk synth EksDxSharedInfraStack --context projectName=...
-    CDK->>Maven: mvn compile exec:java (via cdk.json app command)
-    CDK-->>Script: template synthesized
-    Script->>CDK: cdk deploy EksDxSharedInfraStack --require-approval never
-    CDK->>AWS: CloudFormation CreateChangeSet / ExecuteChangeSet
-    AWS-->>CDK: stack outputs
-    CDK-->>Dev: deploy complete
+    User->>Script: ./setup-shared-infra.sh [region] [project]
+    Script->>CDK: cdk bootstrap
+    CDK-->>Script: ✓ bootstrap complete
+    Script->>Maven: mvn compile
+    Maven-->>Script: ✓ build complete
+    Script->>CDK: cdk synth EksDxSharedInfraStack
+    CDK->>Maven: mvn compile exec:java
+    Maven-->>CDK: ✓ template generated
+    CDK-->>Script: ✓ synth complete
+    Script->>CDK: cdk deploy --require-approval never
+    CDK->>AWS: CreateChangeSet / ExecuteChangeSet
+    AWS-->>CDK: Stack deployed
+    CDK-->>Script: ✓ deploy complete
 ```
 
-Note: `mvn compile` runs twice — once explicitly in the script for early error visibility, and again implicitly when CDK invokes the app command from `cdk.json`.
-
-## Destroy
+## Destroy Workflow
 
 ```mermaid
 sequenceDiagram
-    actor Dev
+    participant User
     participant Script as delete-shared-infra.sh
     participant CDK as CDK CLI
-    participant AWS
+    participant AWS as AWS CloudFormation
 
-    Dev->>Script: ./delete-shared-infra.sh [region] [project]
-    Script->>AWS: aws sts get-caller-identity
-    Script->>CDK: cdk destroy EksDxSharedInfraStack --force
-    CDK->>AWS: CloudFormation DeleteStack
-    AWS-->>Dev: stack deleted (incl. CloudWatch log group)
+    User->>Script: ./delete-shared-infra.sh [region] [project]
+    Script->>CDK: cdk destroy --force
+    CDK->>AWS: DeleteStack
+    AWS-->>CDK: Stack deleted
+    CDK-->>Script: ✓ destroy complete
 ```
 
-## Stack Construction Sequence
-
-```mermaid
-flowchart LR
-    A[Read context] --> B[createNetworking]
-    B --> C[createFlowLogs]
-    B --> D[createEcrPullThroughCache]
-    B --> E[createS3Endpoint]
-    B --> F[createLaunchTemplates]
-    B --> G[createNetworkSsmParams]
-    F --> G
-```
-
-## Consumer Read Flow (tenant provisioner)
+## Release Workflow
 
 ```mermaid
 sequenceDiagram
-    participant Tenant as Tenant provisioner
-    participant SSM
-    participant EC2
+    participant Dev as Developer
+    participant GH as GitHub Actions
+    participant Maven
+    participant CDK as CDK CLI
+    participant Release as GitHub Release
 
-    Tenant->>SSM: GetParameter /eks-d-xpress/infra/network/vpc-id
-    Tenant->>SSM: GetParameter /eks-d-xpress/infra/launch-template/{arch}/{mode}
-    SSM-->>Tenant: VPC ID + LT ID
-    Tenant->>EC2: RunInstances (LaunchTemplate override + AMI ID)
+    Dev->>GH: Push tag v*
+    GH->>GH: Checkout + setup Java 21
+    GH->>GH: Install CDK CLI
+    GH->>CDK: cdk synth (triggers Maven compile)
+    CDK->>Maven: mvn compile exec:java
+    Maven-->>CDK: ✓
+    CDK-->>GH: cdk.out generated
+    GH->>GH: tar czf (README + scripts + infra/)
+    GH->>GH: sha256sum → checksums.sha256
+    GH->>Release: Create release with assets
+```
+
+## Consumer Integration Pattern
+
+```mermaid
+sequenceDiagram
+    participant Tenant as Tenant Provisioner
+    participant SSM as SSM Parameter Store
+    participant EC2 as EC2 API
+
+    Tenant->>SSM: GetParameter(/eks-d-xpress/infra/network/vpc-id)
+    SSM-->>Tenant: vpc-12345
+    Tenant->>SSM: GetParameter(/eks-d-xpress/infra/launch-template/arm64/spot)
+    SSM-->>Tenant: lt-abc123
+    Tenant->>EC2: RunInstances(LaunchTemplate=lt-abc123, ImageId=ami-xxx)
+    EC2-->>Tenant: Instance launched
 ```

@@ -2,30 +2,35 @@
 
 ## Consistency Check
 
-No inconsistencies found across the documentation files. SSM paths, context keys, instance types, and EBS sizes are consistent between `SharedInfraStack.java`, `cdk.json`, and all generated docs.
+| Item | Status | Notes |
+|------|--------|-------|
+| Instance type defaults match `cdk.json` | ✅ | `c6g.xlarge` (arm64), `m7i.large` (x86_64) |
+| SSM paths consistent across docs | ✅ | All docs use `/eks-d-xpress/infra/...` |
+| ECR cache prefixes match source | ✅ | `public-ecr/`, `registry-k8s-io/`, `quay-io/` |
+| Script args match source | ✅ | `[region] [projectName]`, defaults verified |
+| Release workflow matches source | ✅ | Bundles README + scripts + infra/ |
+| NAT gateway conditionality documented | ✅ | Architecture + components both cover it |
 
-## Known Bug (from AGENTS.md, preserved)
+### Previously Fixed Inconsistency
 
-`setup-shared-infra.sh` references `"$(dirname "$0")/cdk"` in its `CDK_DIR` variable but the correct path is `"$(dirname "$0")/infra"`. The script currently works because it uses `CDK_DIR` only for the `mvn compile` call and then does `cd "${CDK_DIR}"` — if the directory name ever diverges this will break silently on the compile step. Fix: change the variable assignment to `CDK_DIR="$(dirname "$0")/infra"`.
+- README.md previously listed `instanceTypeArm64` default as `m7g.large` — corrected to `c6g.xlarge` to match `cdk.json` (fixed in commit `d308aeb`).
 
-**Actual code** (line 16 of `setup-shared-infra.sh`):
-```bash
-CDK_DIR="$(dirname "$0")/infra"   # ← already correct in current file
-```
-Re-checking: the script was already fixed. AGENTS.md note about this bug may be stale. No action needed.
+## Completeness Check
 
-## Completeness Gaps
+| Area | Coverage | Gap |
+|------|----------|-----|
+| Stack resources | ✅ Complete | — |
+| Configuration options | ✅ Complete | — |
+| Deploy/destroy workflow | ✅ Complete | — |
+| Release workflow | ✅ Complete | — |
+| Consumer integration | ✅ Documented | No code in this repo to verify consumer behavior |
+| Testing | ⚠️ Gap | No test suite exists (`src/test/` absent) |
+| Multi-account deployment | ⚠️ Gap | ECR pull-through cache for `registry.k8s.io` may need Secrets Manager credential — not documented in code |
+| Subnet strategy | ⚠️ Gap | Only one subnet (`10.0.0.0/24`) is created; tenant provisioner presumably creates additional subnets — not documented here |
+| Security group setup | ⚠️ Gap | No security groups defined in this stack — presumably handled by tenant provisioner |
 
-1. **No private subnets in the stack** — `createNetworking` only creates a single NAT subnet. Tenant-owned subnets are not documented anywhere in this repo. `architecture.md` notes this, but the boundary is implied rather than explicit. Recommendation: add a note to `AGENTS.md` Custom Instructions once the tenant provisioner project is known.
+## Recommendations
 
-2. **No test coverage** — there are no unit or integration tests (`src/test/` does not exist). No CDK assertions are written. This is a gap for a production infra repo.
-
-3. **`/dev/sdf` purpose undocumented** — the secondary 20 GiB EBS volume is fixed-size with no code comment explaining its use. Recommendation: add an inline comment in `SharedInfraStack.java`.
-
-4. **ECR pull-through cache credentials** — `CfnPullThroughCacheRule` for `registry.k8s.io` may require an upstream registry credential secret in Secrets Manager depending on the account configuration. This is not documented.
-
-5. **`archived/` not documented** — by user request, `archived/` is excluded from this analysis. If its scripts are ever reactivated, they should be analyzed separately.
-
-## Language Coverage
-
-Java: full analysis. Shell scripts: analyzed for workflow only (no static analysis).
+1. **Add CDK assertion tests** — validate synth output without deploying. Low effort, high confidence.
+2. **Document the Secrets Manager requirement** for `registry.k8s.io` pull-through cache in new accounts.
+3. **Consider documenting the tenant provisioner handoff** — what it expects from this stack beyond SSM params.

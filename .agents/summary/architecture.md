@@ -1,59 +1,80 @@
 # Architecture
 
-## Overview
-
-A single CDK stack (`EksDxSharedInfraStack`) that provisions all shared AWS resources consumed by EKS-DX tenant control planes. Tenants read VPC and launch template IDs from SSM; they do not interact with this repo directly.
+## System Context
 
 ```mermaid
 graph TB
-    subgraph CDK["EksDxSharedInfraStack"]
-        VPC["VPC 10.0.0.0/16\n+ IGW + subnets + route tables"]
+    subgraph "EKS-DX Platform"
+        INFRA["EksDxSharedInfraStack<br/>(this project)"]
+        TENANT["Tenant Provisioner<br/>(separate project)"]
+        KARPENTER["Karpenter"]
+    end
+
+    subgraph "AWS Services"
+        VPC["VPC 10.0.0.0/16"]
+        ECR["ECR Pull-Through Cache"]
         S3EP["S3 Gateway Endpoint"]
-        ECR["ECR Pull-Through Cache\npublic-ecr / registry-k8s-io"]
-        FL["VPC Flow Logs → CloudWatch"]
-        LT["4 Launch Templates\n(spot+ondemand) × (arm64+x86_64)"]
-        SSM["SSM Parameters\nvpc-id + 4 LT IDs"]
+        SSM["SSM Parameter Store"]
+        CW["CloudWatch Logs"]
     end
 
-    VPC --> S3EP
-    VPC --> FL
-    VPC --> SSM
-    LT --> SSM
+    INFRA --> VPC
+    INFRA --> ECR
+    INFRA --> S3EP
+    INFRA --> SSM
+    INFRA --> CW
 
-    subgraph Consumers
-        Karpenter["Karpenter\n(tenant)"]
-        Lambda["Tenant provisioner\n(separate project)"]
-    end
-
-    SSM --> Karpenter
-    SSM --> Lambda
-    ECR --> Karpenter
+    TENANT -->|reads LT IDs, VPC ID| SSM
+    KARPENTER -->|uses LTs| VPC
+    TENANT -->|launches instances| VPC
 ```
 
-## Design Principles
-
-- **L1 constructs only where no L2 exists** — ECR pull-through cache rules use `CfnPullThroughCacheRule` directly; all other resources use CDK L2/L3 where available.
-- **No AMI in launch templates** — AMI is passed as a `RunInstances` override by the tenant provisioner, decoupling AMI updates from shared infra deployments.
-- **NAT optional** — S3 gateway endpoint covers the primary egress cost driver (ECR image pulls). NAT Gateway is disabled by default and opt-in via `enableNatGateway` context.
-- **SSM as contract** — all consumer-facing outputs are SSM parameters, not CloudFormation exports, so tenants can read them without cross-stack dependencies.
-- **All resources tagged** with `Project`, `Platform: eks-d-xpress`, and `ManagedBy: CDK|Karpenter`.
-
-## Network Layout
+## Stack Composition
 
 ```mermaid
 graph LR
-    subgraph VPC["VPC 10.0.0.0/16"]
-        NATSubnet["NAT subnet 10.0.0.0/24\n(mapPublicIpOnLaunch=true)"]
-        PublicRT["Public RT\n0.0.0.0/0 → IGW"]
-        PrivateRT["Private RT\n0.0.0.0/0 → NAT GW (if enabled)"]
+    subgraph SharedInfraStack
+        NET["createNetworking()"]
+        FL["createFlowLogs()"]
+        ECR["createEcrPullThroughCache()"]
+        S3["createS3Endpoint()"]
+        LT["createLaunchTemplates()"]
+        SSM["createNetworkSsmParams()"]
     end
-    IGW["Internet Gateway"]
-    NAT["NAT Gateway\n(optional)"]
 
-    IGW --> NATSubnet
-    NATSubnet --> PublicRT
-    PrivateRT -.->|"enableNatGateway=true"| NAT
-    NAT --> IGW
+    NET --> FL
+    NET --> S3
+    NET --> SSM
+    LT --> SSM
 ```
 
-No private subnets are created by the stack — tenant subnets are provisioned by the tenant provisioner using this VPC ID.
+## Network Architecture
+
+```mermaid
+graph TB
+    subgraph "VPC 10.0.0.0/16"
+        subgraph "NAT Subnet 10.0.0.0/24 (public)"
+            NAT["NAT Gateway<br/>(optional)"]
+        end
+        IGW["Internet Gateway"]
+        PUB_RT["Public Route Table<br/>0.0.0.0/0 → IGW"]
+        PRIV_RT["Private Route Table<br/>0.0.0.0/0 → NAT (if enabled)"]
+        S3EP["S3 Gateway Endpoint<br/>(both RTs)"]
+    end
+
+    IGW --> PUB_RT
+    NAT --> PRIV_RT
+    S3EP --> PUB_RT
+    S3EP --> PRIV_RT
+```
+
+## Design Patterns
+
+| Pattern | Usage |
+|---------|-------|
+| L1 Constructs (CfnXxx) | VPC, LTs, ECR cache — fine-grained control needed |
+| L2 Constructs | LogGroup, Role — higher-level abstractions sufficient |
+| SSM Parameter Discovery | Outputs published to SSM for decoupled consumer access |
+| Context-driven Configuration | All tunables passed via CDK context, not hardcoded |
+| Conditional Resources | NAT Gateway + EIP only created when `enableNatGateway=true` |
+| Record Types | `Networking`, `LtConfig` — lightweight internal data carriers |

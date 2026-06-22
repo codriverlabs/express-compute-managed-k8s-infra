@@ -1,41 +1,80 @@
 # Components
 
-## SharedInfraStack (`SharedInfraStack.java`)
+## SharedInfraStack
 
-The single CDK stack. All infrastructure is created in the constructor, sequenced as:
+The single CDK stack containing all shared infrastructure. Located in `infra/src/main/java/cloud/plasticity/eksdx/SharedInfraStack.java`.
 
-```
-createNetworking() → createFlowLogs() → createEcrPullThroughCache()
-→ createS3Endpoint() → createLaunchTemplates() → createNetworkSsmParams()
-```
+### Networking (`createNetworking`)
 
-### Private methods
+Creates the VPC foundation:
+- VPC `10.0.0.0/16` with DNS hostnames/support
+- Internet Gateway + VPC attachment
+- NAT subnet `10.0.0.0/24` in first AZ (public, map-public-IP)
+- Conditional NAT Gateway + EIP (only if `enableNatGateway=true`)
+- Public route table (default route → IGW)
+- Private route table (default route → NAT if enabled)
 
-| Method | Responsibility |
-|--------|---------------|
-| `createNetworking(boolean)` | VPC, IGW, NAT subnet, public + private route tables, optional NAT gateway + EIP |
-| `createFlowLogs(String vpcId)` | CloudWatch log group, IAM role, `CfnFlowLog` for ALL traffic |
-| `createEcrPullThroughCache()` | Two `CfnPullThroughCacheRule`: `public-ecr` and `registry-k8s-io` |
-| `createS3Endpoint(...)` | S3 gateway `CfnVPCEndpoint` associated with both route tables |
-| `createLaunchTemplates()` | Iterates 4 `LtConfig` records; creates `CfnLaunchTemplate` + SSM param per config |
-| `createNetworkSsmParams(Networking)` | SSM param for VPC ID |
+Returns a `Networking` record with `vpcId`, `publicRtId`, `privateRtId`.
 
-### Internal records
+### VPC Flow Logs (`createFlowLogs`)
 
-- **`Networking(vpcId, publicRtId, privateRtId)`** — carries IDs between `createNetworking` and its callers
-- **`LtConfig(arch, spot)`** — encapsulates per-launch-template variation; derives name, mode, instance type
+- CloudWatch log group: `/aws/vpc/{region}/{projectName}-flow-logs`
+- Retention: 1 week
+- Removal policy: DESTROY
+- Dedicated IAM role for vpc-flow-logs service
 
-## Launch Template Matrix
+### ECR Pull-Through Cache (`createEcrPullThroughCache`)
 
-| CDK construct ID | LT name suffix | Instance type (default) |
-|-----------------|---------------|------------------------|
-| `Lt-spot-arm64` | `spot-arm64` | m7g.large |
-| `Lt-ondemand-arm64` | `ondemand-arm64` | m7g.large |
-| `Lt-spot-x86_64` | `spot-x86_64` | m7i.large |
-| `Lt-ondemand-x86_64` | `ondemand-x86_64` | m7i.large |
+Three cache rules (all L1 — no L2 exists):
 
-All templates share: IMDS v2 required (`httpTokens=required`, hop limit 2), two encrypted gp3 EBS volumes (`/dev/xvda` configurable size, `/dev/sdf` fixed 20 GiB), instance + volume tags. Spot templates additionally set `marketType=spot`, `instanceInterruptionBehavior=hibernate`, `hibernationOptions.configured=true`.
+| Prefix | Upstream |
+|--------|----------|
+| `public-ecr/` | `public.ecr.aws` |
+| `registry-k8s-io/` | `registry.k8s.io` |
+| `quay-io/` | `quay.io` |
 
-## EksDxApp (`EksDxApp.java`)
+### S3 Gateway Endpoint (`createS3Endpoint`)
 
-CDK `App` entry point. Instantiates `SharedInfraStack` with account/region from `CDK_DEFAULT_ACCOUNT` / `CDK_DEFAULT_REGION` environment variables. No multi-environment branching.
+- Type: Gateway (free, no NAT cost for S3 traffic)
+- Service: `com.amazonaws.{region}.s3`
+- Attached to both public and private route tables
+
+### Launch Templates (`createLaunchTemplates`)
+
+4 templates generated from a `LtConfig` record cross-product:
+
+| Template | Arch | Market | Instance Type |
+|----------|------|--------|---------------|
+| `{project}-spot-arm64` | arm64 | spot (hibernate) | from context |
+| `{project}-ondemand-arm64` | arm64 | on-demand | from context |
+| `{project}-spot-x86_64` | x86_64 | spot (hibernate) | from context |
+| `{project}-ondemand-x86_64` | x86_64 | on-demand | from context |
+
+Common settings:
+- IMDS v2 required (hop limit 2)
+- `/dev/xvda`: gp3, encrypted, `diskSizeGb` from context
+- `/dev/sdf`: gp3, encrypted, fixed 20 GiB
+- No AMI ID (passed at RunInstances time)
+- Instance + volume tags for tracking
+
+Each LT ID is published to SSM.
+
+### Network SSM Parameters (`createNetworkSsmParams`)
+
+| Parameter | Value |
+|-----------|-------|
+| `/eks-d-xpress/infra/network/vpc-id` | VPC ID |
+| `/eks-d-xpress/infra/network/nat-gateway-enabled` | `true` or `false` |
+
+## EksDxApp
+
+CDK App entry point (`EksDxApp.java`). Reads `CDK_DEFAULT_ACCOUNT` and `CDK_DEFAULT_REGION` from environment, instantiates `SharedInfraStack`.
+
+## Shell Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `setup-shared-infra.sh` | Bootstrap CDK → compile → synth → deploy |
+| `delete-shared-infra.sh` | `cdk destroy --force` |
+
+Both accept `[region] [projectName]` positional args with defaults.

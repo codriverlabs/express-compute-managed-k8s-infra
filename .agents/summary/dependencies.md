@@ -1,37 +1,50 @@
 # Dependencies
 
-## Runtime (CDK app)
+## Build Dependencies
 
-| Artifact | Version | Purpose |
-|----------|---------|---------|
-| `software.amazon.awscdk:aws-cdk-lib` | 2.256.1 | CDK constructs (EC2, ECR, SSM, IAM, Logs) |
-| `software.constructs:constructs` | 10.4.2 | CDK construct base |
+| Dependency | Version | Purpose |
+|-----------|---------|---------|
+| `aws-cdk-lib` | 2.256.1 | AWS CDK constructs library |
+| `constructs` | 10.4.2 | CDK constructs base |
+| `exec-maven-plugin` | 3.1.0 | Run CDK app via Maven |
 
-## Build toolchain
+## Runtime Dependencies
 
-| Tool | Version | Role |
-|------|---------|------|
-| Java | 21 | Compiler target (`maven.compiler.release=21`) |
-| Maven | 3.x | Build, dependency management, exec plugin |
-| `org.codehaus.mojo:exec-maven-plugin` | 3.1.0 | Runs `EksDxApp.main()` during CDK synth |
-| AWS CDK CLI | any compatible | `cdk bootstrap / synth / deploy / destroy` |
+| Tool | Version | Required For |
+|------|---------|-------------|
+| Java | 21 | Compile and run CDK app |
+| Maven | 3+ | Build system |
+| AWS CDK CLI | latest | Synth, deploy, destroy |
+| AWS CLI | v2 | `sts get-caller-identity` in scripts |
+| Node.js | 18+ | CDK CLI runtime |
 
-## AWS Services provisioned
+## AWS Services Used
 
-| Service | Usage |
-|---------|-------|
-| EC2 (VPC, subnets, route tables, IGW, NAT GW, EIP, endpoints) | Networking |
-| EC2 (Launch Templates) | Node template for tenant provisioner / Karpenter |
-| ECR (Pull-Through Cache Rules) | Mirror public registries into account ECR |
-| CloudWatch Logs | VPC flow log destination |
-| IAM | Flow logs delivery role |
-| SSM Parameter Store | Output contract for consumers |
-| CloudFormation | Stack management (via CDK) |
+| Service | Usage | Cost |
+|---------|-------|------|
+| VPC | Network isolation | Free (base) |
+| Internet Gateway | Public internet access | Free |
+| NAT Gateway | Private subnet egress (optional) | ~$32/mo + data |
+| Elastic IP | NAT Gateway (if enabled) | Free when attached |
+| S3 Gateway Endpoint | Free S3 access from VPC | Free |
+| ECR | Pull-through cache storage | Per-GB storage |
+| CloudWatch Logs | VPC flow logs | Per-GB ingested |
+| SSM Parameter Store | Output discovery | Free (standard tier) |
+| EC2 Launch Templates | Instance configuration | Free |
+| CloudFormation | Stack deployment | Free |
 
-## AWS Service interactions at deploy time
+## Pre-commit Hooks
 
-| Step | AWS API |
-|------|---------|
-| Bootstrap | `sts:GetCallerIdentity`, various CloudFormation/S3/IAM bootstrap calls |
-| Deploy | `cloudformation:CreateChangeSet`, `cloudformation:ExecuteChangeSet` |
-| Destroy | `cloudformation:DeleteStack` |
+| Hook | Source | Purpose |
+|------|--------|---------|
+| `trailing-whitespace` | pre-commit-hooks v5.0.0 | Remove trailing whitespace |
+| `end-of-file-fixer` | pre-commit-hooks v5.0.0 | Ensure files end with newline |
+| `check-merge-conflict` | pre-commit-hooks v5.0.0 | Prevent merge conflict markers |
+
+## CI/CD Dependencies
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| `actions/checkout` | v6 | Git checkout |
+| `actions/setup-java` | v5 | Java + Maven setup |
+| `softprops/action-gh-release` | v3 | GitHub Release creation |
