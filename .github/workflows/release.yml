@@ -25,20 +25,22 @@ jobs:
       - name: Install CDK CLI
         run: npm install -g aws-cdk --quiet
 
-      - name: Synth CDK template
+      - name: Build release bundle
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          cd infra && cdk synth --quiet
-          cd ..
-          tar czf eks-d-xpress-infra-cdk-${VERSION}.tar.gz -C infra cdk.out
+          cd infra && cdk synth --quiet && cd ..
+          tar czf eks-d-xpress-infra-${VERSION}.tar.gz \
+            setup-shared-infra.sh \
+            delete-shared-infra.sh \
+            infra/
 
       - name: Generate checksums
-        run: sha256sum eks-d-xpress-infra-cdk-*.tar.gz > checksums.sha256
+        run: sha256sum eks-d-xpress-infra-*.tar.gz > checksums.sha256
 
       - name: Create release
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           files: |
-            eks-d-xpress-infra-cdk-*.tar.gz
+            eks-d-xpress-infra-*.tar.gz
             checksums.sha256
