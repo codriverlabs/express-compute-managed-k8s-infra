@@ -33,14 +33,39 @@ Defaults: `region=us-east-1`, `projectName=eks-dx-infra`.
 
 ## Configuration
 
-Edit `infra/cdk.json` to change defaults:
+All options can be customized in two ways:
+
+1. **Edit `infra/cdk.json`** — changes the defaults permanently for all future deploys.
+2. **Pass `--context` flags** at deploy time — overrides defaults without modifying files.
+
+### Available Options
 
 | Key | Default | Notes |
 |-----|---------|-------|
-| `instanceTypeArm64` | `m7g.large` | |
-| `instanceTypeX86_64` | `m7i.large` | |
-| `diskSizeGb` | `20` | Root EBS only |
+| `projectName` | `eks-dx-infra` | Used in resource names and SSM paths |
+| `instanceTypeArm64` | `c6g.xlarge` | Must support hibernation (spot LTs) |
+| `instanceTypeX86_64` | `m7i.large` | Must support hibernation (spot LTs) |
+| `diskSizeGb` | `20` | Root EBS volume size in GiB |
 | `enableNatGateway` | `false` | Enable if workers need general internet egress |
+
+### Overriding at Deploy Time
+
+```bash
+# Override instance types and enable NAT
+cd infra
+cdk deploy EksDxSharedInfraStack \
+  --context instanceTypeArm64=m7g.xlarge \
+  --context enableNatGateway=true \
+  --require-approval never
+```
+
+Or using the convenience script (supports `projectName` and `region` only):
+
+```bash
+./setup-shared-infra.sh us-west-2 my-custom-project
+```
+
+For additional context overrides with the script, edit `infra/cdk.json` before running.
 
 ## SSM Outputs
 
