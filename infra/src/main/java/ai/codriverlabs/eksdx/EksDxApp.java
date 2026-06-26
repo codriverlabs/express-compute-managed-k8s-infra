@@ -1,4 +1,4 @@
-package cloud.plasticity.eksdx;
+package ai.codriverlabs.eksdx;
 
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;

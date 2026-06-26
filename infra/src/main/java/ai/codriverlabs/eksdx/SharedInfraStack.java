@@ -1,4 +1,4 @@
-package cloud.plasticity.eksdx;
+package ai.codriverlabs.eksdx;
 
 import software.amazon.awscdk.CfnCondition;
 import software.amazon.awscdk.CfnParameter;
