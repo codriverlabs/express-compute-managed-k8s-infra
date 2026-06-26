@@ -46,6 +46,11 @@ public class SharedInfraStack extends Stack {
                 .type("Number").build();
         CfnParameter pEnableNatGateway = CfnParameter.Builder.create(this, "EnableNatGateway")
                 .type("String").allowedValues(List.of("true", "false")).build();
+        CfnParameter pRegion = CfnParameter.Builder.create(this, "Region")
+                .type("String")
+                .defaultValue(this.getRegion())  // defaults to AWS::Region pseudo-param
+                .description("AWS region — override to target a specific region")
+                .build();
 
         CfnCondition condNat = CfnCondition.Builder.create(this, "NatEnabled")
                 .expression(Fn.conditionEquals(pEnableNatGateway.getValueAsString(), "true")).build();
@@ -54,12 +59,13 @@ public class SharedInfraStack extends Stack {
         String instanceTypeArm64  = pInstanceTypeArm64.getValueAsString();
         String instanceTypeX86_64 = pInstanceTypeX86.getValueAsString();
         Number diskSizeGb         = pDiskSizeGb.getValueAsNumber();
+        String region             = pRegion.getValueAsString();
 
         var networking = createNetworking(projectName, condNat);
-        createFlowLogs(networking.vpcId(), projectName);
+        createFlowLogs(networking.vpcId(), projectName, region);
         createEcrPullThroughCache();
-        createS3Endpoint(networking.vpcId(), networking.publicRtId(), networking.privateRtId());
-        createLaunchTemplates(projectName, instanceTypeArm64, instanceTypeX86_64, diskSizeGb);
+        createS3Endpoint(networking.vpcId(), networking.publicRtId(), networking.privateRtId(), region);
+        createLaunchTemplates(projectName, instanceTypeArm64, instanceTypeX86_64, diskSizeGb, region);
         createNetworkSsmParams(networking, pEnableNatGateway.getValueAsString());
     }
 
@@ -160,9 +166,8 @@ public class SharedInfraStack extends Stack {
 
     // ── VPC Flow Logs ─────────────────────────────────────────────────────────
 
-    private void createFlowLogs(String vpcId, String projectName) {
-        // this.getRegion() resolves to AWS::Region at deploy time
-        String logGroupName = "/aws/vpc/" + this.getRegion() + "/" + projectName + "-flow-logs";
+    private void createFlowLogs(String vpcId, String projectName, String region) {
+        String logGroupName = "/aws/vpc/" + region + "/" + projectName + "-flow-logs";
 
         LogGroup logGroup = LogGroup.Builder.create(this, "FlowLogGroup")
                 .logGroupName(logGroupName)
@@ -171,7 +176,7 @@ public class SharedInfraStack extends Stack {
                 .build();
 
         Role role = Role.Builder.create(this, "FlowLogsRole")
-                .roleName(projectName + "-vpc-flow-logs-role-" + this.getRegion())
+                .roleName(projectName + "-vpc-flow-logs-role-" + region)
                 .assumedBy(new ServicePrincipal("vpc-flow-logs.amazonaws.com"))
                 .build();
 
@@ -219,10 +224,10 @@ public class SharedInfraStack extends Stack {
 
     // ── S3 Gateway Endpoint ───────────────────────────────────────────────────
 
-    private void createS3Endpoint(String vpcId, String publicRtId, String privateRtId) {
+    private void createS3Endpoint(String vpcId, String publicRtId, String privateRtId, String region) {
         CfnVPCEndpoint.Builder.create(this, "S3Endpoint")
                 .vpcId(vpcId)
-                .serviceName("com.amazonaws." + this.getRegion() + ".s3")
+                .serviceName("com.amazonaws." + region + ".s3")
                 .vpcEndpointType("Gateway")
                 .routeTableIds(List.of(publicRtId, privateRtId))
                 .build();
@@ -239,7 +244,7 @@ public class SharedInfraStack extends Stack {
     }
 
     private void createLaunchTemplates(String projectName, String instanceTypeArm64,
-                                       String instanceTypeX86_64, Number diskSizeGb) {
+                                       String instanceTypeX86_64, Number diskSizeGb, String region) {
         List<LtConfig> configs = List.of(
                 new LtConfig("arm64",  true),
                 new LtConfig("arm64",  false),
@@ -248,7 +253,7 @@ public class SharedInfraStack extends Stack {
         );
 
         for (LtConfig cfg : configs) {
-            String ltName = projectName + "-" + cfg.key() + "-" + this.getRegion();
+            String ltName = projectName + "-" + cfg.key() + "-" + region;
 
             var ltDataBuilder = CfnLaunchTemplate.LaunchTemplateDataProperty.builder()
                     .instanceType(cfg.instanceType(instanceTypeArm64, instanceTypeX86_64))
