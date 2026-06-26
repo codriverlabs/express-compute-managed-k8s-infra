@@ -171,7 +171,7 @@ public class SharedInfraStack extends Stack {
                 .build();
 
         Role role = Role.Builder.create(this, "FlowLogsRole")
-                .roleName(projectName + "-vpc-flow-logs-role")
+                .roleName(projectName + "-vpc-flow-logs-role-" + this.getRegion())
                 .assumedBy(new ServicePrincipal("vpc-flow-logs.amazonaws.com"))
                 .build();
 
@@ -248,7 +248,7 @@ public class SharedInfraStack extends Stack {
         );
 
         for (LtConfig cfg : configs) {
-            String ltName = projectName + "-" + cfg.key();
+            String ltName = projectName + "-" + cfg.key() + "-" + this.getRegion();
 
             var ltDataBuilder = CfnLaunchTemplate.LaunchTemplateDataProperty.builder()
                     .instanceType(cfg.instanceType(instanceTypeArm64, instanceTypeX86_64))
