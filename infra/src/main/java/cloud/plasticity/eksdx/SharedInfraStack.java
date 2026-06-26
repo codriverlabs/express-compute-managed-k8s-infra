@@ -1,5 +1,7 @@
 package cloud.plasticity.eksdx;
 
+import software.amazon.awscdk.CfnCondition;
+import software.amazon.awscdk.CfnParameter;
 import software.amazon.awscdk.CfnTag;
 import software.amazon.awscdk.Fn;
 import software.amazon.awscdk.RemovalPolicy;
@@ -30,34 +32,42 @@ import java.util.List;
 
 public class SharedInfraStack extends Stack {
 
-    private final String projectName;
-    private final String instanceTypeArm64;
-    private final String instanceTypeX86_64;
-    private final int diskSizeGb;
-
     public SharedInfraStack(Construct scope, String id, StackProps props) {
         super(scope, id, props);
 
-        this.projectName = (String) this.getNode().tryGetContext("projectName");
-        this.instanceTypeArm64 = (String) this.getNode().tryGetContext("instanceTypeArm64");
-        this.instanceTypeX86_64 = (String) this.getNode().tryGetContext("instanceTypeX86_64");
-        this.diskSizeGb = (int) this.getNode().tryGetContext("diskSizeGb");
+        // ── CloudFormation Parameters (all runtime-configurable) ──────────────
+        CfnParameter pProjectName = CfnParameter.Builder.create(this, "ProjectName")
+                .type("String").build();
+        CfnParameter pInstanceTypeArm64 = CfnParameter.Builder.create(this, "InstanceTypeArm64")
+                .type("String").build();
+        CfnParameter pInstanceTypeX86 = CfnParameter.Builder.create(this, "InstanceTypeX86")
+                .type("String").build();
+        CfnParameter pDiskSizeGb = CfnParameter.Builder.create(this, "DiskSizeGb")
+                .type("Number").build();
+        CfnParameter pEnableNatGateway = CfnParameter.Builder.create(this, "EnableNatGateway")
+                .type("String").allowedValues(List.of("true", "false")).build();
 
-        boolean enableNatGateway = Boolean.TRUE.equals(this.getNode().tryGetContext("enableNatGateway"));
+        CfnCondition condNat = CfnCondition.Builder.create(this, "NatEnabled")
+                .expression(Fn.conditionEquals(pEnableNatGateway.getValueAsString(), "true")).build();
 
-        var networking = createNetworking(enableNatGateway);
-        createFlowLogs(networking.vpcId());
+        String projectName        = pProjectName.getValueAsString();
+        String instanceTypeArm64  = pInstanceTypeArm64.getValueAsString();
+        String instanceTypeX86_64 = pInstanceTypeX86.getValueAsString();
+        Number diskSizeGb         = pDiskSizeGb.getValueAsNumber();
+
+        var networking = createNetworking(projectName, condNat);
+        createFlowLogs(networking.vpcId(), projectName);
         createEcrPullThroughCache();
         createS3Endpoint(networking.vpcId(), networking.publicRtId(), networking.privateRtId());
-        createLaunchTemplates();
-        createNetworkSsmParams(networking, enableNatGateway);
+        createLaunchTemplates(projectName, instanceTypeArm64, instanceTypeX86_64, diskSizeGb);
+        createNetworkSsmParams(networking, pEnableNatGateway.getValueAsString());
     }
 
     // ── Networking ────────────────────────────────────────────────────────────
 
     private record Networking(String vpcId, String publicRtId, String privateRtId) {}
 
-    private Networking createNetworking(boolean enableNatGateway) {
+    private Networking createNetworking(String projectName, CfnCondition condNat) {
         CfnVPC vpc = CfnVPC.Builder.create(this, "Vpc")
                 .cidrBlock("10.0.0.0/16")
                 .enableDnsHostnames(true)
@@ -79,7 +89,8 @@ public class SharedInfraStack extends Stack {
                 .internetGatewayId(igw.getRef())
                 .build();
 
-        String az = Fn.select(0, Fn.getAzs(this.getRegion()));
+        // Fn.getAzs("") uses AWS::Region at deploy time
+        String az = Fn.select(0, Fn.getAzs(""));
 
         CfnSubnet natSubnet = CfnSubnet.Builder.create(this, "NatSubnet")
                 .vpcId(vpc.getRef())
@@ -92,26 +103,23 @@ public class SharedInfraStack extends Stack {
                         tag("Type", "NAT")))
                 .build();
 
-        CfnEIP natEip = null;
-        CfnNatGateway natGw = null;
+        CfnEIP natEip = CfnEIP.Builder.create(this, "NatEip")
+                .domain("vpc")
+                .tags(List.of(
+                        tag("Name", projectName + "-nat-eip"),
+                        tag("Project", projectName)))
+                .build();
+        natEip.addDependency(igw);
+        natEip.getCfnOptions().setCondition(condNat);
 
-        if (enableNatGateway) {
-            natEip = CfnEIP.Builder.create(this, "NatEip")
-                    .domain("vpc")
-                    .tags(List.of(
-                            tag("Name", projectName + "-nat-eip"),
-                            tag("Project", projectName)))
-                    .build();
-            natEip.addDependency(igw);
-
-            natGw = CfnNatGateway.Builder.create(this, "NatGateway")
-                    .allocationId(natEip.getAttrAllocationId())
-                    .subnetId(natSubnet.getRef())
-                    .tags(List.of(
-                            tag("Name", projectName + "-nat-gw"),
-                            tag("Project", projectName)))
-                    .build();
-        }
+        CfnNatGateway natGw = CfnNatGateway.Builder.create(this, "NatGateway")
+                .allocationId(natEip.getAttrAllocationId())
+                .subnetId(natSubnet.getRef())
+                .tags(List.of(
+                        tag("Name", projectName + "-nat-gw"),
+                        tag("Project", projectName)))
+                .build();
+        natGw.getCfnOptions().setCondition(condNat);
 
         // Public route table
         CfnRouteTable publicRt = CfnRouteTable.Builder.create(this, "PublicRt")
@@ -132,7 +140,7 @@ public class SharedInfraStack extends Stack {
                 .routeTableId(publicRt.getRef())
                 .build();
 
-        // Private route table — NAT route only if NAT GW exists
+        // Private route table
         CfnRouteTable privateRt = CfnRouteTable.Builder.create(this, "PrivateRt")
                 .vpcId(vpc.getRef())
                 .tags(List.of(
@@ -140,20 +148,20 @@ public class SharedInfraStack extends Stack {
                         tag("Project", projectName)))
                 .build();
 
-        if (enableNatGateway && natGw != null) {
-            CfnRoute.Builder.create(this, "PrivateNatRoute")
-                    .routeTableId(privateRt.getRef())
-                    .destinationCidrBlock("0.0.0.0/0")
-                    .natGatewayId(natGw.getRef())
-                    .build();
-        }
+        CfnRoute privateNatRoute = CfnRoute.Builder.create(this, "PrivateNatRoute")
+                .routeTableId(privateRt.getRef())
+                .destinationCidrBlock("0.0.0.0/0")
+                .natGatewayId(natGw.getRef())
+                .build();
+        privateNatRoute.getCfnOptions().setCondition(condNat);
 
         return new Networking(vpc.getRef(), publicRt.getRef(), privateRt.getRef());
     }
 
     // ── VPC Flow Logs ─────────────────────────────────────────────────────────
 
-    private void createFlowLogs(String vpcId) {
+    private void createFlowLogs(String vpcId, String projectName) {
+        // this.getRegion() resolves to AWS::Region at deploy time
         String logGroupName = "/aws/vpc/" + this.getRegion() + "/" + projectName + "-flow-logs";
 
         LogGroup logGroup = LogGroup.Builder.create(this, "FlowLogGroup")
@@ -191,7 +199,6 @@ public class SharedInfraStack extends Stack {
     }
 
     // ── ECR Pull-Through Cache ────────────────────────────────────────────────
-    // L1 — no L2 construct exists for pull-through cache rules
 
     private void createEcrPullThroughCache() {
         CfnPullThroughCacheRule.Builder.create(this, "EcrPublicCache")
@@ -204,7 +211,6 @@ public class SharedInfraStack extends Stack {
                 .upstreamRegistryUrl("registry.k8s.io")
                 .build();
 
-        // Quay is a public registry — no credentials required.
         CfnPullThroughCacheRule.Builder.create(this, "QuayCache")
                 .ecrRepositoryPrefix("quay-io")
                 .upstreamRegistryUrl("quay.io")
@@ -212,7 +218,6 @@ public class SharedInfraStack extends Stack {
     }
 
     // ── S3 Gateway Endpoint ───────────────────────────────────────────────────
-    // Free — keeps ECR image pulls, EBS CSI, and Karpenter pricing off the NAT gateway
 
     private void createS3Endpoint(String vpcId, String publicRtId, String privateRtId) {
         CfnVPCEndpoint.Builder.create(this, "S3Endpoint")
@@ -224,19 +229,17 @@ public class SharedInfraStack extends Stack {
     }
 
     // ── Shared Launch Templates ───────────────────────────────────────────────
-    // One spot (hibernation) + one on-demand per arch.
-    // No imageId — AMI is passed as override at RunInstances time by the Lambda.
-    // After creation, LT IDs are written to SSM for the Lambda to consume.
 
     private record LtConfig(String arch, boolean spot) {
-        String key() { return (spot ? "spot" : "ondemand") + "-" + arch; }
+        String key()  { return (spot ? "spot" : "ondemand") + "-" + arch; }
         String mode() { return spot ? "spot" : "ondemand"; }
         String instanceType(String arm64Type, String x86Type) {
             return arch.equals("arm64") ? arm64Type : x86Type;
         }
     }
 
-    private void createLaunchTemplates() {
+    private void createLaunchTemplates(String projectName, String instanceTypeArm64,
+                                       String instanceTypeX86_64, Number diskSizeGb) {
         List<LtConfig> configs = List.of(
                 new LtConfig("arm64",  true),
                 new LtConfig("arm64",  false),
@@ -315,7 +318,6 @@ public class SharedInfraStack extends Stack {
                                     .build()))
                     .build();
 
-            // Publish LT ID to SSM for Lambda consumption
             StringParameter.Builder.create(this, "SsmLt-" + cfg.key())
                     .parameterName("/eks-d-xpress/infra/launch-template/" + cfg.arch() + "/" + cfg.mode())
                     .stringValue(lt.getRef())
@@ -326,7 +328,7 @@ public class SharedInfraStack extends Stack {
 
     // ── Network SSM Parameters ────────────────────────────────────────────────
 
-    private void createNetworkSsmParams(Networking networking, boolean enableNatGateway) {
+    private void createNetworkSsmParams(Networking networking, String enableNatGatewayValue) {
         StringParameter.Builder.create(this, "SsmVpcId")
                 .parameterName("/eks-d-xpress/infra/network/vpc-id")
                 .stringValue(networking.vpcId())
@@ -335,7 +337,7 @@ public class SharedInfraStack extends Stack {
 
         StringParameter.Builder.create(this, "SsmNatGatewayEnabled")
                 .parameterName("/eks-d-xpress/infra/network/nat-gateway-enabled")
-                .stringValue(String.valueOf(enableNatGateway))
+                .stringValue(enableNatGatewayValue)
                 .description("EKS-DX shared VPC — NAT gateway enabled flag")
                 .build();
     }

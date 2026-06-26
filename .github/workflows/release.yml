@@ -31,8 +31,6 @@ jobs:
           cd infra && cdk synth --quiet && cd ..
           tar czf eks-d-xpress-infra-${VERSION}.tar.gz \
             README.md \
-            setup-shared-infra.sh \
-            delete-shared-infra.sh \
             infra/
 
       - name: Generate checksums
