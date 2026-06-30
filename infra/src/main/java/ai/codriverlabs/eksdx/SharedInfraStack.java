@@ -48,8 +48,7 @@ public class SharedInfraStack extends Stack {
                 .type("String").allowedValues(List.of("true", "false")).build();
         CfnParameter pRegion = CfnParameter.Builder.create(this, "Region")
                 .type("String")
-                .defaultValue(this.getRegion())  // defaults to AWS::Region pseudo-param
-                .description("AWS region — override to target a specific region")
+                .description("AWS region — must be passed explicitly at deploy time")
                 .build();
 
         CfnCondition condNat = CfnCondition.Builder.create(this, "NatEnabled")

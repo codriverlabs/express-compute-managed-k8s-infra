@@ -31,6 +31,7 @@ echo "==> Synthesizing CloudFormation template..."
 cd "${CDK_DIR}"
 cdk synth EksDxSharedInfraStack \
   --context projectName="${PROJECT_NAME}" \
+  --parameters EksDxSharedInfraStack:Region="${REGION}" \
   --quiet
 echo "    ✓ Template: cdk/cdk.out/EksDxSharedInfraStack.template.json"
 
@@ -38,6 +39,7 @@ echo ""
 echo "==> Deploying shared infrastructure..."
 cdk deploy EksDxSharedInfraStack \
   --context projectName="${PROJECT_NAME}" \
+  --parameters EksDxSharedInfraStack:Region="${REGION}" \
   --require-approval never
 
 echo ""
