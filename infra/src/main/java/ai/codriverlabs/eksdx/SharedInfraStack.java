@@ -299,6 +299,7 @@ public class SharedInfraStack extends Stack {
                         .instanceMarketOptions(CfnLaunchTemplate.InstanceMarketOptionsProperty.builder()
                                 .marketType("spot")
                                 .spotOptions(CfnLaunchTemplate.SpotOptionsProperty.builder()
+                                        .spotInstanceType("persistent")
                                         .instanceInterruptionBehavior("hibernate")
                                         .build())
                                 .build())
