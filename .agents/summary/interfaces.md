@@ -15,12 +15,12 @@ graph LR
 
 | Path | Type | Description |
 |------|------|-------------|
-| `/eks-d-xpress/infra/network/vpc-id` | String | VPC ID |
-| `/eks-d-xpress/infra/network/nat-gateway-enabled` | String | `true` or `false` |
-| `/eks-d-xpress/infra/launch-template/arm64/spot` | String | LT ID |
-| `/eks-d-xpress/infra/launch-template/arm64/ondemand` | String | LT ID |
-| `/eks-d-xpress/infra/launch-template/x86_64/spot` | String | LT ID |
-| `/eks-d-xpress/infra/launch-template/x86_64/ondemand` | String | LT ID |
+| `/express-compute/infra/network/vpc-id` | String | VPC ID |
+| `/express-compute/infra/network/nat-gateway-enabled` | String | `true` or `false` |
+| `/express-compute/infra/launch-template/arm64/spot` | String | LT ID |
+| `/express-compute/infra/launch-template/arm64/ondemand` | String | LT ID |
+| `/express-compute/infra/launch-template/x86_64/spot` | String | LT ID |
+| `/express-compute/infra/launch-template/x86_64/ondemand` | String | LT ID |
 
 ## CDK Context (Input Interface)
 
@@ -28,7 +28,7 @@ Configuration is injected via CDK context values (from `cdk.json` or `--context`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `projectName` | String | `eks-dx-infra` | Resource naming prefix |
+| `projectName` | String | `ecp-managed-k8s-infra` | Resource naming prefix |
 | `instanceTypeArm64` | String | `c6g.xlarge` | ARM instance type |
 | `instanceTypeX86_64` | String | `m7i.large` | x86 instance type |
 | `diskSizeGb` | int | `20` | Root EBS volume size (GiB) |
@@ -54,7 +54,7 @@ Downstream consumers reference cached images using account ECR prefixes:
 | Arg | Position | Default |
 |-----|----------|---------|
 | `region` | 1 | `us-east-1` |
-| `projectName` | 2 | `eks-dx-infra` |
+| `projectName` | 2 | `ecp-managed-k8s-infra` |
 
 Environment variables set by scripts: `CDK_DEFAULT_REGION`, `CDK_DEFAULT_ACCOUNT`.
 
@@ -64,5 +64,5 @@ On `v*` tag push, the release workflow produces:
 
 | Artifact | Contents |
 |----------|----------|
-| `eks-d-xpress-infra-{VERSION}.tar.gz` | README, scripts, full `infra/` directory (incl. `cdk.out`) |
+| `express-compute-infra-{VERSION}.tar.gz` | README, scripts, full `infra/` directory (incl. `cdk.out`) |
 | `checksums.sha256` | SHA-256 of the tarball |

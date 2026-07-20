@@ -2,10 +2,10 @@
 
 ## Project Identity
 
-- **Name**: EKS-D-Xpress Infra
+- **Name**: Express Compute Infra
 - **Group**: `cloud.plasticity`
-- **Artifact**: `eks-dx-shared-infra-cdk`
-- **Repository**: `plasticity-of-cloud/eks-d-xpress-infra`
+- **Artifact**: `ecp-shared-infra-cdk`
+- **Repository**: `plasticity-of-cloud/express-compute-infra`
 
 ## Technology Stack
 
@@ -31,14 +31,14 @@
 ## Source Layout
 
 ```
-infra/src/main/java/cloud/plasticity/eksdx/
-├── EksDxApp.java          (21 LOC) — CDK App entry point
+infra/src/main/java/cloud/plasticity/ecp/
+├── EcpManagedK8sInfraApp.java          (21 LOC) — CDK App entry point
 └── SharedInfraStack.java  (348 LOC) — All infrastructure resources
 ```
 
-## CDK Stack: `EksDxSharedInfraStack`
+## CDK Stack: `EcpManagedK8sInfraStack`
 
-Single stack deploying shared VPC infrastructure for the EKS-DX platform. Uses L1 (Cfn*) constructs for most resources due to needing fine-grained control over VPC layout and launch template options.
+Single stack deploying shared VPC infrastructure for the Express Compute platform. Uses L1 (Cfn*) constructs for most resources due to needing fine-grained control over VPC layout and launch template options.
 
 ## Key Design Decisions
 

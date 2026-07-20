@@ -1,10 +1,10 @@
-package ai.codriverlabs.eksdx;
+package ai.codriverlabs.ecp;
 
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 
-public class EksDxApp {
+public class EcpManagedK8sInfraApp {
     public static void main(String[] args) {
         App app = new App();
 
@@ -15,7 +15,7 @@ public class EksDxApp {
                 .account(System.getenv("CDK_DEFAULT_ACCOUNT"))
                 .build();
 
-        new SharedInfraStack(app, "EksDxSharedInfraStack", StackProps.builder()
+        new EcpManagedK8sInfraStack(app, "EcpManagedK8sInfraStack", StackProps.builder()
                 .env(env).build());
 
         app.synth();

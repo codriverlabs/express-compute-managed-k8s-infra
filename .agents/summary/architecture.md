@@ -4,8 +4,8 @@
 
 ```mermaid
 graph TB
-    subgraph "EKS-DX Platform"
-        INFRA["EksDxSharedInfraStack<br/>(this project)"]
+    subgraph "Express Compute Platform"
+        INFRA["EcpManagedK8sInfraStack<br/>(this project)"]
         TENANT["Tenant Provisioner<br/>(separate project)"]
         KARPENTER["Karpenter"]
     end

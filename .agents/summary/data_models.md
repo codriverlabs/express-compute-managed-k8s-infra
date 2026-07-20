@@ -43,7 +43,7 @@ All resources are tagged consistently:
 | `Name` | All named resources | `{projectName}-{resource}` |
 | `Project` | VPC, subnets, route tables, NAT | `{projectName}` |
 | `ManagedBy` | All | `CDK` or `Karpenter` |
-| `Platform` | LT instances/volumes | `eks-d-xpress` |
+| `Platform` | LT instances/volumes | `express-compute` |
 | `Arch` | LT instances | `arm64` or `x86_64` |
 | `Mode` | Launch templates | `spot` or `on-demand` |
 | `Type` | NAT subnet | `NAT` |

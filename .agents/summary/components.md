@@ -2,7 +2,7 @@
 
 ## SharedInfraStack
 
-The single CDK stack containing all shared infrastructure. Located in `infra/src/main/java/cloud/plasticity/eksdx/SharedInfraStack.java`.
+The single CDK stack containing all shared infrastructure. Located in `infra/src/main/java/cloud/plasticity/ecp/SharedInfraStack.java`.
 
 ### Networking (`createNetworking`)
 
@@ -63,12 +63,12 @@ Each LT ID is published to SSM.
 
 | Parameter | Value |
 |-----------|-------|
-| `/eks-d-xpress/infra/network/vpc-id` | VPC ID |
-| `/eks-d-xpress/infra/network/nat-gateway-enabled` | `true` or `false` |
+| `/express-compute/infra/network/vpc-id` | VPC ID |
+| `/express-compute/infra/network/nat-gateway-enabled` | `true` or `false` |
 
-## EksDxApp
+## EcpManagedK8sInfraApp
 
-CDK App entry point (`EksDxApp.java`). Reads `CDK_DEFAULT_ACCOUNT` and `CDK_DEFAULT_REGION` from environment, instantiates `SharedInfraStack`.
+CDK App entry point (`EcpManagedK8sInfraApp.java`). Reads `CDK_DEFAULT_ACCOUNT` and `CDK_DEFAULT_REGION` from environment, instantiates `SharedInfraStack`.
 
 ## Shell Scripts
 

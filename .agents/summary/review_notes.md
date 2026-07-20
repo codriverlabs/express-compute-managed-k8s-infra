@@ -5,7 +5,7 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | Instance type defaults match `cdk.json` | ✅ | `c6g.xlarge` (arm64), `m7i.large` (x86_64) |
-| SSM paths consistent across docs | ✅ | All docs use `/eks-d-xpress/infra/...` |
+| SSM paths consistent across docs | ✅ | All docs use `/express-compute/infra/...` |
 | ECR cache prefixes match source | ✅ | `public-ecr/`, `registry-k8s-io/`, `quay-io/` |
 | Script args match source | ✅ | `[region] [projectName]`, defaults verified |
 | Release workflow matches source | ✅ | Bundles README + scripts + infra/ |
