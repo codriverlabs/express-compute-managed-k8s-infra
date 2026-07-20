@@ -1,8 +1,8 @@
 {
   "app": "mvn -e -q compile exec:java",
   "parameters": {
-    "EksDxSharedInfraStack": {
-      "ProjectName": "eks-dx-infra",
+    "EcpManagedK8sInfraStack": {
+      "ProjectName": "ecp-managed-k8s-infra",
       "InstanceTypeArm64": "c6g.xlarge",
       "InstanceTypeX86": "m7i.large",
       "DiskSizeGb": "20",

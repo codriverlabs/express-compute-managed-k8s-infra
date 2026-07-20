@@ -2,10 +2,10 @@
 set -euo pipefail
 
 REGION="${1:-us-east-1}"
-PROJECT_NAME="${2:-eks-dx-infra}"
+PROJECT_NAME="${2:-ecp-managed-k8s-infra}"
 
 echo "╔══════════════════════════════════════════════╗"
-echo "║   EKS-DX Shared VPC — Deploy (CDK)           ║"
+echo "║   Express Compute Shared VPC — Deploy (CDK)           ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 echo "  Region:  ${REGION}"
@@ -29,17 +29,17 @@ echo "    ✓ CDK bundle built"
 echo ""
 echo "==> Synthesizing CloudFormation template..."
 cd "${CDK_DIR}"
-cdk synth EksDxSharedInfraStack \
+cdk synth EcpManagedK8sInfraStack \
   --context projectName="${PROJECT_NAME}" \
-  --parameters EksDxSharedInfraStack:Region="${REGION}" \
+  --parameters EcpManagedK8sInfraStack:Region="${REGION}" \
   --quiet
-echo "    ✓ Template: cdk/cdk.out/EksDxSharedInfraStack.template.json"
+echo "    ✓ Template: cdk/cdk.out/EcpManagedK8sInfraStack.template.json"
 
 echo ""
 echo "==> Deploying shared infrastructure..."
-cdk deploy EksDxSharedInfraStack \
+cdk deploy EcpManagedK8sInfraStack \
   --context projectName="${PROJECT_NAME}" \
-  --parameters EksDxSharedInfraStack:Region="${REGION}" \
+  --parameters EcpManagedK8sInfraStack:Region="${REGION}" \
   --require-approval never
 
 echo ""

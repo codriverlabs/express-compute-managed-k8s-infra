@@ -1,4 +1,4 @@
-package ai.codriverlabs.eksdx;
+package ai.codriverlabs.ecp;
 
 import software.amazon.awscdk.CfnCondition;
 import software.amazon.awscdk.CfnParameter;
@@ -30,7 +30,7 @@ import software.constructs.Construct;
 
 import java.util.List;
 
-public class SharedInfraStack extends Stack {
+public class EcpManagedK8sInfraStack extends Stack {
 
     public SharedInfraStack(Construct scope, String id, StackProps props) {
         super(scope, id, props);
@@ -283,14 +283,14 @@ public class SharedInfraStack extends Stack {
                             CfnLaunchTemplate.TagSpecificationProperty.builder()
                                     .resourceType("instance")
                                     .tags(List.of(
-                                            tag("Platform", "eks-d-xpress"),
+                                            tag("Platform", "express-compute"),
                                             tag("Arch", cfg.arch()),
                                             tag("ManagedBy", "Karpenter")))
                                     .build(),
                             CfnLaunchTemplate.TagSpecificationProperty.builder()
                                     .resourceType("volume")
                                     .tags(List.of(
-                                            tag("Platform", "eks-d-xpress"),
+                                            tag("Platform", "express-compute"),
                                             tag("ManagedBy", "CDK")))
                                     .build()));
 
@@ -316,7 +316,7 @@ public class SharedInfraStack extends Stack {
                                     .resourceType("launch-template")
                                     .tags(List.of(
                                             tag("Name", ltName),
-                                            tag("Platform", "eks-d-xpress"),
+                                            tag("Platform", "express-compute"),
                                             tag("Arch", cfg.arch()),
                                             tag("Mode", cfg.spot() ? "spot" : "on-demand"),
                                             tag("ManagedBy", "CDK")))
@@ -324,9 +324,9 @@ public class SharedInfraStack extends Stack {
                     .build();
 
             StringParameter.Builder.create(this, "SsmLt-" + cfg.key())
-                    .parameterName("/eks-d-xpress/infra/launch-template/" + cfg.arch() + "/" + cfg.mode())
+                    .parameterName("/express-compute/infra/launch-template/" + cfg.arch() + "/" + cfg.mode())
                     .stringValue(lt.getRef())
-                    .description("EKS-DX shared launch template ID — " + cfg.key())
+                    .description("Express Compute shared launch template ID — " + cfg.key())
                     .build();
         }
     }
@@ -335,15 +335,15 @@ public class SharedInfraStack extends Stack {
 
     private void createNetworkSsmParams(Networking networking, String enableNatGatewayValue) {
         StringParameter.Builder.create(this, "SsmVpcId")
-                .parameterName("/eks-d-xpress/infra/network/vpc-id")
+                .parameterName("/express-compute/infra/network/vpc-id")
                 .stringValue(networking.vpcId())
-                .description("EKS-DX shared VPC ID")
+                .description("Express Compute shared VPC ID")
                 .build();
 
         StringParameter.Builder.create(this, "SsmNatGatewayEnabled")
-                .parameterName("/eks-d-xpress/infra/network/nat-gateway-enabled")
+                .parameterName("/express-compute/infra/network/nat-gateway-enabled")
                 .stringValue(enableNatGatewayValue)
-                .description("EKS-DX shared VPC — NAT gateway enabled flag")
+                .description("Express Compute shared VPC — NAT gateway enabled flag")
                 .build();
     }
 

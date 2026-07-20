@@ -15,7 +15,7 @@ sequenceDiagram
     CDK-->>Script: ✓ bootstrap complete
     Script->>Maven: mvn compile
     Maven-->>Script: ✓ build complete
-    Script->>CDK: cdk synth EksDxSharedInfraStack
+    Script->>CDK: cdk synth EcpManagedK8sInfraStack
     CDK->>Maven: mvn compile exec:java
     Maven-->>CDK: ✓ template generated
     CDK-->>Script: ✓ synth complete
@@ -71,9 +71,9 @@ sequenceDiagram
     participant SSM as SSM Parameter Store
     participant EC2 as EC2 API
 
-    Tenant->>SSM: GetParameter(/eks-d-xpress/infra/network/vpc-id)
+    Tenant->>SSM: GetParameter(/express-compute/infra/network/vpc-id)
     SSM-->>Tenant: vpc-12345
-    Tenant->>SSM: GetParameter(/eks-d-xpress/infra/launch-template/arm64/spot)
+    Tenant->>SSM: GetParameter(/express-compute/infra/launch-template/arm64/spot)
     SSM-->>Tenant: lt-abc123
     Tenant->>EC2: RunInstances(LaunchTemplate=lt-abc123, ImageId=ami-xxx)
     EC2-->>Tenant: Instance launched

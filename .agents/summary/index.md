@@ -4,11 +4,11 @@
 
 ## Quick Reference
 
-- **What is this?** Shared AWS infrastructure (VPC, launch templates, ECR cache) for the EKS-DX platform
+- **What is this?** Shared AWS infrastructure (VPC, launch templates, ECR cache) for the Express Compute platform
 - **Language**: Java 21 CDK
-- **Stack**: Single CDK stack (`EksDxSharedInfraStack`)
+- **Stack**: Single CDK stack (`EcpManagedK8sInfraStack`)
 - **Deploy**: `./setup-shared-infra.sh [region] [projectName]`
-- **Source**: `infra/src/main/java/cloud/plasticity/eksdx/SharedInfraStack.java`
+- **Source**: `infra/src/main/java/cloud/plasticity/ecp/SharedInfraStack.java`
 
 ## Documentation Files
 

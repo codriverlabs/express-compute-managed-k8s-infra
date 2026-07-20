@@ -1,6 +1,6 @@
-# EKS-D-Xpress Infra — Shared Infrastructure
+# Express Compute Infra — Shared Infrastructure
 
-Shared AWS infrastructure for the EKS-DX platform, deployed as a single AWS CDK stack. Provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all EKS-DX tenants.
+Shared AWS infrastructure for the Express Compute platform, deployed as a single AWS CDK stack. Provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants.
 
 > Tenant control plane provisioning (EC2, IAM, SQS, cluster bootstrap) lives in a separate project.
 
@@ -23,7 +23,7 @@ Shared AWS infrastructure for the EKS-DX platform, deployed as a single AWS CDK 
 ./delete-shared-infra.sh [region] [projectName]
 ```
 
-Defaults: `region=us-east-1`, `projectName=eks-dx-infra`.
+Defaults: `region=us-east-1`, `projectName=ecp-managed-k8s-infra`.
 
 ## Prerequisites
 
@@ -42,7 +42,7 @@ All options can be customized in two ways:
 
 | Key | Default | Notes |
 |-----|---------|-------|
-| `projectName` | `eks-dx-infra` | Used in resource names and SSM paths |
+| `projectName` | `ecp-managed-k8s-infra` | Used in resource names and SSM paths |
 | `instanceTypeArm64` | `c6g.xlarge` | Must support hibernation (spot LTs) |
 | `instanceTypeX86_64` | `m7i.large` | Must support hibernation (spot LTs) |
 | `diskSizeGb` | `20` | Root EBS volume size in GiB |
@@ -53,7 +53,7 @@ All options can be customized in two ways:
 ```bash
 # Override instance types and enable NAT
 cd infra
-cdk deploy EksDxSharedInfraStack \
+cdk deploy EcpManagedK8sInfraStack \
   --context instanceTypeArm64=m7g.xlarge \
   --context enableNatGateway=true \
   --require-approval never
@@ -71,21 +71,21 @@ For additional context overrides with the script, edit `infra/cdk.json` before r
 
 | Path | Value |
 |------|-------|
-| `/eks-d-xpress/infra/network/vpc-id` | VPC ID |
-| `/eks-d-xpress/infra/network/nat-gateway-enabled` | `true` or `false` |
-| `/eks-d-xpress/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
+| `/express-compute/infra/network/vpc-id` | VPC ID |
+| `/express-compute/infra/network/nat-gateway-enabled` | `true` or `false` |
+| `/express-compute/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
 
 ## Directory Structure
 
 ```
-eks-d-xpress-infra/
+express-compute-infra/
 ├── setup-shared-infra.sh
 ├── delete-shared-infra.sh
 ├── infra/
 │   ├── cdk.json
 │   ├── pom.xml
-│   └── src/main/java/cloud/plasticity/eksdx/
-│       ├── EksDxApp.java
+│   └── src/main/java/cloud/plasticity/ecp/
+│       ├── EcpManagedK8sInfraApp.java
 │       └── SharedInfraStack.java
 └── archived/           # Legacy Terraform + eks-d-setup scripts
 ```

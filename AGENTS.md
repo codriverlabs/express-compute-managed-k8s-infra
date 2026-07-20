@@ -1,19 +1,19 @@
 # AGENTS.md - AI Assistant Guide
 
 ## Project Overview
-**EKS-D-Xpress Infra** — Shared AWS infrastructure for the EKS-DX platform. Deploys a single CDK stack (`EksDxSharedInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all EKS-DX tenants. Tenant control plane provisioning lives in a separate project.
+**Express Compute Infra** — Shared AWS infrastructure for the Express Compute platform. Deploys a single CDK stack (`EcpManagedK8sInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants. Tenant control plane provisioning lives in a separate project.
 
 ## Directory Overview
 
 ```
-eks-d-xpress-infra/
+express-compute-infra/
 ├── setup-shared-infra.sh         # Deploy: CDK bootstrap → mvn compile → cdk deploy
 ├── delete-shared-infra.sh        # Destroy: cdk destroy --force
 ├── infra/
 │   ├── cdk.json                  # CDK app command + default context values
 │   ├── pom.xml                   # Maven build (Java 21, aws-cdk-lib 2.256.1)
-│   └── src/main/java/cloud/plasticity/eksdx/
-│       ├── EksDxApp.java         # CDK App entry point
+│   └── src/main/java/cloud/plasticity/ecp/
+│       ├── EcpManagedK8sInfraApp.java         # CDK App entry point
 │       └── SharedInfraStack.java # All shared infra: VPC, LTs, ECR, S3 endpoint, flow logs
 └── archived/                     # Legacy Terraform + eks-d-setup scripts — do not use
 ```
@@ -25,7 +25,7 @@ eks-d-xpress-infra/
 | Deploy shared infra | `./setup-shared-infra.sh [region] [projectName]` |
 | Destroy shared infra | `./delete-shared-infra.sh [region] [projectName]` |
 
-Both default to `region=us-east-1`, `projectName=eks-dx-infra`.
+Both default to `region=us-east-1`, `projectName=ecp-managed-k8s-infra`.
 
 ## What the Stack Creates
 
@@ -40,15 +40,15 @@ Both default to `region=us-east-1`, `projectName=eks-dx-infra`.
 
 | Path | Value |
 |------|-------|
-| `/eks-d-xpress/infra/network/vpc-id` | VPC ID |
-| `/eks-d-xpress/infra/network/nat-gateway-enabled` | `true` or `false` |
-| `/eks-d-xpress/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
+| `/express-compute/infra/network/vpc-id` | VPC ID |
+| `/express-compute/infra/network/nat-gateway-enabled` | `true` or `false` |
+| `/express-compute/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
 
 ## CDK Context Defaults (`infra/cdk.json`)
 
 | Key | Default | Override via |
 |-----|---------|-------------|
-| `projectName` | `eks-dx-infra` | `--context` or `cdk.json` |
+| `projectName` | `ecp-managed-k8s-infra` | `--context` or `cdk.json` |
 | `instanceTypeArm64` | `c6g.xlarge` | same |
 | `instanceTypeX86_64` | `m7i.large` | same |
 | `diskSizeGb` | `20` | same (root volume `/dev/xvda`; `/dev/sdf` is fixed at 20 GiB) |

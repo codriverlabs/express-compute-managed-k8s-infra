@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>ai.codriverlabs</groupId>
-  <artifactId>eks-dx-shared-infra-cdk</artifactId>
+  <artifactId>ecp-shared-infra-cdk</artifactId>
   <version>1.0.0</version>
   <packaging>jar</packaging>
 
@@ -14,7 +14,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <cdk.version>2.256.1</cdk.version>
     <constructs.version>10.4.2</constructs.version>
-    <mainClass>ai.codriverlabs.eksdx.EksDxApp</mainClass>
+    <mainClass>ai.codriverlabs.ecp.EcpManagedK8sInfraApp</mainClass>
   </properties>
 
   <dependencies>

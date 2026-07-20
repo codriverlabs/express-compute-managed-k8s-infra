@@ -2,10 +2,10 @@
 set -euo pipefail
 
 REGION="${1:-us-east-1}"
-PROJECT_NAME="${2:-eks-dx-infra}"
+PROJECT_NAME="${2:-ecp-managed-k8s-infra}"
 
 echo "╔══════════════════════════════════════════════╗"
-echo "║   EKS-DX Shared VPC — Destroy (CDK)          ║"
+echo "║   Express Compute Shared VPC — Destroy (CDK)          ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 echo "  Region:  ${REGION}"
@@ -17,6 +17,6 @@ export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --outpu
 
 cd "$(dirname "$0")/infra"
 
-cdk destroy EksDxSharedInfraStack \
+cdk destroy EcpManagedK8sInfraStack \
   --context projectName="${PROJECT_NAME}" \
   --force
