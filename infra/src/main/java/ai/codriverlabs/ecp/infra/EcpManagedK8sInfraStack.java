@@ -32,7 +32,7 @@ import java.util.List;
 
 public class EcpManagedK8sInfraStack extends Stack {
 
-    public SharedInfraStack(Construct scope, String id, StackProps props) {
+    public EcpManagedK8sInfraStack(Construct scope, String id, StackProps props) {
         super(scope, id, props);
 
         // ── CloudFormation Parameters (all runtime-configurable) ──────────────
