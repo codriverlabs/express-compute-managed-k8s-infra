@@ -10,16 +10,17 @@ sequenceDiagram
     participant Maven
     participant AWS as AWS CloudFormation
 
-    User->>Script: ./setup-shared-infra.sh [region] [project]
-    Script->>CDK: cdk bootstrap
+    User->>Script: ./setup-shared-infra.sh [region] [project] [arm64Type] [x86Type] [disk] [nat]
+    Script->>Script: Set CDK_DEFAULT_REGION, CDK_DEFAULT_ACCOUNT
+    Script->>CDK: cdk bootstrap aws://{account}/{region}
     CDK-->>Script: ✓ bootstrap complete
-    Script->>Maven: mvn compile
+    Script->>Maven: mvn clean compile
     Maven-->>Script: ✓ build complete
     Script->>CDK: cdk synth EcpManagedK8sInfraStack
     CDK->>Maven: mvn compile exec:java
     Maven-->>CDK: ✓ template generated
     CDK-->>Script: ✓ synth complete
-    Script->>CDK: cdk deploy --require-approval never
+    Script->>CDK: cdk deploy --parameters ... --require-approval never
     CDK->>AWS: CreateChangeSet / ExecuteChangeSet
     AWS-->>CDK: Stack deployed
     CDK-->>Script: ✓ deploy complete
@@ -35,7 +36,8 @@ sequenceDiagram
     participant AWS as AWS CloudFormation
 
     User->>Script: ./delete-shared-infra.sh [region] [project]
-    Script->>CDK: cdk destroy --force
+    Script->>Script: Set CDK_DEFAULT_REGION, CDK_DEFAULT_ACCOUNT
+    Script->>CDK: cdk destroy EcpManagedK8sInfraStack --force
     CDK->>AWS: DeleteStack
     AWS-->>CDK: Stack deleted
     CDK-->>Script: ✓ destroy complete
@@ -52,13 +54,13 @@ sequenceDiagram
     participant Release as GitHub Release
 
     Dev->>GH: Push tag v*
-    GH->>GH: Checkout + setup Java 21
-    GH->>GH: Install CDK CLI
-    GH->>CDK: cdk synth (triggers Maven compile)
+    GH->>GH: Checkout + setup Java 21 (Corretto)
+    GH->>GH: Install CDK CLI via npm
+    GH->>CDK: cdk synth --quiet
     CDK->>Maven: mvn compile exec:java
     Maven-->>CDK: ✓
     CDK-->>GH: cdk.out generated
-    GH->>GH: tar czf (README + scripts + infra/)
+    GH->>GH: tar czf (README + infra/)
     GH->>GH: sha256sum → checksums.sha256
     GH->>Release: Create release with assets
 ```
@@ -77,4 +79,22 @@ sequenceDiagram
     SSM-->>Tenant: lt-abc123
     Tenant->>EC2: RunInstances(LaunchTemplate=lt-abc123, ImageId=ami-xxx)
     EC2-->>Tenant: Instance launched
+```
+
+## Parameter Resolution Flow
+
+```mermaid
+graph TD
+    DEFAULTS["cdk.json defaults<br/>(parameters.EcpManagedK8sInfraStack)"]
+    SCRIPT["setup-shared-infra.sh<br/>(positional args)"]
+    PARAMS["--parameters flags<br/>(cdk deploy)"]
+    CFN["CloudFormation resolves<br/>CfnParameter values"]
+    COND["CfnCondition evaluates<br/>EnableNatGateway"]
+    RESOURCES["Resources created<br/>(conditionally)"]
+
+    DEFAULTS --> SCRIPT
+    SCRIPT --> PARAMS
+    PARAMS --> CFN
+    CFN --> COND
+    COND --> RESOURCES
 ```

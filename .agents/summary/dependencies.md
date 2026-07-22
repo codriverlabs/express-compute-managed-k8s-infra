@@ -45,6 +45,6 @@
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| `actions/checkout` | v6 | Git checkout |
-| `actions/setup-java` | v5 | Java + Maven setup |
+| `actions/checkout` | v7 | Git checkout |
+| `actions/setup-java` | v5 | Java (Corretto) + Maven cache setup |
 | `softprops/action-gh-release` | v3 | GitHub Release creation |
