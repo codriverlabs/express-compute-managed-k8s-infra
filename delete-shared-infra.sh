@@ -17,6 +17,6 @@ export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --outpu
 
 cd "$(dirname "$0")/infra"
 
-cdk destroy EcpManagedK8sInfraStack \
+cdk destroy ExpressComputeManagedK8sInfraStack \
   --context projectName="${PROJECT_NAME}" \
   --force

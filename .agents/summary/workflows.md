@@ -16,7 +16,7 @@ sequenceDiagram
     CDK-->>Script: ✓ bootstrap complete
     Script->>Maven: mvn clean compile
     Maven-->>Script: ✓ build complete
-    Script->>CDK: cdk synth EcpManagedK8sInfraStack
+    Script->>CDK: cdk synth ExpressComputeManagedK8sInfraStack
     CDK->>Maven: mvn compile exec:java
     Maven-->>CDK: ✓ template generated
     CDK-->>Script: ✓ synth complete
@@ -37,7 +37,7 @@ sequenceDiagram
 
     User->>Script: ./delete-shared-infra.sh [region] [project]
     Script->>Script: Set CDK_DEFAULT_REGION, CDK_DEFAULT_ACCOUNT
-    Script->>CDK: cdk destroy EcpManagedK8sInfraStack --force
+    Script->>CDK: cdk destroy ExpressComputeManagedK8sInfraStack --force
     CDK->>AWS: DeleteStack
     AWS-->>CDK: Stack deleted
     CDK-->>Script: ✓ destroy complete
@@ -85,7 +85,7 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    DEFAULTS["cdk.json defaults<br/>(parameters.EcpManagedK8sInfraStack)"]
+    DEFAULTS["cdk.json defaults<br/>(parameters.ExpressComputeManagedK8sInfraStack)"]
     SCRIPT["setup-shared-infra.sh<br/>(positional args)"]
     PARAMS["--parameters flags<br/>(cdk deploy)"]
     CFN["CloudFormation resolves<br/>CfnParameter values"]

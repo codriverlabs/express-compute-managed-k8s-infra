@@ -5,7 +5,7 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | Package name matches source | ✅ | `ai.codriverlabs.ecp` throughout |
-| Stack file name matches source | ✅ | `EcpManagedK8sInfraStack.java` |
+| Stack file name matches source | ✅ | `ExpressComputeManagedK8sInfraStack.java` |
 | Config model matches source | ✅ | CfnParameter (not CDK context) documented correctly |
 | Instance type defaults match `cdk.json` | ✅ | `c6g.xlarge` (arm64), `m7i.large` (x86_64) |
 | SSM paths consistent across docs | ✅ | All docs use `/express-compute/infra/...` |
@@ -21,7 +21,7 @@
 | Previous Error | Correction |
 |---------------|-----------|
 | Package `cloud.plasticity.ecp` | → `ai.codriverlabs.ecp` |
-| File `SharedInfraStack.java` | → `EcpManagedK8sInfraStack.java` |
+| File `SharedInfraStack.java` | → `ExpressComputeManagedK8sInfraStack.java` |
 | GroupId `cloud.plasticity` | → `ai.codriverlabs` |
 | Config via CDK context (`tryGetContext`) | → CfnParameter (CloudFormation Parameters) |
 | Script takes 2 args | → Script takes 6 positional args |

@@ -1,7 +1,7 @@
 # AGENTS.md - AI Assistant Guide
 
 ## Project Overview
-**Express Compute Infra** — Shared AWS infrastructure for the Express Compute platform for express Kubernetes deployments. First release includes eks-d-xpress. Deploys a single CDK stack (`EcpManagedK8sInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants. Tenant control plane provisioning lives in a separate project.
+**Express Compute Infra** — Shared AWS infrastructure for the Express Compute platform for express Kubernetes deployments. First release includes eks-d-xpress. Deploys a single CDK stack (`ExpressComputeManagedK8sInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants. Tenant control plane provisioning lives in a separate project.
 
 ## Directory Overview
 
@@ -14,7 +14,7 @@ express-compute-infra/
 │   ├── pom.xml                   # Maven build (Java 21, aws-cdk-lib 2.256.1)
 │   └── src/main/java/ai/codriverlabs/ecp/
 │       ├── EcpManagedK8sInfraApp.java         # CDK App entry point
-│       └── EcpManagedK8sInfraStack.java       # All shared infra resources
+│       └── ExpressComputeManagedK8sInfraStack.java  # All shared infra resources
 └── archived/                     # Legacy Terraform + eks-d-setup scripts — do not use
 ```
 
@@ -84,7 +84,7 @@ The CDK app omits region from `Environment.builder()` so the synthesized templat
 The cache rules (`public-ecr/`, `registry-k8s-io/`, `quay-io/`) are used for local development builds. Public AMIs are released using official public repositories. Secrets Manager credentials for upstream registries are not mandatory.
 
 ### No test suite
-There are no CDK assertion tests (`src/test/` does not exist). Changes to `EcpManagedK8sInfraStack.java` should be validated with `cdk synth` and diff review before deploy.
+There are no CDK assertion tests (`src/test/` does not exist). Changes to `ExpressComputeManagedK8sInfraStack.java` should be validated with `cdk synth` and diff review before deploy.
 
 ### Pre-commit hooks
 Configured via `.pre-commit-config.yaml`: trailing-whitespace, end-of-file-fixer, check-merge-conflict (pre-commit-hooks v5.0.0).

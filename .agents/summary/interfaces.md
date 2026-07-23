@@ -2,7 +2,7 @@
 
 ## CloudFormation Parameters (Input Interface)
 
-Configuration is injected as CloudFormation Parameters at deploy time. Defaults are defined in `cdk.json` under the `parameters.EcpManagedK8sInfraStack` key.
+Configuration is injected as CloudFormation Parameters at deploy time. Defaults are defined in `cdk.json` under the `parameters.ExpressComputeManagedK8sInfraStack` key.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -20,9 +20,9 @@ Override via the deploy script:
 
 Or via CDK CLI directly:
 ```bash
-cdk deploy EcpManagedK8sInfraStack \
-  --parameters EcpManagedK8sInfraStack:InstanceTypeArm64=c7g.xlarge \
-  --parameters EcpManagedK8sInfraStack:EnableNatGateway=true
+cdk deploy ExpressComputeManagedK8sInfraStack \
+  --parameters ExpressComputeManagedK8sInfraStack:InstanceTypeArm64=c7g.xlarge \
+  --parameters ExpressComputeManagedK8sInfraStack:EnableNatGateway=true
 ```
 
 ## SSM Parameter Store (Output Interface)
@@ -31,7 +31,7 @@ The stack publishes outputs to SSM Parameter Store for decoupled consumption by 
 
 ```mermaid
 graph LR
-    STACK["EcpManagedK8sInfraStack"] -->|writes| SSM["SSM Parameter Store"]
+    STACK["ExpressComputeManagedK8sInfraStack"] -->|writes| SSM["SSM Parameter Store"]
     SSM -->|reads| TENANT["Tenant Provisioner"]
     SSM -->|reads| OTHER["Other Consumers"]
 ```

@@ -1,7 +1,7 @@
 {
   "app": "mvn -e -q compile exec:java",
   "parameters": {
-    "EcpManagedK8sInfraStack": {
+    "ExpressComputeManagedK8sInfraStack": {
       "ProjectName": "ecp-managed-k8s-infra",
       "InstanceTypeArm64": "c6g.xlarge",
       "InstanceTypeX86": "m7i.large",

@@ -5,7 +5,7 @@
 ```mermaid
 graph TB
     subgraph "Express Compute Platform"
-        INFRA["EcpManagedK8sInfraStack<br/>(this project)"]
+        INFRA["ExpressComputeManagedK8sInfraStack<br/>(this project)"]
         TENANT["Tenant Provisioner<br/>(separate project)"]
         KARPENTER["Karpenter"]
     end
@@ -33,7 +33,7 @@ graph TB
 
 ```mermaid
 graph LR
-    subgraph EcpManagedK8sInfraStack
+    subgraph ExpressComputeManagedK8sInfraStack
         NET["createNetworking()"]
         FL["createFlowLogs()"]
         ECR["createEcrPullThroughCache()"]

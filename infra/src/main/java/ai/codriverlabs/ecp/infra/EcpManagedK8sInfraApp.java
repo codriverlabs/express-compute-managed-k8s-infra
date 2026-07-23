@@ -15,7 +15,7 @@ public class EcpManagedK8sInfraApp {
                 .account(System.getenv("CDK_DEFAULT_ACCOUNT"))
                 .build();
 
-        new EcpManagedK8sInfraStack(app, "EcpManagedK8sInfraStack", StackProps.builder()
+        new ExpressComputeManagedK8sInfraStack(app, "ExpressComputeManagedK8sInfraStack", StackProps.builder()
                 .env(env).build());
 
         app.synth();

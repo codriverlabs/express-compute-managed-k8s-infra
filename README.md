@@ -53,7 +53,7 @@ All options can be customized in two ways:
 ```bash
 # Override instance types and enable NAT
 cd infra
-cdk deploy EcpManagedK8sInfraStack \
+cdk deploy ExpressComputeManagedK8sInfraStack \
   --context instanceTypeArm64=m7g.xlarge \
   --context enableNatGateway=true \
   --require-approval never

@@ -6,9 +6,9 @@
 
 - **What is this?** Shared AWS infrastructure (VPC, launch templates, ECR cache) for the Express Compute platform
 - **Language**: Java 21 CDK (package `ai.codriverlabs.ecp`)
-- **Stack**: Single CDK stack (`EcpManagedK8sInfraStack`)
+- **Stack**: Single CDK stack (`ExpressComputeManagedK8sInfraStack`)
 - **Deploy**: `./setup-shared-infra.sh [region] [projectName] [arm64Type] [x86Type] [diskSizeGb] [enableNat]`
-- **Source**: `infra/src/main/java/ai/codriverlabs/ecp/EcpManagedK8sInfraStack.java`
+- **Source**: `infra/src/main/java/ai/codriverlabs/ecp/ExpressComputeManagedK8sInfraStack.java`
 - **Config model**: CloudFormation Parameters (CfnParameter), not CDK context
 
 ## Documentation Files
