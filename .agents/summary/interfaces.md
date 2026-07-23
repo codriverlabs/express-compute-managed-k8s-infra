@@ -81,5 +81,5 @@ On `v*` tag push, the release workflow produces:
 
 | Artifact | Contents |
 |----------|----------|
-| `eks-d-xpress-infra-{VERSION}.tar.gz` | README + `infra/` directory |
+| `express-compute-managed-k8s-infra-{VERSION}.tar.gz` | README + `infra/` directory |
 | `checksums.sha256` | SHA-256 of the tarball |
