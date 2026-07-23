@@ -1,6 +1,6 @@
 # Express Compute Infra — Shared Infrastructure
 
-Shared AWS infrastructure for the Express Compute platform, deployed as a single AWS CDK stack. Provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants.
+Shared AWS infrastructure for the Express Compute platform for express Kubernetes deployments, first release includes eks-d-xpress. Deployed as a single AWS CDK stack. Provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants.
 
 > Tenant control plane provisioning (EC2, IAM, SQS, cluster bootstrap) lives in a separate project.
 

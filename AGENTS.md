@@ -1,7 +1,7 @@
 # AGENTS.md - AI Assistant Guide
 
 ## Project Overview
-**Express Compute Infra** — Shared AWS infrastructure for the Express Compute platform. Deploys a single CDK stack (`EcpManagedK8sInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants. Tenant control plane provisioning lives in a separate project.
+**Express Compute Infra** — Shared AWS infrastructure for the Express Compute platform for express Kubernetes deployments. First release includes eks-d-xpress. Deploys a single CDK stack (`EcpManagedK8sInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants. Tenant control plane provisioning lives in a separate project.
 
 ## Directory Overview
 
