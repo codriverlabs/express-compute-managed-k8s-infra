@@ -3,6 +3,10 @@ set -euo pipefail
 
 REGION="${1:-us-east-1}"
 PROJECT_NAME="${2:-ecp-managed-k8s-infra}"
+INSTANCE_TYPE_ARM64="${3:-c6g.xlarge}"
+INSTANCE_TYPE_X86="${4:-m7i.large}"
+DISK_SIZE_GB="${5:-20}"
+ENABLE_NAT_GATEWAY="${6:-false}"
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║   Express Compute Shared VPC — Deploy (CDK)           ║"
@@ -31,7 +35,6 @@ echo "==> Synthesizing CloudFormation template..."
 cd "${CDK_DIR}"
 cdk synth EcpManagedK8sInfraStack \
   --context projectName="${PROJECT_NAME}" \
-  --parameters EcpManagedK8sInfraStack:Region="${REGION}" \
   --quiet
 echo "    ✓ Template: cdk/cdk.out/EcpManagedK8sInfraStack.template.json"
 
@@ -39,6 +42,11 @@ echo ""
 echo "==> Deploying shared infrastructure..."
 cdk deploy EcpManagedK8sInfraStack \
   --context projectName="${PROJECT_NAME}" \
+  --parameters EcpManagedK8sInfraStack:ProjectName="${PROJECT_NAME}" \
+  --parameters EcpManagedK8sInfraStack:InstanceTypeArm64="${INSTANCE_TYPE_ARM64}" \
+  --parameters EcpManagedK8sInfraStack:InstanceTypeX86="${INSTANCE_TYPE_X86}" \
+  --parameters EcpManagedK8sInfraStack:DiskSizeGb="${DISK_SIZE_GB}" \
+  --parameters EcpManagedK8sInfraStack:EnableNatGateway="${ENABLE_NAT_GATEWAY}" \
   --parameters EcpManagedK8sInfraStack:Region="${REGION}" \
   --require-approval never
 

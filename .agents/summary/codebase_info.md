@@ -3,9 +3,9 @@
 ## Project Identity
 
 - **Name**: Express Compute Infra
-- **Group**: `cloud.plasticity`
+- **Group**: `ai.codriverlabs`
 - **Artifact**: `ecp-shared-infra-cdk`
-- **Repository**: `plasticity-of-cloud/express-compute-infra`
+- **Version**: 1.0.0
 
 ## Technology Stack
 
@@ -26,14 +26,14 @@
 | Java | 2 | CDK stack definition |
 | Bash | 2 | Deploy/destroy scripts |
 | YAML | 2 | GitHub Actions, pre-commit config |
-| JSON | 1 | CDK context (`cdk.json`) |
+| JSON | 1 | CDK config (`cdk.json`) |
 
 ## Source Layout
 
 ```
-infra/src/main/java/cloud/plasticity/ecp/
-├── EcpManagedK8sInfraApp.java          (21 LOC) — CDK App entry point
-└── SharedInfraStack.java  (348 LOC) — All infrastructure resources
+infra/src/main/java/ai/codriverlabs/ecp/
+├── EcpManagedK8sInfraApp.java        — CDK App entry point
+└── EcpManagedK8sInfraStack.java      — All infrastructure resources
 ```
 
 ## CDK Stack: `EcpManagedK8sInfraStack`
@@ -43,8 +43,10 @@ Single stack deploying shared VPC infrastructure for the Express Compute platfor
 ## Key Design Decisions
 
 1. **Single stack** — all shared infra in one deployable unit
-2. **L1 constructs** — direct CloudFormation mappings for VPC, LTs, ECR cache rules
-3. **No AMI in launch templates** — decouples AMI updates from infra deployments
-4. **NAT gateway optional** — S3 gateway endpoint handles primary egress cost
-5. **SSM parameter store** — output discovery mechanism for consuming services
-6. **Spot + hibernation** — cost optimization with graceful interruption handling
+2. **CloudFormation Parameters** — runtime-configurable values passed via `--parameters` at deploy time (not CDK context)
+3. **L1 constructs** — direct CloudFormation mappings for VPC, LTs, ECR cache rules
+4. **No AMI in launch templates** — decouples AMI updates from infra deployments
+5. **NAT gateway optional** — S3 gateway endpoint handles primary egress cost; NAT conditionally created via `CfnCondition`
+6. **SSM parameter store** — output discovery mechanism for consuming services
+7. **Spot + hibernation** — cost optimization with graceful interruption handling
+8. **Region-agnostic synth** — region omitted from CDK Environment; passed as CfnParameter at deploy time

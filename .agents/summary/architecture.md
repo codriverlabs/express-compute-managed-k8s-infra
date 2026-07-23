@@ -33,7 +33,7 @@ graph TB
 
 ```mermaid
 graph LR
-    subgraph SharedInfraStack
+    subgraph EcpManagedK8sInfraStack
         NET["createNetworking()"]
         FL["createFlowLogs()"]
         ECR["createEcrPullThroughCache()"]
@@ -54,7 +54,7 @@ graph LR
 graph TB
     subgraph "VPC 10.0.0.0/16"
         subgraph "NAT Subnet 10.0.0.0/24 (public)"
-            NAT["NAT Gateway<br/>(optional)"]
+            NAT["NAT Gateway<br/>(conditional on EnableNatGateway=true)"]
         end
         IGW["Internet Gateway"]
         PUB_RT["Public Route Table<br/>0.0.0.0/0 → IGW"]
@@ -68,13 +68,24 @@ graph TB
     S3EP --> PRIV_RT
 ```
 
+## Configuration Flow
+
+```mermaid
+graph LR
+    CDK_JSON["cdk.json<br/>(parameter defaults)"] --> SCRIPT["setup-shared-infra.sh<br/>(--parameters flags)"]
+    SCRIPT --> CFN["CloudFormation<br/>CfnParameter resolution"]
+    CFN --> STACK["Stack resource creation"]
+```
+
+The stack uses **CloudFormation Parameters** (not CDK context) for all runtime-configurable values. `cdk.json` provides defaults via the `parameters` key; the deploy script overrides them with `--parameters` flags.
+
 ## Design Patterns
 
 | Pattern | Usage |
 |---------|-------|
 | L1 Constructs (CfnXxx) | VPC, LTs, ECR cache — fine-grained control needed |
 | L2 Constructs | LogGroup, Role — higher-level abstractions sufficient |
+| CfnParameter + CfnCondition | NAT Gateway conditionally created based on runtime parameter |
 | SSM Parameter Discovery | Outputs published to SSM for decoupled consumer access |
-| Context-driven Configuration | All tunables passed via CDK context, not hardcoded |
-| Conditional Resources | NAT Gateway + EIP only created when `enableNatGateway=true` |
 | Record Types | `Networking`, `LtConfig` — lightweight internal data carriers |
+| Region-agnostic Synth | Region omitted from CDK Environment; template deployable to any region |

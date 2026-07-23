@@ -22,17 +22,21 @@ private record LtConfig(String arch, boolean spot) {
 }
 ```
 
-## CDK Context Model
+## CloudFormation Parameter Model
 
-Values read from CDK context at stack construction time:
+Values read at stack construction via `CfnParameter`:
 
 ```java
-this.projectName       = (String) getNode().tryGetContext("projectName");
-this.instanceTypeArm64 = (String) getNode().tryGetContext("instanceTypeArm64");
-this.instanceTypeX86_64= (String) getNode().tryGetContext("instanceTypeX86_64");
-this.diskSizeGb        = (int)    getNode().tryGetContext("diskSizeGb");
-boolean enableNatGateway = Boolean.TRUE.equals(getNode().tryGetContext("enableNatGateway"));
+CfnParameter pProjectName      = CfnParameter.Builder.create(this, "ProjectName").type("String").build();
+CfnParameter pInstanceTypeArm64= CfnParameter.Builder.create(this, "InstanceTypeArm64").type("String").build();
+CfnParameter pInstanceTypeX86  = CfnParameter.Builder.create(this, "InstanceTypeX86").type("String").build();
+CfnParameter pDiskSizeGb       = CfnParameter.Builder.create(this, "DiskSizeGb").type("Number").build();
+CfnParameter pEnableNatGateway = CfnParameter.Builder.create(this, "EnableNatGateway")
+        .type("String").allowedValues(List.of("true", "false")).build();
+CfnParameter pRegion           = CfnParameter.Builder.create(this, "Region").type("String").build();
 ```
+
+The `EnableNatGateway` parameter drives a `CfnCondition` that gates NAT Gateway + EIP creation.
 
 ## Tagging Model
 
@@ -44,7 +48,7 @@ All resources are tagged consistently:
 | `Project` | VPC, subnets, route tables, NAT | `{projectName}` |
 | `ManagedBy` | All | `CDK` or `Karpenter` |
 | `Platform` | LT instances/volumes | `express-compute` |
-| `Arch` | LT instances | `arm64` or `x86_64` |
+| `Arch` | LT instances, launch templates | `arm64` or `x86_64` |
 | `Mode` | Launch templates | `spot` or `on-demand` |
 | `Type` | NAT subnet | `NAT` |
 
@@ -54,5 +58,5 @@ Each launch template defines two block devices:
 
 | Device | Type | Size | Encrypted | Purpose |
 |--------|------|------|-----------|---------|
-| `/dev/xvda` | gp3 | `diskSizeGb` (configurable) | Yes | Root volume |
+| `/dev/xvda` | gp3 | `DiskSizeGb` (configurable) | Yes | Root volume |
 | `/dev/sdf` | gp3 | 20 GiB (fixed) | Yes | Data volume |
