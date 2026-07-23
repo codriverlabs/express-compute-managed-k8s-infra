@@ -1,8 +1,8 @@
 # Components
 
-## EcpManagedK8sInfraStack
+## ExpressComputeManagedK8sInfraStack
 
-The single CDK stack containing all shared infrastructure. Located at `infra/src/main/java/ai/codriverlabs/ecp/EcpManagedK8sInfraStack.java`.
+The single CDK stack containing all shared infrastructure. Located at `infra/src/main/java/ai/codriverlabs/ecp/ExpressComputeManagedK8sInfraStack.java`.
 
 ### CloudFormation Parameters
 

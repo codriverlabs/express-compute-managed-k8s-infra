@@ -33,10 +33,10 @@
 ```
 infra/src/main/java/ai/codriverlabs/ecp/
 ├── EcpManagedK8sInfraApp.java        — CDK App entry point
-└── EcpManagedK8sInfraStack.java      — All infrastructure resources
+└── ExpressComputeManagedK8sInfraStack.java      — All infrastructure resources
 ```
 
-## CDK Stack: `EcpManagedK8sInfraStack`
+## CDK Stack: `ExpressComputeManagedK8sInfraStack`
 
 Single stack deploying shared VPC infrastructure for the Express Compute platform. Uses L1 (Cfn*) constructs for most resources due to needing fine-grained control over VPC layout and launch template options.
 

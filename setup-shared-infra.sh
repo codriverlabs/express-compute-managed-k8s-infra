@@ -33,21 +33,21 @@ echo "    ✓ CDK bundle built"
 echo ""
 echo "==> Synthesizing CloudFormation template..."
 cd "${CDK_DIR}"
-cdk synth EcpManagedK8sInfraStack \
+cdk synth ExpressComputeManagedK8sInfraStack \
   --context projectName="${PROJECT_NAME}" \
   --quiet
-echo "    ✓ Template: cdk/cdk.out/EcpManagedK8sInfraStack.template.json"
+echo "    ✓ Template: cdk/cdk.out/ExpressComputeManagedK8sInfraStack.template.json"
 
 echo ""
 echo "==> Deploying shared infrastructure..."
-cdk deploy EcpManagedK8sInfraStack \
+cdk deploy ExpressComputeManagedK8sInfraStack \
   --context projectName="${PROJECT_NAME}" \
-  --parameters EcpManagedK8sInfraStack:ProjectName="${PROJECT_NAME}" \
-  --parameters EcpManagedK8sInfraStack:InstanceTypeArm64="${INSTANCE_TYPE_ARM64}" \
-  --parameters EcpManagedK8sInfraStack:InstanceTypeX86="${INSTANCE_TYPE_X86}" \
-  --parameters EcpManagedK8sInfraStack:DiskSizeGb="${DISK_SIZE_GB}" \
-  --parameters EcpManagedK8sInfraStack:EnableNatGateway="${ENABLE_NAT_GATEWAY}" \
-  --parameters EcpManagedK8sInfraStack:Region="${REGION}" \
+  --parameters ExpressComputeManagedK8sInfraStack:ProjectName="${PROJECT_NAME}" \
+  --parameters ExpressComputeManagedK8sInfraStack:InstanceTypeArm64="${INSTANCE_TYPE_ARM64}" \
+  --parameters ExpressComputeManagedK8sInfraStack:InstanceTypeX86="${INSTANCE_TYPE_X86}" \
+  --parameters ExpressComputeManagedK8sInfraStack:DiskSizeGb="${DISK_SIZE_GB}" \
+  --parameters ExpressComputeManagedK8sInfraStack:EnableNatGateway="${ENABLE_NAT_GATEWAY}" \
+  --parameters ExpressComputeManagedK8sInfraStack:Region="${REGION}" \
   --require-approval never
 
 echo ""

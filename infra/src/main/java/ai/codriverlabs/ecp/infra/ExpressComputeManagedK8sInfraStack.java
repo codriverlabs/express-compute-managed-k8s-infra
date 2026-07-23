@@ -30,9 +30,9 @@ import software.constructs.Construct;
 
 import java.util.List;
 
-public class EcpManagedK8sInfraStack extends Stack {
+public class ExpressComputeManagedK8sInfraStack extends Stack {
 
-    public EcpManagedK8sInfraStack(Construct scope, String id, StackProps props) {
+    public ExpressComputeManagedK8sInfraStack(Construct scope, String id, StackProps props) {
         super(scope, id, props);
 
         // ── CloudFormation Parameters (all runtime-configurable) ──────────────
