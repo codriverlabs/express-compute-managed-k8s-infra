@@ -82,6 +82,27 @@ Consumers of this stack must:
 3. Provide their own security groups
 4. Attach to the appropriate route table (public or private) based on egress needs
 
+### Tenant Subnet CIDR Allocation
+
+The VPC `10.0.0.0/16` is partitioned as follows:
+
+| CIDR Block | Purpose | AZ |
+|------------|---------|-----|
+| `10.0.0.0/20` | Reserved for shared infrastructure | — |
+| `10.0.16.0/20` | Tenant private subnets (worker nodes) | AZ-a |
+| `10.0.32.0/20` | Tenant private subnets (worker nodes) | AZ-b |
+| `10.0.48.0/20` | Tenant private subnets (worker nodes) | AZ-c |
+| `10.0.64.0/20` | Tenant public subnets (ALB/NLB) | AZ-a |
+| `10.0.80.0/20` | Tenant public subnets (ALB/NLB) | AZ-b |
+| `10.0.96.0/20` | Tenant public subnets (ALB/NLB) | AZ-c |
+| `10.0.128.0/17` | Unallocated (future expansion) | — |
+
+**Rules:**
+- Private subnets → attach to the **private route table**
+- Public subnets → attach to the **public route table**
+- Always provision at least 2 AZs for HA
+- Do not allocate from `10.0.0.0/20` (shared infra reserved)
+
 ### ECR Pull-Through Cache Prefixes
 
 Container image pulls should reference:
