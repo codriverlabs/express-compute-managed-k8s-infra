@@ -1,91 +1,123 @@
 # Architecture
 
-## System Context
+## Overview
+
+The system is a single AWS CDK stack that provisions shared infrastructure for the Express Compute platform. It follows a "shared-nothing per tenant" philosophy where this stack creates the common network and compute primitives, and separate tenant provisioning systems consume outputs via SSM Parameter Store.
+
+## Architecture Diagram
 
 ```mermaid
 graph TB
-    subgraph "Express Compute Platform"
-        INFRA["ExpressComputeManagedK8sInfraStack<br/>(this project)"]
-        TENANT["Tenant Provisioner<br/>(separate project)"]
-        KARPENTER["Karpenter"]
+    subgraph "CDK App"
+        App[EcpManagedK8sInfraApp]
+        Stack[ExpressComputeManagedK8sInfraStack]
+        App --> Stack
     end
 
-    subgraph "AWS Services"
-        VPC["VPC 10.0.0.0/16"]
-        ECR["ECR Pull-Through Cache"]
-        S3EP["S3 Gateway Endpoint"]
-        SSM["SSM Parameter Store"]
-        CW["CloudWatch Logs"]
-    end
-
-    INFRA --> VPC
-    INFRA --> ECR
-    INFRA --> S3EP
-    INFRA --> SSM
-    INFRA --> CW
-
-    TENANT -->|reads LT IDs, VPC ID| SSM
-    KARPENTER -->|uses LTs| VPC
-    TENANT -->|launches instances| VPC
-```
-
-## Stack Composition
-
-```mermaid
-graph LR
-    subgraph ExpressComputeManagedK8sInfraStack
-        NET["createNetworking()"]
-        FL["createFlowLogs()"]
-        ECR["createEcrPullThroughCache()"]
-        S3["createS3Endpoint()"]
-        LT["createLaunchTemplates()"]
-        SSM["createNetworkSsmParams()"]
-    end
-
-    NET --> FL
-    NET --> S3
-    NET --> SSM
-    LT --> SSM
-```
-
-## Network Architecture
-
-```mermaid
-graph TB
-    subgraph "VPC 10.0.0.0/16"
-        subgraph "NAT Subnet 10.0.0.0/24 (public)"
-            NAT["NAT Gateway<br/>(conditional on EnableNatGateway=true)"]
+    subgraph "AWS Resources"
+        subgraph "Networking"
+            VPC[VPC 10.0.0.0/16]
+            IGW[Internet Gateway]
+            NAT[NAT Gateway<br/>conditional]
+            PubRT[Public Route Table]
+            PrivRT[Private Route Table]
+            NATSubnet[NAT Subnet<br/>10.0.0.0/24]
         end
-        IGW["Internet Gateway"]
-        PUB_RT["Public Route Table<br/>0.0.0.0/0 → IGW"]
-        PRIV_RT["Private Route Table<br/>0.0.0.0/0 → NAT (if enabled)"]
-        S3EP["S3 Gateway Endpoint<br/>(both RTs)"]
+
+        subgraph "Compute"
+            LT_ARM_SPOT[LT: arm64 spot]
+            LT_ARM_OD[LT: arm64 on-demand]
+            LT_X86_SPOT[LT: x86_64 spot]
+            LT_X86_OD[LT: x86_64 on-demand]
+        end
+
+        subgraph "Container Registry"
+            ECR_PUB[ECR Cache: public.ecr.aws]
+            ECR_K8S[ECR Cache: registry.k8s.io]
+            ECR_QUAY[ECR Cache: quay.io]
+        end
+
+        subgraph "Connectivity"
+            S3EP[S3 Gateway Endpoint]
+        end
+
+        subgraph "Observability"
+            FlowLog[VPC Flow Log]
+            LogGroup[CloudWatch Log Group<br/>1-week retention]
+            FlowRole[Flow Logs IAM Role]
+        end
+
+        subgraph "Discovery"
+            SSM_VPC[SSM: vpc-id]
+            SSM_NAT[SSM: nat-gateway-enabled]
+            SSM_LT1[SSM: LT arm64/spot]
+            SSM_LT2[SSM: LT arm64/ondemand]
+            SSM_LT3[SSM: LT x86_64/spot]
+            SSM_LT4[SSM: LT x86_64/ondemand]
+        end
     end
 
-    IGW --> PUB_RT
-    NAT --> PRIV_RT
-    S3EP --> PUB_RT
-    S3EP --> PRIV_RT
+    VPC --> IGW
+    VPC --> NAT
+    VPC --> PubRT
+    VPC --> PrivRT
+    NATSubnet --> PubRT
+    FlowLog --> LogGroup
+    FlowLog --> FlowRole
+    S3EP --> PubRT
+    S3EP --> PrivRT
 ```
 
-## Configuration Flow
+## Design Principles
+
+1. **L1-only constructs** — All resources use `Cfn*` classes for full CloudFormation control. No L2/L3 abstractions are used, ensuring the synthesized template is predictable and auditable.
+
+2. **Region-agnostic synthesis** — The CDK app omits region from the Environment, and passes region as a CloudFormation parameter. This allows one synthesized `cdk.out` to be deployed to any region.
+
+3. **Conditional resources** — The NAT gateway and its associated EIP/route are guarded by a `CfnCondition`, so they are only created when explicitly enabled.
+
+4. **SSM as service discovery** — All consumer-facing resource IDs are published to SSM Parameter Store under a well-known path prefix (`/express-compute/infra/`), decoupling this stack from consumers.
+
+5. **Security defaults** — IMDSv2 required, EBS encryption enabled, no AMI baked in (Karpenter provides AMIs at runtime).
+
+## Deployment Model
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Script as setup-shared-infra.sh
+    participant CDK as CDK CLI
+    participant CFN as CloudFormation
+    participant AWS as AWS Resources
+
+    Dev->>Script: ./setup-shared-infra.sh us-east-1
+    Script->>CDK: cdk bootstrap
+    Script->>CDK: mvn compile
+    Script->>CDK: cdk synth
+    Script->>CDK: cdk deploy --parameters ...
+    CDK->>CFN: Create/Update stack
+    CFN->>AWS: Provision resources
+    AWS-->>CFN: Resource IDs
+    CFN-->>CDK: Stack outputs
+    CDK-->>Script: Deploy complete
+```
+
+## Consumer Interaction
 
 ```mermaid
 graph LR
-    CDK_JSON["cdk.json<br/>(parameter defaults)"] --> SCRIPT["setup-shared-infra.sh<br/>(--parameters flags)"]
-    SCRIPT --> CFN["CloudFormation<br/>CfnParameter resolution"]
-    CFN --> STACK["Stack resource creation"]
+    subgraph "This Stack"
+        SSM[SSM Parameters]
+    end
+
+    subgraph "Tenant Provisioner (separate repo)"
+        TP[Tenant Control Plane]
+    end
+
+    subgraph "Karpenter"
+        KP[Node Provisioner]
+    end
+
+    SSM -->|vpc-id| TP
+    SSM -->|launch-template IDs| KP
 ```
-
-The stack uses **CloudFormation Parameters** (not CDK context) for all runtime-configurable values. `cdk.json` provides defaults via the `parameters` key; the deploy script overrides them with `--parameters` flags.
-
-## Design Patterns
-
-| Pattern | Usage |
-|---------|-------|
-| L1 Constructs (CfnXxx) | VPC, LTs, ECR cache — fine-grained control needed |
-| L2 Constructs | LogGroup, Role — higher-level abstractions sufficient |
-| CfnParameter + CfnCondition | NAT Gateway conditionally created based on runtime parameter |
-| SSM Parameter Discovery | Outputs published to SSM for decoupled consumer access |
-| Record Types | `Networking`, `LtConfig` — lightweight internal data carriers |
-| Region-agnostic Synth | Region omitted from CDK Environment; template deployable to any region |

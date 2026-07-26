@@ -1,96 +1,75 @@
-# AGENTS.md - AI Assistant Guide
+# AGENTS.md
+<!-- tags: navigation, architecture, infrastructure, cdk, aws -->
 
-## Project Overview
-**Express Compute Infra** — Shared AWS infrastructure for the Express Compute platform for express Kubernetes deployments. First release includes eks-d-xpress. Deploys a single CDK stack (`ExpressComputeManagedK8sInfraStack`) that provisions the VPC, EC2 launch templates, ECR pull-through cache, and S3 endpoint used by all Express Compute tenants. Tenant control plane provisioning lives in a separate project.
+## Project Purpose
 
-## Directory Overview
+Single AWS CDK stack (Java 21) provisioning shared infrastructure for the Express Compute platform. Tenant control-plane provisioning lives in a separate repository and consumes outputs via SSM Parameter Store.
+
+## Directory Map
 
 ```
-express-compute-infra/
-├── setup-shared-infra.sh         # Deploy: CDK bootstrap → mvn compile → cdk deploy
-├── delete-shared-infra.sh        # Destroy: cdk destroy --force
+├── setup-shared-infra.sh        # Deploy entrypoint (all params as positional args)
+├── delete-shared-infra.sh       # Destroy entrypoint
 ├── infra/
-│   ├── cdk.json                  # CDK app command + CloudFormation parameter defaults
-│   ├── pom.xml                   # Maven build (Java 21, aws-cdk-lib 2.256.1)
-│   └── src/main/java/ai/codriverlabs/ecp/
-│       ├── EcpManagedK8sInfraApp.java         # CDK App entry point
-│       └── ExpressComputeManagedK8sInfraStack.java  # All shared infra resources
-└── archived/                     # Legacy Terraform + eks-d-setup scripts — do not use
+│   ├── cdk.json                 # CDK app config + default parameter values
+│   ├── pom.xml                  # Maven build (Java 21, CDK 2.262.1)
+│   └── src/main/java/ai/codriverlabs/ecp/infra/
+│       ├── EcpManagedK8sInfraApp.java              # CDK App entry point
+│       └── ExpressComputeManagedK8sInfraStack.java  # All infrastructure (single file)
+├── .github/
+│   ├── workflows/release.yml    # Tag-triggered release (tarball + checksums)
+│   └── dependabot.yml           # Weekly Maven + Actions updates
+└── .agents/summary/             # Generated documentation (index.md is the entry point)
 ```
 
 ## Key Entry Points
 
-| Task | Command |
-|------|---------|
-| Deploy shared infra | `./setup-shared-infra.sh [region] [projectName] [arm64Type] [x86Type] [diskSizeGb] [enableNat]` |
-| Destroy shared infra | `./delete-shared-infra.sh [region] [projectName]` |
+| Task | Start Here |
+|------|-----------|
+| Understand all resources | `ExpressComputeManagedK8sInfraStack.java` — single file, ~355 lines |
+| Deploy | `./setup-shared-infra.sh [region] [project]` |
+| Destroy | `./delete-shared-infra.sh [region] [project]` |
+| Change defaults | `infra/cdk.json` → `parameters` block |
+| Add a resource | New private method in the stack class, call from constructor |
 
-Both default to `region=us-east-1`, `projectName=ecp-managed-k8s-infra`.
+## Architecture at a Glance
 
-## What the Stack Creates
+```mermaid
+graph LR
+    Stack[CDK Stack] --> VPC[VPC 10.0.0.0/16]
+    Stack --> LTs[4 Launch Templates]
+    Stack --> ECR[3 ECR Cache Rules]
+    Stack --> S3EP[S3 Gateway Endpoint]
+    Stack --> Logs[VPC Flow Logs]
+    Stack --> SSM[6 SSM Parameters]
+    SSM -->|consumed by| Tenants[Tenant Provisioner]
+    SSM -->|consumed by| Karpenter
+```
 
-- **VPC** `10.0.0.0/16` with IGW, NAT subnet `10.0.0.0/24`, public + private route tables
-- **S3 Gateway Endpoint** — free, attached to both route tables; keeps ECR pulls off NAT
-- **ECR Pull-Through Cache** — `public-ecr/` → `public.ecr.aws`, `registry-k8s-io/` → `registry.k8s.io`, `quay-io/` → `quay.io`
-- **VPC Flow Logs** → CloudWatch `/aws/vpc/<region>/<project>-flow-logs` (1-week retention)
-- **4 Launch Templates** (spot + ondemand) × (arm64 + x86_64): no AMI ID, IMDS v2, encrypted EBS, spot uses hibernation
-- **SSM Parameters**: VPC ID + 4 LT IDs published for consuming services
+## Non-Obvious Patterns
 
-## SSM Output Paths
+- **L1-only constructs:** All resources use `Cfn*` classes (no L2/L3). This is intentional for template predictability.
+- **Region is a CloudFormation parameter**, not a CDK environment property. The synthesized template is region-agnostic and `cdk.out/` can deploy anywhere.
+- **No AMI in launch templates:** Karpenter resolves AMIs at runtime. The LTs define everything except the image.
+- **Conditional NAT:** Controlled by `CfnCondition`. When disabled, private route table has no default route (S3 still reachable via gateway endpoint).
+- **Spot instances use `persistent` + `hibernate`:** Not the default `one-time`/`terminate` behavior.
+- **Two EBS volumes per instance:** Root (`/dev/xvda`) + data (`/dev/sdf`), both gp3 encrypted.
 
-| Path | Value |
-|------|-------|
-| `/express-compute/infra/network/vpc-id` | VPC ID |
-| `/express-compute/infra/network/nat-gateway-enabled` | `true` or `false` |
-| `/express-compute/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
+## SSM Parameter Namespace
 
-## CloudFormation Parameters (`cdk.json`)
+All outputs live under `/express-compute/infra/`:
+- `.../network/vpc-id`
+- `.../network/nat-gateway-enabled`
+- `.../launch-template/{arm64|x86_64}/{spot|ondemand}`
 
-Configuration is via CloudFormation Parameters (CfnParameter), not CDK context. Defaults in `cdk.json`:
+## CI/CD
 
-| Parameter | Default | Override via |
-|-----------|---------|-------------|
-| `ProjectName` | `ecp-managed-k8s-infra` | `--parameters` flag or script arg 2 |
-| `InstanceTypeArm64` | `c6g.xlarge` | script arg 3 |
-| `InstanceTypeX86` | `m7i.large` | script arg 4 |
-| `DiskSizeGb` | `20` | script arg 5 |
-| `EnableNatGateway` | `false` | script arg 6 |
-| `Region` | (from script) | script arg 1 |
+- **Release:** Push `v*` tag → GitHub Actions builds tarball → GitHub Release
+- **Deps:** Dependabot opens PRs weekly (Monday) for Maven + Actions
 
-## Repo-Specific Patterns
+## Pre-commit Hooks
 
-### CDK project is in `infra/`, not `cdk/`
-Both shell scripts `cd` into `"$(dirname "$0")/infra"`.
-
-### CloudFormation Parameters, not CDK Context
-The stack uses `CfnParameter` + `CfnCondition` for all runtime configuration. The `parameters` key in `cdk.json` maps to these. Do not use `getNode().tryGetContext()`.
-
-### NAT Gateway disabled by default
-`EnableNatGateway: false` in `cdk.json`. The S3 gateway endpoint handles the primary egress cost driver. Set to `true` and redeploy if worker nodes need outbound internet beyond S3/ECR.
-
-### Launch templates have no AMI ID
-`imageId` is absent from all launch templates by design. The tenant provisioner passes the AMI as a `RunInstances` override. Do not add `imageId` to the templates.
-
-### Spot launch templates require hibernation-capable instances
-Spot LTs configure `instanceInterruptionBehavior: hibernate`. Not all instance types support hibernation — verify before changing instance types.
-
-### Maven compiles before CDK synth
-The CDK app command in `cdk.json` is `mvn -e -q compile exec:java`. `cdk synth` and `cdk deploy` both trigger a Maven compile. The shell script also runs `mvn clean compile` explicitly for error visibility.
-
-### Region-agnostic synthesis
-The CDK app omits region from `Environment.builder()` so the synthesized template can deploy to any region. Region is passed as a CfnParameter at deploy time.
-
-### ECR pull-through cache is for local builds
-The cache rules (`public-ecr/`, `registry-k8s-io/`, `quay-io/`) are used for local development builds. Public AMIs are released using official public repositories. Secrets Manager credentials for upstream registries are not mandatory.
-
-### No test suite
-There are no CDK assertion tests (`src/test/` does not exist). Changes to `ExpressComputeManagedK8sInfraStack.java` should be validated with `cdk synth` and diff review before deploy.
-
-### Pre-commit hooks
-Configured via `.pre-commit-config.yaml`: trailing-whitespace, end-of-file-fixer, check-merge-conflict (pre-commit-hooks v5.0.0).
-
-### CI/CD — tag-triggered GitHub release
-`.github/workflows/release.yml` triggers on `v*` tags, builds with Java 21 (Corretto), runs `cdk synth`, packages a tarball + checksums, and creates a GitHub release.
+`trailing-whitespace`, `end-of-file-fixer`, `check-merge-conflict` (pre-commit-hooks v5.0.0)
 
 ## Custom Instructions
 <!-- This section is for human and agent-maintained operational knowledge.

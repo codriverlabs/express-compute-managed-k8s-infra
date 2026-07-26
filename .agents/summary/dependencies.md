@@ -1,50 +1,59 @@
 # Dependencies
 
-## Build Dependencies
+## Runtime Dependencies (Maven)
 
 | Dependency | Version | Purpose |
 |-----------|---------|---------|
-| `aws-cdk-lib` | 2.256.1 | AWS CDK constructs library |
-| `constructs` | 10.4.2 | CDK constructs base |
-| `exec-maven-plugin` | 3.1.0 | Run CDK app via Maven |
+| `software.amazon.awscdk:aws-cdk-lib` | 2.262.1 | AWS CDK core library — all L1/L2/L3 constructs |
+| `software.constructs:constructs` | 10.7.1 | Constructs programming model (CDK foundation) |
 
-## Runtime Dependencies
+## Build Dependencies
 
-| Tool | Version | Required For |
-|------|---------|-------------|
-| Java | 21 | Compile and run CDK app |
-| Maven | 3+ | Build system |
-| AWS CDK CLI | latest | Synth, deploy, destroy |
-| AWS CLI | v2 | `sts get-caller-identity` in scripts |
-| Node.js | 18+ | CDK CLI runtime |
+| Tool | Version/Constraint | Purpose |
+|------|-------------------|---------|
+| Java | 21 (release target) | Language runtime |
+| Maven | 3.x | Build and dependency management |
+| `org.codehaus.mojo:exec-maven-plugin` | 3.6.3 | Runs CDK app via `mvn exec:java` |
 
-## AWS Services Used
+## CLI Tools (Deploy-time)
 
-| Service | Usage | Cost |
-|---------|-------|------|
-| VPC | Network isolation | Free (base) |
-| Internet Gateway | Public internet access | Free |
-| NAT Gateway | Private subnet egress (optional) | ~$32/mo + data |
-| Elastic IP | NAT Gateway (if enabled) | Free when attached |
-| S3 Gateway Endpoint | Free S3 access from VPC | Free |
-| ECR | Pull-through cache storage | Per-GB storage |
-| CloudWatch Logs | VPC flow logs | Per-GB ingested |
-| SSM Parameter Store | Output discovery | Free (standard tier) |
-| EC2 Launch Templates | Instance configuration | Free |
-| CloudFormation | Stack deployment | Free |
+| Tool | Purpose |
+|------|---------|
+| AWS CDK CLI (`cdk`) | Synthesize and deploy CloudFormation |
+| AWS CLI (`aws`) | Get caller identity, interact with AWS APIs |
+| npm | Install CDK CLI globally |
 
-## Pre-commit Hooks
+## CI/CD Dependencies (GitHub Actions)
 
-| Hook | Source | Purpose |
-|------|--------|---------|
-| `trailing-whitespace` | pre-commit-hooks v5.0.0 | Remove trailing whitespace |
-| `end-of-file-fixer` | pre-commit-hooks v5.0.0 | Ensure files end with newline |
-| `check-merge-conflict` | pre-commit-hooks v5.0.0 | Prevent merge conflict markers |
+| Action | Version | Purpose |
+|--------|---------|---------|
+| `actions/checkout` | v7 | Clone repository |
+| `actions/setup-java` | v5 | Install Corretto 21 with Maven cache |
+| `softprops/action-gh-release` | v3 | Create GitHub release with artifacts |
 
-## CI/CD Dependencies
+## Development Tools
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| `actions/checkout` | v7 | Git checkout |
-| `actions/setup-java` | v5 | Java (Corretto) + Maven cache setup |
-| `softprops/action-gh-release` | v3 | GitHub Release creation |
+| pre-commit | — | Git hook framework |
+| `pre-commit-hooks` | v5.0.0 | trailing-whitespace, end-of-file-fixer, check-merge-conflict |
+| Dependabot | v2 | Automated dependency update PRs (weekly, Monday) |
+
+## Dependency Update Strategy
+
+- **Dependabot** monitors Maven and GitHub Actions dependencies weekly
+- Max 5 open PRs per ecosystem to avoid PR fatigue
+- Labels: `dependencies` + `java` (Maven) or `dependencies` + `ci` (Actions)
+
+## AWS Service Dependencies (Runtime)
+
+This stack creates resources in the following AWS services:
+
+| Service | Resources Created |
+|---------|------------------|
+| EC2 | VPC, Subnets, Route Tables, IGW, NAT Gateway, EIP, Launch Templates, Flow Logs |
+| ECR | Pull-Through Cache Rules (3) |
+| CloudWatch Logs | Log Group (flow logs) |
+| IAM | Role (flow logs) |
+| SSM Parameter Store | StringParameters (6) |
+| S3 (via endpoint) | Gateway Endpoint (no bucket created) |

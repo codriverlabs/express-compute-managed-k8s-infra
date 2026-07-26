@@ -2,61 +2,71 @@
 
 ## Internal Records
 
-### `Networking`
+The stack uses Java records for internal data passing. These are not persisted or serialized.
 
-Lightweight carrier for VPC resource IDs returned by `createNetworking()`.
+### `Networking`
 
 ```java
 private record Networking(String vpcId, String publicRtId, String privateRtId) {}
 ```
 
-### `LtConfig`
+Returned by `createNetworking()` to pass VPC resource references to downstream methods (S3 endpoint, SSM parameters).
 
-Configuration tuple for launch template generation. Drives the 4-template cross-product.
+### `LtConfig`
 
 ```java
 private record LtConfig(String arch, boolean spot) {
-    String key()          // e.g., "spot-arm64"
-    String mode()         // "spot" or "ondemand"
-    String instanceType(String arm64Type, String x86Type)
+    String key()  { return (spot ? "spot" : "ondemand") + "-" + arch; }
+    String mode() { return spot ? "spot" : "ondemand"; }
+    String instanceType(String arm64Type, String x86Type) {
+        return arch.equals("arm64") ? arm64Type : x86Type;
+    }
 }
 ```
 
-## CloudFormation Parameter Model
+Configuration object for the launch template generation loop. Encapsulates the matrix of `{arch} × {spot/ondemand}` and provides naming helpers.
 
-Values read at stack construction via `CfnParameter`:
+## Configuration Structure
 
-```java
-CfnParameter pProjectName      = CfnParameter.Builder.create(this, "ProjectName").type("String").build();
-CfnParameter pInstanceTypeArm64= CfnParameter.Builder.create(this, "InstanceTypeArm64").type("String").build();
-CfnParameter pInstanceTypeX86  = CfnParameter.Builder.create(this, "InstanceTypeX86").type("String").build();
-CfnParameter pDiskSizeGb       = CfnParameter.Builder.create(this, "DiskSizeGb").type("Number").build();
-CfnParameter pEnableNatGateway = CfnParameter.Builder.create(this, "EnableNatGateway")
-        .type("String").allowedValues(List.of("true", "false")).build();
-CfnParameter pRegion           = CfnParameter.Builder.create(this, "Region").type("String").build();
+### `cdk.json` Parameters
+
+```json
+{
+  "app": "mvn -e -q compile exec:java",
+  "parameters": {
+    "ExpressComputeManagedK8sInfraStack": {
+      "ProjectName": "ecp-managed-k8s-infra",
+      "InstanceTypeArm64": "c6g.xlarge",
+      "InstanceTypeX86": "m7i.large",
+      "DiskSizeGb": "20",
+      "EnableNatGateway": "false"
+    }
+  }
+}
 ```
 
-The `EnableNatGateway` parameter drives a `CfnCondition` that gates NAT Gateway + EIP creation.
+## Resource Naming Conventions
 
-## Tagging Model
+```mermaid
+graph TD
+    PN[ProjectName] --> VPC_NAME["{project}-shared-vpc"]
+    PN --> IGW_NAME["{project}-igw"]
+    PN --> LT_NAME["{project}-{mode}-{arch}-{region}"]
+    PN --> FLG_NAME["/aws/vpc/{region}/{project}-flow-logs"]
+    PN --> ROLE_NAME["{project}-vpc-flow-logs-role-{region}"]
+    PN --> SSM_PATH["/express-compute/infra/..."]
+```
 
-All resources are tagged consistently:
+## Tagging Strategy
 
-| Tag | Applied To | Value |
-|-----|-----------|-------|
-| `Name` | All named resources | `{projectName}-{resource}` |
-| `Project` | VPC, subnets, route tables, NAT | `{projectName}` |
-| `ManagedBy` | All | `CDK` or `Karpenter` |
-| `Platform` | LT instances/volumes | `express-compute` |
-| `Arch` | LT instances, launch templates | `arm64` or `x86_64` |
-| `Mode` | Launch templates | `spot` or `on-demand` |
-| `Type` | NAT subnet | `NAT` |
+All resources are tagged with a consistent scheme:
 
-## EBS Volume Layout
-
-Each launch template defines two block devices:
-
-| Device | Type | Size | Encrypted | Purpose |
-|--------|------|------|-----------|---------|
-| `/dev/xvda` | gp3 | `DiskSizeGb` (configurable) | Yes | Root volume |
-| `/dev/sdf` | gp3 | 20 GiB (fixed) | Yes | Data volume |
+| Tag Key | Applied To | Values |
+|---------|-----------|--------|
+| Name | All named resources | Descriptive name |
+| Project | VPC, IGW, subnets, route tables, NAT, EIP, flow log | `{projectName}` |
+| ManagedBy | Launch templates, volumes | `CDK` or `Karpenter` |
+| Platform | Instances, volumes, LTs | `express-compute` |
+| Arch | Instances, LTs | `arm64` or `x86_64` |
+| Mode | LTs | `spot` or `on-demand` |
+| Type | Subnets | `NAT` |

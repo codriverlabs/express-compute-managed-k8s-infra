@@ -1,85 +1,90 @@
 # Interfaces
 
-## CloudFormation Parameters (Input Interface)
+## Inbound Interfaces (Inputs)
 
-Configuration is injected as CloudFormation Parameters at deploy time. Defaults are defined in `cdk.json` under the `parameters.ExpressComputeManagedK8sInfraStack` key.
+### 1. Shell Script Arguments
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `ProjectName` | String | `ecp-managed-k8s-infra` | Resource naming prefix |
-| `InstanceTypeArm64` | String | `c6g.xlarge` | ARM instance type |
-| `InstanceTypeX86` | String | `m7i.large` | x86 instance type |
-| `DiskSizeGb` | Number | `20` | Root EBS volume size (GiB) |
-| `EnableNatGateway` | String | `false` | Create NAT Gateway (`true`/`false`) |
-| `Region` | String | (from script) | AWS region — must be passed explicitly |
+**`setup-shared-infra.sh`**
 
-Override via the deploy script:
-```bash
-./setup-shared-infra.sh us-west-2 my-project c7g.xlarge m7i.xlarge 50 true
-```
+| Position | Name | Default | Description |
+|----------|------|---------|-------------|
+| $1 | REGION | us-east-1 | AWS deployment region |
+| $2 | PROJECT_NAME | ecp-managed-k8s-infra | Resource naming prefix |
+| $3 | INSTANCE_TYPE_ARM64 | c6g.xlarge | ARM64 instance type |
+| $4 | INSTANCE_TYPE_X86 | m7i.large | x86_64 instance type |
+| $5 | DISK_SIZE_GB | 20 | Root EBS volume GiB |
+| $6 | ENABLE_NAT_GATEWAY | false | NAT gateway toggle |
 
-Or via CDK CLI directly:
-```bash
-cdk deploy ExpressComputeManagedK8sInfraStack \
-  --parameters ExpressComputeManagedK8sInfraStack:InstanceTypeArm64=c7g.xlarge \
-  --parameters ExpressComputeManagedK8sInfraStack:EnableNatGateway=true
-```
+**`delete-shared-infra.sh`**
 
-## SSM Parameter Store (Output Interface)
+| Position | Name | Default | Description |
+|----------|------|---------|-------------|
+| $1 | REGION | us-east-1 | Region of stack to destroy |
+| $2 | PROJECT_NAME | ecp-managed-k8s-infra | Project name (for stack identification) |
 
-The stack publishes outputs to SSM Parameter Store for decoupled consumption by other services (tenant provisioner, Karpenter).
+### 2. CDK Context (`infra/cdk.json`)
+
+The `parameters` block in `cdk.json` defines default CloudFormation parameter values used during `cdk synth`/`cdk deploy`.
+
+### 3. CloudFormation Parameters
+
+| Parameter | Type | Allowed Values |
+|-----------|------|----------------|
+| ProjectName | String | — |
+| InstanceTypeArm64 | String | — |
+| InstanceTypeX86 | String | — |
+| DiskSizeGb | Number | — |
+| EnableNatGateway | String | `true`, `false` |
+| Region | String | — |
+
+### 4. Environment Variables
+
+| Variable | Used By | Purpose |
+|----------|---------|---------|
+| CDK_DEFAULT_ACCOUNT | CDK App | AWS account ID for environment binding |
+| CDK_DEFAULT_REGION | setup script | Passed to CDK bootstrap |
+
+## Outbound Interfaces (Outputs)
+
+### SSM Parameter Store
+
+All outputs are written to SSM Parameter Store under the `/express-compute/infra/` namespace:
 
 ```mermaid
 graph LR
-    STACK["ExpressComputeManagedK8sInfraStack"] -->|writes| SSM["SSM Parameter Store"]
-    SSM -->|reads| TENANT["Tenant Provisioner"]
-    SSM -->|reads| OTHER["Other Consumers"]
+    subgraph "SSM Parameters"
+        A["/express-compute/infra/network/vpc-id"]
+        B["/express-compute/infra/network/nat-gateway-enabled"]
+        C["/express-compute/infra/launch-template/arm64/spot"]
+        D["/express-compute/infra/launch-template/arm64/ondemand"]
+        E["/express-compute/infra/launch-template/x86_64/spot"]
+        F["/express-compute/infra/launch-template/x86_64/ondemand"]
+    end
+
+    subgraph "Consumers"
+        TP[Tenant Provisioner]
+        KP[Karpenter]
+    end
+
+    A --> TP
+    B --> TP
+    C --> KP
+    D --> KP
+    E --> KP
+    F --> KP
 ```
 
-### Parameters Published
+### Integration Contract
 
-| Path | Type | Description |
-|------|------|-------------|
-| `/express-compute/infra/network/vpc-id` | String | VPC ID |
-| `/express-compute/infra/network/nat-gateway-enabled` | String | `true` or `false` |
-| `/express-compute/infra/launch-template/arm64/spot` | String | LT ID |
-| `/express-compute/infra/launch-template/arm64/ondemand` | String | LT ID |
-| `/express-compute/infra/launch-template/x86_64/spot` | String | LT ID |
-| `/express-compute/infra/launch-template/x86_64/ondemand` | String | LT ID |
+Consumers of this stack must:
+1. Read SSM parameters at their deploy/runtime to discover infrastructure IDs
+2. Create subnets in the shared VPC (this stack only creates the NAT subnet)
+3. Provide their own security groups
+4. Attach to the appropriate route table (public or private) based on egress needs
 
-## ECR Pull-Through Cache (Registry Interface)
+### ECR Pull-Through Cache Prefixes
 
-Downstream consumers reference cached images using account ECR prefixes:
-
-| Pull pattern | Resolves to |
-|-------------|-------------|
-| `{account}.dkr.ecr.{region}.amazonaws.com/public-ecr/{image}` | `public.ecr.aws/{image}` |
-| `{account}.dkr.ecr.{region}.amazonaws.com/registry-k8s-io/{image}` | `registry.k8s.io/{image}` |
-| `{account}.dkr.ecr.{region}.amazonaws.com/quay-io/{image}` | `quay.io/{image}` |
-
-## Shell Script Interface
-
-```
-./setup-shared-infra.sh [region] [projectName] [instanceTypeArm64] [instanceTypeX86] [diskSizeGb] [enableNatGateway]
-./delete-shared-infra.sh [region] [projectName]
-```
-
-| Arg | Position | Default | Used By |
-|-----|----------|---------|---------|
-| `region` | 1 | `us-east-1` | Both scripts |
-| `projectName` | 2 | `ecp-managed-k8s-infra` | Both scripts |
-| `instanceTypeArm64` | 3 | `c6g.xlarge` | setup only |
-| `instanceTypeX86` | 4 | `m7i.large` | setup only |
-| `diskSizeGb` | 5 | `20` | setup only |
-| `enableNatGateway` | 6 | `false` | setup only |
-
-Environment variables set by scripts: `CDK_DEFAULT_REGION`, `CDK_DEFAULT_ACCOUNT`.
-
-## GitHub Release Artifacts
-
-On `v*` tag push, the release workflow produces:
-
-| Artifact | Contents |
-|----------|----------|
-| `express-compute-managed-k8s-infra-{VERSION}.tar.gz` | README + `infra/` directory |
-| `checksums.sha256` | SHA-256 of the tarball |
+Container image pulls should reference:
+- `{account}.dkr.ecr.{region}.amazonaws.com/public-ecr/{image}` (for public.ecr.aws images)
+- `{account}.dkr.ecr.{region}.amazonaws.com/registry-k8s-io/{image}` (for registry.k8s.io images)
+- `{account}.dkr.ecr.{region}.amazonaws.com/quay-io/{image}` (for quay.io images)

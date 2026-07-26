@@ -1,66 +1,41 @@
 # Documentation Index
 
-> **For AI Assistants**: This file is the primary entry point for understanding this codebase. Read this first to determine which detailed files contain the information you need.
+> **For AI Assistants:** This file is your primary entry point. Read this first to understand the project and determine which files contain the details you need.
+
+## Project Summary
+
+This repository deploys shared AWS infrastructure for the Express Compute platform using a single AWS CDK stack (Java 21). It provisions a VPC, EC2 launch templates (spot + on-demand × arm64 + x86_64), ECR pull-through cache rules, an S3 gateway endpoint, and VPC flow logs. All resource IDs are published to SSM Parameter Store for consumption by tenant provisioning systems.
+
+**Key design decisions:**
+- Uses exclusively L1 (Cfn*) constructs for full control over CloudFormation output
+- Region-agnostic synthesized template — region is a runtime CloudFormation parameter
+- NAT gateway is conditional (disabled by default) to minimize cost
+- Spot launch templates use persistent spot + hibernation for graceful interruption handling
+
+## Documentation Map
+
+| File | Purpose | Consult when... |
+|------|---------|----------------|
+| [codebase_info.md](codebase_info.md) | Tech stack, versions, build commands | You need to know how to build, deploy, or what versions are used |
+| [architecture.md](architecture.md) | System design, resource relationships | You need to understand how components fit together |
+| [components.md](components.md) | Detailed breakdown of each infrastructure component | You need specifics about VPC, LTs, ECR, or flow logs |
+| [interfaces.md](interfaces.md) | SSM parameters, CloudFormation parameters, script interfaces | You need to know inputs/outputs or how consumers interact |
+| [data_models.md](data_models.md) | Internal records, configuration structures | You need to understand code-level data structures |
+| [workflows.md](workflows.md) | Deploy, destroy, release, and update workflows | You need to understand operational processes |
+| [dependencies.md](dependencies.md) | External dependencies and their roles | You need to know what libraries are used and why |
+| [review_notes.md](review_notes.md) | Documentation gaps and recommendations | You want to improve or extend this documentation |
 
 ## Quick Reference
 
-- **What is this?** Shared AWS infrastructure (VPC, launch templates, ECR cache) for the Express Compute platform
-- **Language**: Java 21 CDK (package `ai.codriverlabs.ecp`)
-- **Stack**: Single CDK stack (`ExpressComputeManagedK8sInfraStack`)
-- **Deploy**: `./setup-shared-infra.sh [region] [projectName] [arm64Type] [x86Type] [diskSizeGb] [enableNat]`
-- **Source**: `infra/src/main/java/ai/codriverlabs/ecp/ExpressComputeManagedK8sInfraStack.java`
-- **Config model**: CloudFormation Parameters (CfnParameter), not CDK context
+- **Entry point:** `EcpManagedK8sInfraApp.java` → `ExpressComputeManagedK8sInfraStack.java`
+- **Deploy:** `./setup-shared-infra.sh [region] [project]`
+- **Destroy:** `./delete-shared-infra.sh [region] [project]`
+- **Stack name:** `ExpressComputeManagedK8sInfraStack`
+- **SSM namespace:** `/express-compute/infra/`
 
-## Documentation Files
+## How to Use This Documentation
 
-| File | Purpose | Consult When... |
-|------|---------|-----------------|
-| [codebase_info.md](codebase_info.md) | Technology stack, language breakdown, design decisions | You need project metadata or tech stack details |
-| [architecture.md](architecture.md) | System context diagrams, stack composition, network layout, design patterns | You need to understand how components relate or the overall system design |
-| [components.md](components.md) | Detailed breakdown of each method/resource group in the stack | You need specifics about what a method creates or configures |
-| [interfaces.md](interfaces.md) | CloudFormation parameters, SSM outputs, ECR cache patterns, CLI args, release artifacts | You need to know inputs/outputs or how consumers integrate |
-| [data_models.md](data_models.md) | Internal records, parameter model, tagging scheme, EBS volume layout | You need to understand data structures or resource tagging |
-| [workflows.md](workflows.md) | Deploy, destroy, release, and consumer integration sequences | You need to understand operational procedures |
-| [dependencies.md](dependencies.md) | Build deps, runtime tools, AWS services, pre-commit hooks, CI | You need version info or dependency details |
-| [review_notes.md](review_notes.md) | Consistency/completeness review findings | You want to know documentation gaps or issues |
-
-## Relationships Between Files
-
-```mermaid
-graph TD
-    INDEX["index.md<br/>(you are here)"]
-    ARCH["architecture.md"]
-    COMP["components.md"]
-    INTF["interfaces.md"]
-    DATA["data_models.md"]
-    WORK["workflows.md"]
-    DEPS["dependencies.md"]
-
-    INDEX --> ARCH
-    INDEX --> COMP
-    INDEX --> INTF
-    ARCH --> COMP
-    COMP --> DATA
-    COMP --> INTF
-    WORK --> COMP
-    WORK --> INTF
-    DEPS --> COMP
-```
-
-- **architecture.md** provides the high-level view; drill into **components.md** for implementation details
-- **interfaces.md** documents both inputs (CfnParameters) and outputs (SSM params); cross-reference with **components.md** to see how they're produced
-- **workflows.md** references steps documented in **components.md** and outputs documented in **interfaces.md**
-- **data_models.md** documents internal types used in **components.md**
-
-## Example Queries
-
-| Question | Start With |
-|----------|-----------|
-| "What resources does this stack create?" | components.md |
-| "How do I change the instance type?" | interfaces.md → CloudFormation Parameters section |
-| "How does the tenant provisioner consume this?" | workflows.md → Consumer Integration |
-| "What tags are applied to instances?" | data_models.md → Tagging Model |
-| "What's the deploy process?" | workflows.md → Deploy Workflow |
-| "What AWS services cost money?" | dependencies.md → AWS Services Used |
-| "Why is NAT Gateway optional?" | architecture.md → Design Patterns |
-| "What are the script arguments?" | interfaces.md → Shell Script Interface |
+1. **Start here** — this index gives you enough context to answer most high-level questions
+2. **Drill into specific files** when you need implementation details
+3. **Check interfaces.md** when the question is about inputs, outputs, or integration with other systems
+4. **Check workflows.md** when the question is about operational procedures

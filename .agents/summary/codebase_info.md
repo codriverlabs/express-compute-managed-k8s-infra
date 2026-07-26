@@ -2,51 +2,49 @@
 
 ## Project Identity
 
-- **Name**: Express Compute Infra
-- **Group**: `ai.codriverlabs`
-- **Artifact**: `ecp-shared-infra-cdk`
-- **Version**: 1.0.0
+- **Name:** Express Compute Managed K8s Infra
+- **Group ID:** ai.codriverlabs
+- **Artifact:** ecp-shared-infra-cdk
+- **Version:** 1.0.0
+- **License:** See LICENSE.md
 
 ## Technology Stack
 
-| Layer | Technology |
-|-------|-----------|
-| IaC | AWS CDK (Java) |
-| Language | Java 21 |
-| Build | Maven 3 |
-| CDK Lib | 2.256.1 |
-| Constructs | 10.4.2 |
-| CI/CD | GitHub Actions |
-| Pre-commit | trailing-whitespace, end-of-file-fixer, check-merge-conflict |
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Language | Java | 21 |
+| IaC Framework | AWS CDK | 2.262.1 |
+| Constructs lib | constructs | 10.7.1 |
+| Build tool | Maven | 3.x |
+| CI/CD | GitHub Actions | ubuntu-24.04 |
+| Dependency mgmt | Dependabot | v2 |
+| Pre-commit | pre-commit-hooks | v5.0.0 |
 
-## Languages
+## Repository Statistics
 
-| Language | Files | Purpose |
-|----------|-------|---------|
-| Java | 2 | CDK stack definition |
-| Bash | 2 | Deploy/destroy scripts |
-| YAML | 2 | GitHub Actions, pre-commit config |
-| JSON | 1 | CDK config (`cdk.json`) |
+| Metric | Value |
+|--------|-------|
+| Primary source files | 2 Java files |
+| Shell scripts | 2 (deploy + destroy) |
+| CI workflows | 1 (release) |
+| Total managed resources (CloudFormation) | ~20 |
 
-## Source Layout
+## Build & Deploy
 
-```
-infra/src/main/java/ai/codriverlabs/ecp/
-├── EcpManagedK8sInfraApp.java        — CDK App entry point
-└── ExpressComputeManagedK8sInfraStack.java      — All infrastructure resources
-```
+- **CDK app command:** `mvn -e -q compile exec:java`
+- **Deploy:** `./setup-shared-infra.sh [region] [projectName] [arm64Type] [x86Type] [diskGB] [natEnabled]`
+- **Destroy:** `./delete-shared-infra.sh [region] [projectName]`
+- **Release:** Push a `v*` tag → GitHub Actions builds tarball + checksums
 
-## CDK Stack: `ExpressComputeManagedK8sInfraStack`
+## Configuration
 
-Single stack deploying shared VPC infrastructure for the Express Compute platform. Uses L1 (Cfn*) constructs for most resources due to needing fine-grained control over VPC layout and launch template options.
+Runtime parameters are defined in `infra/cdk.json` under `parameters` and passed as CloudFormation parameters at deploy time:
 
-## Key Design Decisions
-
-1. **Single stack** — all shared infra in one deployable unit
-2. **CloudFormation Parameters** — runtime-configurable values passed via `--parameters` at deploy time (not CDK context)
-3. **L1 constructs** — direct CloudFormation mappings for VPC, LTs, ECR cache rules
-4. **No AMI in launch templates** — decouples AMI updates from infra deployments
-5. **NAT gateway optional** — S3 gateway endpoint handles primary egress cost; NAT conditionally created via `CfnCondition`
-6. **SSM parameter store** — output discovery mechanism for consuming services
-7. **Spot + hibernation** — cost optimization with graceful interruption handling
-8. **Region-agnostic synth** — region omitted from CDK Environment; passed as CfnParameter at deploy time
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| ProjectName | ecp-managed-k8s-infra | Resource naming prefix |
+| InstanceTypeArm64 | c6g.xlarge | ARM64 launch template instance type |
+| InstanceTypeX86 | m7i.large | x86_64 launch template instance type |
+| DiskSizeGb | 20 | Root EBS volume size (GiB) |
+| EnableNatGateway | false | Conditional NAT gateway creation |
+| Region | (deploy-time) | AWS region for the deployment |

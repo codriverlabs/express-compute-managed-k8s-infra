@@ -1,93 +1,100 @@
 # Components
 
-## ExpressComputeManagedK8sInfraStack
+## Component Map
 
-The single CDK stack containing all shared infrastructure. Located at `infra/src/main/java/ai/codriverlabs/ecp/ExpressComputeManagedK8sInfraStack.java`.
+```mermaid
+classDiagram
+    class EcpManagedK8sInfraApp {
+        +main(String[] args)
+    }
 
-### CloudFormation Parameters
+    class ExpressComputeManagedK8sInfraStack {
+        -createNetworking(projectName, condNat) Networking
+        -createFlowLogs(vpcId, projectName, region)
+        -createEcrPullThroughCache()
+        -createS3Endpoint(vpcId, publicRtId, privateRtId, region)
+        -createLaunchTemplates(projectName, arm64Type, x86Type, diskSize, region)
+        -createNetworkSsmParams(networking, enableNatGatewayValue)
+    }
 
-All runtime configuration is received via CfnParameter (not CDK context):
+    class Networking {
+        <<record>>
+        +String vpcId
+        +String publicRtId
+        +String privateRtId
+    }
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `ProjectName` | String | Resource naming prefix |
-| `InstanceTypeArm64` | String | ARM instance type |
-| `InstanceTypeX86` | String | x86 instance type |
-| `DiskSizeGb` | Number | Root EBS volume size (GiB) |
-| `EnableNatGateway` | String | `true` or `false` (drives CfnCondition) |
-| `Region` | String | AWS region (passed explicitly at deploy time) |
+    class LtConfig {
+        <<record>>
+        +String arch
+        +boolean spot
+        +key() String
+        +mode() String
+        +instanceType(arm64, x86) String
+    }
 
-### Networking (`createNetworking`)
+    EcpManagedK8sInfraApp --> ExpressComputeManagedK8sInfraStack : creates
+    ExpressComputeManagedK8sInfraStack --> Networking : produces
+    ExpressComputeManagedK8sInfraStack --> LtConfig : iterates
+```
 
-Creates the VPC foundation:
-- VPC `10.0.0.0/16` with DNS hostnames/support
-- Internet Gateway + VPC attachment
-- NAT subnet `10.0.0.0/24` in first AZ (public, map-public-IP)
-- Conditional NAT Gateway + EIP (only if `EnableNatGateway=true`, controlled by `CfnCondition`)
-- Public route table (default route → IGW)
-- Private route table (default route → NAT if enabled)
+## 1. VPC Networking (`createNetworking`)
 
-Returns a `Networking` record with `vpcId`, `publicRtId`, `privateRtId`.
+Creates the foundational network layer.
 
-### VPC Flow Logs (`createFlowLogs`)
+| Resource | Details |
+|----------|---------|
+| VPC | CIDR `10.0.0.0/16`, DNS hostnames + support enabled |
+| Internet Gateway | Attached to VPC |
+| NAT Subnet | `10.0.0.0/24`, first AZ, public IP on launch |
+| NAT Gateway | Conditional on `EnableNatGateway=true`; uses Elastic IP |
+| Public Route Table | Default route → IGW |
+| Private Route Table | Default route → NAT (conditional) |
 
-- CloudWatch log group: `/aws/vpc/{region}/{projectName}-flow-logs`
-- Retention: 1 week
-- Removal policy: DESTROY
-- Dedicated IAM role for `vpc-flow-logs.amazonaws.com` service
+**Conditional behavior:** When NAT is disabled, the private route table has no default route, so resources on it have no internet egress (only S3 via the gateway endpoint).
 
-### ECR Pull-Through Cache (`createEcrPullThroughCache`)
+## 2. VPC Flow Logs (`createFlowLogs`)
 
-Three cache rules (all L1 — no L2 exists):
+| Resource | Details |
+|----------|---------|
+| CloudWatch Log Group | `/aws/vpc/{region}/{project}-flow-logs`, 1-week retention, DESTROY on stack delete |
+| IAM Role | `{project}-vpc-flow-logs-role-{region}`, assumed by `vpc-flow-logs.amazonaws.com` |
+| Flow Log | Captures ALL traffic, sends to CloudWatch |
+
+## 3. ECR Pull-Through Cache (`createEcrPullThroughCache`)
+
+Mirrors upstream container registries into account-level ECR to reduce pull latency and avoid rate limits.
 
 | Prefix | Upstream |
 |--------|----------|
-| `public-ecr/` | `public.ecr.aws` |
-| `registry-k8s-io/` | `registry.k8s.io` |
-| `quay-io/` | `quay.io` |
+| `public-ecr` | `public.ecr.aws` |
+| `registry-k8s-io` | `registry.k8s.io` |
+| `quay-io` | `quay.io` |
 
-### S3 Gateway Endpoint (`createS3Endpoint`)
+## 4. S3 Gateway Endpoint (`createS3Endpoint`)
 
-- Type: Gateway (free, no NAT cost for S3 traffic)
-- Service: `com.amazonaws.{region}.s3`
-- Attached to both public and private route tables
+Gateway endpoint for S3, attached to both public and private route tables. Keeps ECR layer pulls (which use S3 under the hood) and Karpenter pricing data off NAT, reducing cost and improving throughput.
 
-### Launch Templates (`createLaunchTemplates`)
+## 5. EC2 Launch Templates (`createLaunchTemplates`)
 
-4 templates generated from a `LtConfig` record cross-product:
+Generates 4 launch templates from a matrix of `{arm64, x86_64} × {spot, on-demand}`:
 
-| Template | Arch | Market | Instance Type |
-|----------|------|--------|---------------|
-| `{project}-spot-arm64-{region}` | arm64 | spot (hibernate) | from parameter |
-| `{project}-ondemand-arm64-{region}` | arm64 | on-demand | from parameter |
-| `{project}-spot-x86_64-{region}` | x86_64 | spot (hibernate) | from parameter |
-| `{project}-ondemand-x86_64-{region}` | x86_64 | on-demand | from parameter |
+| Property | Value |
+|----------|-------|
+| IMDS | v2 required (hop limit 2) |
+| Root EBS (`/dev/xvda`) | gp3, encrypted, delete-on-terminate |
+| Data EBS (`/dev/sdf`) | gp3, 20 GiB, encrypted, delete-on-terminate |
+| Spot behavior | Persistent + hibernate on interruption |
+| Instance tags | Platform=express-compute, Arch, ManagedBy=Karpenter |
+| Volume tags | Platform=express-compute, ManagedBy=CDK |
+| No AMI ID | Intentional — Karpenter resolves AMI at runtime |
 
-Common settings:
-- IMDS v2 required (hop limit 2)
-- `/dev/xvda`: gp3, encrypted, `diskSizeGb` from parameter
-- `/dev/sdf`: gp3, encrypted, fixed 20 GiB
-- No AMI ID (passed at RunInstances time)
-- Instance tags: `Platform=express-compute`, `Arch`, `ManagedBy=Karpenter`
-- Volume tags: `Platform=express-compute`, `ManagedBy=CDK`
-- Launch template tags: `Name`, `Platform`, `Arch`, `Mode`, `ManagedBy=CDK`
+## 6. SSM Parameters (`createNetworkSsmParams`)
 
-Each LT ID is published to SSM.
+Publishes resource IDs for consumer stacks:
 
-### Network SSM Parameters (`createNetworkSsmParams`)
-
-| Parameter | Value |
-|-----------|-------|
+| Parameter Path | Value |
+|----------------|-------|
 | `/express-compute/infra/network/vpc-id` | VPC ID |
 | `/express-compute/infra/network/nat-gateway-enabled` | `true` or `false` |
-
-## EcpManagedK8sInfraApp
-
-CDK App entry point (`EcpManagedK8sInfraApp.java`). Reads `CDK_DEFAULT_ACCOUNT` from environment; region intentionally omitted from `Environment` so the synthesized template is deployable to any region at runtime.
-
-## Shell Scripts
-
-| Script | Purpose | Args |
-|--------|---------|------|
-| `setup-shared-infra.sh` | Bootstrap CDK → compile → synth → deploy | `[region] [projectName] [instanceTypeArm64] [instanceTypeX86] [diskSizeGb] [enableNatGateway]` |
-| `delete-shared-infra.sh` | `cdk destroy --force` | `[region] [projectName]` |
+| `/express-compute/infra/launch-template/{arch}/{mode}` | Launch Template ID |
