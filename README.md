@@ -67,6 +67,43 @@ Or using the convenience script (supports `projectName` and `region` only):
 
 For additional context overrides with the script, edit `infra/cdk.json` before running.
 
+## Tenant Subnet Allocation
+
+This stack creates the VPC (`10.0.0.0/16`) but only provisions one subnet — the NAT subnet (`10.0.0.0/24` in AZ-a). Tenant provisioners are responsible for creating their own subnets within the VPC.
+
+### CIDR Allocation Map
+
+```
+10.0.0.0/16 (VPC)
+│
+├── 10.0.0.0/20   — Reserved for shared infrastructure
+│   ├── 10.0.0.0/24   — NAT subnet (AZ-a, created by this stack)
+│   └── 10.0.1.0/24 … 10.0.15.255 — reserved for future shared use
+│
+├── 10.0.16.0/20  — Tenant private subnets, AZ-a (4,094 IPs)
+├── 10.0.32.0/20  — Tenant private subnets, AZ-b (4,094 IPs)
+├── 10.0.48.0/20  — Tenant private subnets, AZ-c (4,094 IPs)
+│
+├── 10.0.64.0/20  — Tenant public subnets, AZ-a (for ALB/NLB)
+├── 10.0.80.0/20  — Tenant public subnets, AZ-b
+├── 10.0.96.0/20  — Tenant public subnets, AZ-c
+│
+└── 10.0.128.0/17 — Unallocated (future expansion)
+```
+
+### Guidelines for Tenant Provisioners
+
+1. **Private subnets** (worker nodes): Use `10.0.16.0/20`, `10.0.32.0/20`, `10.0.48.0/20` — one per AZ. Attach to the **private route table** exported by this stack.
+2. **Public subnets** (load balancers): Use `10.0.64.0/20`, `10.0.80.0/20`, `10.0.96.0/20` — one per AZ. Attach to the **public route table**.
+3. **Multi-AZ**: Always create subnets in at least 2 AZs for high availability. Use `Fn::GetAZs` to select AZs dynamically.
+4. **Route table association**: Read the VPC ID from SSM (`/express-compute/infra/network/vpc-id`). Discover route tables via VPC tags or add new SSM parameters if needed.
+5. **Do not use** `10.0.0.0/20` — this range is reserved for shared infrastructure.
+
+### NAT Egress
+
+- When `EnableNatGateway=false` (default): private subnets have **no internet egress**. S3 is reachable via the gateway endpoint.
+- When `EnableNatGateway=true`: the private route table has a default route through NAT. All private subnets associated with it get internet egress.
+
 ## SSM Outputs
 
 | Path | Value |

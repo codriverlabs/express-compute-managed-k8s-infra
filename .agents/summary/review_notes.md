@@ -29,7 +29,7 @@ No inconsistencies detected across documents.
 | Tenant integration | Consumer contract is described but no example consumer code | Low | Add example snippet showing SSM parameter reads from tenant provisioner |
 | Security | IAM role for flow logs uses `Resource: *` | Low | Consider scoping to the specific log group ARN |
 | Monitoring | No CloudWatch alarms or dashboards defined | Low | Consider adding alarms for flow log delivery failures |
-| Subnet strategy | Only NAT subnet is created; consumer subnet creation is undocumented | Medium | Document expected subnet CIDR allocation for tenants |
+| Subnet strategy | Only NAT subnet is created; consumer subnet creation is undocumented | ~~Medium~~ | ✅ Documented in README.md "Tenant Subnet Allocation" section |
 | Backup/DR | No documentation of disaster recovery or cross-region replication | Low | Document recovery procedure (re-run setup script) |
 
 ### Language Support
@@ -43,5 +43,5 @@ No inconsistencies detected across documents.
 
 1. **Add CDK assertion tests** — The project has zero test coverage. `cdk-assertions` would catch template regressions.
 2. **Scope flow logs IAM policy** — Replace `Resource: *` with the specific log group ARN for least-privilege.
-3. **Document tenant subnet allocation** — Consumers need to know which CIDRs are available for their subnets within the `/16`.
+3. **~~Document tenant subnet allocation~~** — ✅ Done. See README.md "Tenant Subnet Allocation" section.
 4. **Consider adding a second AZ** — The NAT subnet is single-AZ; if tenants need multi-AZ, document how they should handle this.
