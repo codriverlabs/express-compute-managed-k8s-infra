@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REGION="${1:-us-east-1}"
-PROJECT_NAME="${2:-ecp-managed-k8s-infra}"
+PROJECT_NAME="${2:-express-compute-managed-k8s-infra}"
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║   Express Compute Shared VPC — Destroy (CDK)          ║"

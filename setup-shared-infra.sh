@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REGION="${1:-us-east-1}"
-PROJECT_NAME="${2:-ecp-managed-k8s-infra}"
+PROJECT_NAME="${2:-express-compute-managed-k8s-infra}"
 INSTANCE_TYPE_ARM64="${3:-c6g.xlarge}"
 INSTANCE_TYPE_X86="${4:-m7i.large}"
 DISK_SIZE_GB="${5:-20}"
