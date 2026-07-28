@@ -17,6 +17,7 @@ echo "  Project: ${PROJECT_NAME}"
 echo ""
 
 export CDK_DEFAULT_REGION="${REGION}"
+export AWS_REGION="${REGION}"
 export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
 CDK_DIR="$(dirname "$0")/infra"
