@@ -186,7 +186,9 @@ public class ExpressComputeManagedK8sInfraStack extends Stack {
                         "logs:PutLogEvents",
                         "logs:DescribeLogGroups",
                         "logs:DescribeLogStreams"))
-                .resources(List.of("*"))
+                .resources(List.of(
+                        logGroup.getLogGroupArn(),
+                        logGroup.getLogGroupArn() + ":*"))
                 .build());
 
         CfnFlowLog.Builder.create(this, "FlowLog")
