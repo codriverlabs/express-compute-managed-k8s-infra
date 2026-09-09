@@ -336,9 +336,9 @@ class ExpressComputeManagedK8sInfraStackTest {
     class SsmParameters {
 
         @Test
-        void createsTenSsmParameters() {
-            // 4 EKS-D LT + 4 k3s LT + vpc-id + nat-gateway-enabled = 10
-            template.resourceCountIs("AWS::SSM::Parameter", 10);
+        void createsFourteenSsmParameters() {
+            // 4 EKS-D legacy LT + 4 EKS-D prefixed LT + 4 k3s LT + vpc-id + nat-gateway-enabled = 14
+            template.resourceCountIs("AWS::SSM::Parameter", 14);
         }
 
         @Test
@@ -380,6 +380,35 @@ class ExpressComputeManagedK8sInfraStackTest {
         void publishesX86OndemandLaunchTemplate() {
             template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
                     "Name", "/express-compute/infra/launch-template/x86_64/ondemand"
+            ));
+        }
+
+        // EKS-D distribution-prefixed paths (consistent with k3s)
+        @Test
+        void publishesEksDArm64SpotLaunchTemplate() {
+            template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
+                    "Name", "/express-compute/infra/launch-template/eks-d/arm64/spot"
+            ));
+        }
+
+        @Test
+        void publishesEksDArm64OndemandLaunchTemplate() {
+            template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
+                    "Name", "/express-compute/infra/launch-template/eks-d/arm64/ondemand"
+            ));
+        }
+
+        @Test
+        void publishesEksDX86SpotLaunchTemplate() {
+            template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
+                    "Name", "/express-compute/infra/launch-template/eks-d/x86_64/spot"
+            ));
+        }
+
+        @Test
+        void publishesEksDX86OndemandLaunchTemplate() {
+            template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
+                    "Name", "/express-compute/infra/launch-template/eks-d/x86_64/ondemand"
             ));
         }
 
