@@ -358,6 +358,14 @@ public class ExpressComputeManagedK8sInfraStack extends Stack {
                     .stringValue(lt.getRef())
                     .description("Express Compute shared launch template ID — " + cfg.key())
                     .build();
+
+            // Distribution-prefixed path for consistency with k3s
+            // (legacy unprefixed path kept above for backward compatibility)
+            StringParameter.Builder.create(this, "SsmLtEksD-" + cfg.key())
+                    .parameterName("/express-compute/infra/launch-template/eks-d/" + cfg.arch() + "/" + cfg.mode())
+                    .stringValue(lt.getRef())
+                    .description("EKS-D launch template ID — " + cfg.key())
+                    .build();
         }
     }
 
