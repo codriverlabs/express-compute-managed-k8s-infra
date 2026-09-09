@@ -51,6 +51,28 @@ public class ExpressComputeManagedK8sInfraStack extends Stack {
                 .description("AWS region — must be passed explicitly at deploy time")
                 .build();
 
+        // k3s-Xpress parameters
+        CfnParameter pK3sInstanceTypeArm64 = CfnParameter.Builder.create(this, "K3sInstanceTypeArm64")
+                .type("String")
+                .defaultValue("c6g.large")
+                .description("k3s-Xpress ARM64 instance type")
+                .build();
+        CfnParameter pK3sInstanceTypeX86 = CfnParameter.Builder.create(this, "K3sInstanceTypeX86")
+                .type("String")
+                .defaultValue("m7i.large")
+                .description("k3s-Xpress x86_64 instance type")
+                .build();
+        CfnParameter pK3sDiskSizeGb = CfnParameter.Builder.create(this, "K3sDiskSizeGb")
+                .type("Number")
+                .defaultValue(15)
+                .description("k3s-Xpress root disk size in GiB")
+                .build();
+        CfnParameter pK3sDataDiskSizeGb = CfnParameter.Builder.create(this, "K3sDataDiskSizeGb")
+                .type("Number")
+                .defaultValue(2)
+                .description("k3s-Xpress data disk size in GiB (SQLite state)")
+                .build();
+
         CfnCondition condNat = CfnCondition.Builder.create(this, "NatEnabled")
                 .expression(Fn.conditionEquals(pEnableNatGateway.getValueAsString(), "true")).build();
 
@@ -65,6 +87,12 @@ public class ExpressComputeManagedK8sInfraStack extends Stack {
         createEcrPullThroughCache();
         createS3Endpoint(networking.vpcId(), networking.publicRtId(), networking.privateRtId(), region);
         createLaunchTemplates(projectName, instanceTypeArm64, instanceTypeX86_64, diskSizeGb, region);
+        createK3sLaunchTemplates(projectName,
+                pK3sInstanceTypeArm64.getValueAsString(),
+                pK3sInstanceTypeX86.getValueAsString(),
+                pK3sDiskSizeGb.getValueAsNumber(),
+                pK3sDataDiskSizeGb.getValueAsNumber(),
+                region);
         createNetworkSsmParams(networking, pEnableNatGateway.getValueAsString());
     }
 
@@ -329,6 +357,100 @@ public class ExpressComputeManagedK8sInfraStack extends Stack {
                     .parameterName("/express-compute/infra/launch-template/" + cfg.arch() + "/" + cfg.mode())
                     .stringValue(lt.getRef())
                     .description("Express Compute shared launch template ID — " + cfg.key())
+                    .build();
+        }
+    }
+
+    // ── k3s-Xpress Launch Templates ──────────────────────────────────────────
+
+    private void createK3sLaunchTemplates(String projectName, String instanceTypeArm64,
+                                           String instanceTypeX86_64, Number rootDiskSizeGb,
+                                           Number dataDiskSizeGb, String region) {
+        List<LtConfig> configs = List.of(
+                new LtConfig("arm64",  true),
+                new LtConfig("arm64",  false),
+                new LtConfig("x86_64", true),
+                new LtConfig("x86_64", false)
+        );
+
+        for (LtConfig cfg : configs) {
+            String ltName = projectName + "-k3s-" + cfg.key() + "-" + region;
+
+            var ltDataBuilder = CfnLaunchTemplate.LaunchTemplateDataProperty.builder()
+                    .instanceType(cfg.instanceType(instanceTypeArm64, instanceTypeX86_64))
+                    .metadataOptions(CfnLaunchTemplate.MetadataOptionsProperty.builder()
+                            .httpTokens("required")
+                            .httpPutResponseHopLimit(2)
+                            .build())
+                    .blockDeviceMappings(List.of(
+                            CfnLaunchTemplate.BlockDeviceMappingProperty.builder()
+                                    .deviceName("/dev/xvda")
+                                    .ebs(CfnLaunchTemplate.EbsProperty.builder()
+                                            .volumeType("gp3")
+                                            .volumeSize(rootDiskSizeGb)
+                                            .deleteOnTermination(true)
+                                            .encrypted(true)
+                                            .build())
+                                    .build(),
+                            CfnLaunchTemplate.BlockDeviceMappingProperty.builder()
+                                    .deviceName("/dev/sdf")
+                                    .ebs(CfnLaunchTemplate.EbsProperty.builder()
+                                            .volumeType("gp3")
+                                            .volumeSize(dataDiskSizeGb)
+                                            .deleteOnTermination(true)
+                                            .encrypted(true)
+                                            .build())
+                                    .build()))
+                    .tagSpecifications(List.of(
+                            CfnLaunchTemplate.TagSpecificationProperty.builder()
+                                    .resourceType("instance")
+                                    .tags(List.of(
+                                            tag("Platform", "k3s-xpress"),
+                                            tag("Distribution", "k3s"),
+                                            tag("Arch", cfg.arch()),
+                                            tag("ManagedBy", "Karpenter")))
+                                    .build(),
+                            CfnLaunchTemplate.TagSpecificationProperty.builder()
+                                    .resourceType("volume")
+                                    .tags(List.of(
+                                            tag("Platform", "k3s-xpress"),
+                                            tag("ManagedBy", "CDK")))
+                                    .build()));
+
+            if (cfg.spot()) {
+                ltDataBuilder
+                        .instanceMarketOptions(CfnLaunchTemplate.InstanceMarketOptionsProperty.builder()
+                                .marketType("spot")
+                                .spotOptions(CfnLaunchTemplate.SpotOptionsProperty.builder()
+                                        .spotInstanceType("persistent")
+                                        .instanceInterruptionBehavior("hibernate")
+                                        .build())
+                                .build())
+                        .hibernationOptions(CfnLaunchTemplate.HibernationOptionsProperty.builder()
+                                .configured(true)
+                                .build());
+            }
+
+            CfnLaunchTemplate lt = CfnLaunchTemplate.Builder.create(this, "K3sLt-" + cfg.key())
+                    .launchTemplateName(ltName)
+                    .launchTemplateData(ltDataBuilder.build())
+                    .tagSpecifications(List.of(
+                            CfnLaunchTemplate.LaunchTemplateTagSpecificationProperty.builder()
+                                    .resourceType("launch-template")
+                                    .tags(List.of(
+                                            tag("Name", ltName),
+                                            tag("Platform", "k3s-xpress"),
+                                            tag("Distribution", "k3s"),
+                                            tag("Arch", cfg.arch()),
+                                            tag("Mode", cfg.spot() ? "spot" : "on-demand"),
+                                            tag("ManagedBy", "CDK")))
+                                    .build()))
+                    .build();
+
+            StringParameter.Builder.create(this, "K3sSsmLt-" + cfg.key())
+                    .parameterName("/express-compute/infra/launch-template/k3s/" + cfg.arch() + "/" + cfg.mode())
+                    .stringValue(lt.getRef())
+                    .description("k3s-Xpress launch template ID — " + cfg.key())
                     .build();
         }
     }

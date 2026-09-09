@@ -47,6 +47,11 @@ class ExpressComputeManagedK8sInfraStackTest {
                     "Type", "String",
                     "AllowedValues", java.util.List.of("true", "false")
             ));
+            // k3s-Xpress parameters
+            template.hasParameter("K3sInstanceTypeArm64", Map.of("Type", "String"));
+            template.hasParameter("K3sInstanceTypeX86", Map.of("Type", "String"));
+            template.hasParameter("K3sDiskSizeGb", Map.of("Type", "Number"));
+            template.hasParameter("K3sDataDiskSizeGb", Map.of("Type", "Number"));
         }
     }
 
@@ -212,8 +217,9 @@ class ExpressComputeManagedK8sInfraStackTest {
     class LaunchTemplates {
 
         @Test
-        void createsFourLaunchTemplates() {
-            template.resourceCountIs("AWS::EC2::LaunchTemplate", 4);
+        void createsEightLaunchTemplates() {
+            // 4 EKS-D + 4 k3s = 8 total
+            template.resourceCountIs("AWS::EC2::LaunchTemplate", 8);
         }
 
         @Test
@@ -304,7 +310,7 @@ class ExpressComputeManagedK8sInfraStackTest {
                     assertThat(hibernation.get("Configured")).isEqualTo(true);
                 }
             }
-            assertThat(spotCount).isEqualTo(2);
+            assertThat(spotCount).isEqualTo(4); // 2 EKS-D + 2 k3s
         }
 
         @Test
@@ -321,7 +327,7 @@ class ExpressComputeManagedK8sInfraStackTest {
                     onDemandCount++;
                 }
             }
-            assertThat(onDemandCount).isEqualTo(2);
+            assertThat(onDemandCount).isEqualTo(4); // 2 EKS-D + 2 k3s
         }
     }
 
@@ -330,8 +336,9 @@ class ExpressComputeManagedK8sInfraStackTest {
     class SsmParameters {
 
         @Test
-        void createsSixSsmParameters() {
-            template.resourceCountIs("AWS::SSM::Parameter", 6);
+        void createsTenSsmParameters() {
+            // 4 EKS-D LT + 4 k3s LT + vpc-id + nat-gateway-enabled = 10
+            template.resourceCountIs("AWS::SSM::Parameter", 10);
         }
 
         @Test
@@ -374,6 +381,117 @@ class ExpressComputeManagedK8sInfraStackTest {
             template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
                     "Name", "/express-compute/infra/launch-template/x86_64/ondemand"
             ));
+        }
+
+        @Test
+        void publishesK3sArm64SpotLaunchTemplate() {
+            template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
+                    "Name", "/express-compute/infra/launch-template/k3s/arm64/spot"
+            ));
+        }
+
+        @Test
+        void publishesK3sArm64OndemandLaunchTemplate() {
+            template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
+                    "Name", "/express-compute/infra/launch-template/k3s/arm64/ondemand"
+            ));
+        }
+
+        @Test
+        void publishesK3sX86SpotLaunchTemplate() {
+            template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
+                    "Name", "/express-compute/infra/launch-template/k3s/x86_64/spot"
+            ));
+        }
+
+        @Test
+        void publishesK3sX86OndemandLaunchTemplate() {
+            template.hasResourceProperties("AWS::SSM::Parameter", Map.of(
+                    "Name", "/express-compute/infra/launch-template/k3s/x86_64/ondemand"
+            ));
+        }
+    }
+
+    @Nested
+    @DisplayName("k3s-Xpress Launch Templates")
+    class K3sLaunchTemplates {
+
+        @Test
+        void k3sTemplatesHaveDistributionTag() {
+            var resources = template.findResources("AWS::EC2::LaunchTemplate");
+            int k3sCount = 0;
+            for (var entry : resources.entrySet()) {
+                if (!entry.getKey().startsWith("K3sLt")) continue;
+                k3sCount++;
+                @SuppressWarnings("unchecked")
+                var props = (Map<String, Object>) ((Map<String, Object>) entry.getValue()).get("Properties");
+                @SuppressWarnings("unchecked")
+                var tagSpecs = (java.util.List<Map<String, Object>>) props.get("TagSpecifications");
+                boolean hasDistributionTag = tagSpecs.stream()
+                        .flatMap(ts -> ((java.util.List<Map<String, Object>>) ts.get("Tags")).stream())
+                        .anyMatch(t -> "Distribution".equals(t.get("Key")) && "k3s".equals(t.get("Value")));
+                assertThat(hasDistributionTag)
+                        .as("k3s LT %s should have Distribution=k3s tag", entry.getKey())
+                        .isTrue();
+            }
+            assertThat(k3sCount).isEqualTo(4);
+        }
+
+        @Test
+        void k3sTemplatesHaveK3sPlatformTag() {
+            var resources = template.findResources("AWS::EC2::LaunchTemplate");
+            for (var entry : resources.entrySet()) {
+                if (!entry.getKey().startsWith("K3sLt")) continue;
+                @SuppressWarnings("unchecked")
+                var props = (Map<String, Object>) ((Map<String, Object>) entry.getValue()).get("Properties");
+                @SuppressWarnings("unchecked")
+                var ltData = (Map<String, Object>) props.get("LaunchTemplateData");
+                @SuppressWarnings("unchecked")
+                var instanceTagSpecs = (java.util.List<Map<String, Object>>) ltData.get("TagSpecifications");
+                boolean hasPlatformTag = instanceTagSpecs.stream()
+                        .filter(ts -> "instance".equals(ts.get("ResourceType")))
+                        .flatMap(ts -> ((java.util.List<Map<String, Object>>) ts.get("Tags")).stream())
+                        .anyMatch(t -> "Platform".equals(t.get("Key")) && "k3s-xpress".equals(t.get("Value")));
+                assertThat(hasPlatformTag)
+                        .as("k3s LT %s instance tags should have Platform=k3s-xpress", entry.getKey())
+                        .isTrue();
+            }
+        }
+
+        @Test
+        void k3sTemplatesRequireImdsV2() {
+            var resources = template.findResources("AWS::EC2::LaunchTemplate");
+            for (var entry : resources.entrySet()) {
+                if (!entry.getKey().startsWith("K3sLt")) continue;
+                @SuppressWarnings("unchecked")
+                var props = (Map<String, Object>) ((Map<String, Object>) entry.getValue()).get("Properties");
+                @SuppressWarnings("unchecked")
+                var ltData = (Map<String, Object>) props.get("LaunchTemplateData");
+                @SuppressWarnings("unchecked")
+                var metadata = (Map<String, Object>) ltData.get("MetadataOptions");
+                assertThat(metadata.get("HttpTokens")).isEqualTo("required");
+            }
+        }
+
+        @Test
+        void k3sTemplatesHaveTwoEncryptedGp3Volumes() {
+            var resources = template.findResources("AWS::EC2::LaunchTemplate");
+            for (var entry : resources.entrySet()) {
+                if (!entry.getKey().startsWith("K3sLt")) continue;
+                @SuppressWarnings("unchecked")
+                var props = (Map<String, Object>) ((Map<String, Object>) entry.getValue()).get("Properties");
+                @SuppressWarnings("unchecked")
+                var ltData = (Map<String, Object>) props.get("LaunchTemplateData");
+                @SuppressWarnings("unchecked")
+                var blockDevices = (java.util.List<Map<String, Object>>) ltData.get("BlockDeviceMappings");
+                assertThat(blockDevices).hasSize(2);
+                for (var bd : blockDevices) {
+                    @SuppressWarnings("unchecked")
+                    var ebs = (Map<String, Object>) bd.get("Ebs");
+                    assertThat(ebs.get("VolumeType")).isEqualTo("gp3");
+                    assertThat(ebs.get("Encrypted")).isEqualTo(true);
+                }
+            }
         }
     }
 
