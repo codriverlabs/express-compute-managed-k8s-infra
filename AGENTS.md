@@ -60,7 +60,7 @@ graph LR
 All outputs live under `/express-compute/infra/`:
 - `.../network/vpc-id`
 - `.../network/nat-gateway-enabled`
-- `.../launch-template/{arm64|x86_64}/{spot|ondemand}`
+- `.../launch-template/{eks-d|k3s}/{arm64|x86_64}/{spot|ondemand}`
 
 ## CI/CD
 

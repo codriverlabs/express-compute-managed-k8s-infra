@@ -110,7 +110,7 @@ This stack creates the VPC (`10.0.0.0/16`) but only provisions one subnet — th
 |------|-------|
 | `/express-compute/infra/network/vpc-id` | VPC ID |
 | `/express-compute/infra/network/nat-gateway-enabled` | `true` or `false` |
-| `/express-compute/infra/launch-template/{arch}/{spot\|ondemand}` | Launch template ID |
+| `/express-compute/infra/launch-template/{eks-d\|k3s}/{arch}/{spot\|ondemand}` | Launch template ID |
 
 ## Directory Structure
 
